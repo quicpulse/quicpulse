@@ -51,14 +51,10 @@ jobs:
             target: x86_64-apple-darwin
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-          - runner: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
           - runner: windows-latest
             target: aarch64-pc-windows-msvc
           - runner: macos-14
             target: aarch64-apple-darwin
-          - runner: ubuntu-latest
-            target: x86_64-unknown-freebsd
 
     steps:
       - name: Checkout code
@@ -78,37 +74,20 @@ jobs:
             target/
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - name: Install dependencies for ARM cross-compile (Linux)
-        if: runner.os == 'Linux' && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          if [ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-          elif [ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]; then
-            sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
-          fi
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
       - name: Configure cross-linker (Linux ARM)
-        if: runner.os == 'Linux' && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           mkdir -p ~/.cargo
-          if [ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]; then
-            echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
-            echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
-          elif [ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]; then
-            echo '[target.armv7-unknown-linux-gnueabihf]' >> ~/.cargo/config.toml
-            echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config.toml
-          fi
-      - name: Install cross for FreeBSD
-        if: matrix.target == 'x86_64-unknown-freebsd'
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      - name: Build project (FreeBSD via cross)
-        if: matrix.target == 'x86_64-unknown-freebsd'
-        # Disable JavaScript feature - rquickjs doesn't have pre-built bindings for FreeBSD
-        run: cross build --target ${{ matrix.target }} --no-default-features
+          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
       - name: Build project
-        if: matrix.target != 'x86_64-unknown-freebsd'
         run: cargo build --target ${{ matrix.target }}
       - name: Run tests
-        if: matrix.target != 'aarch64-unknown-linux-gnu' && matrix.target != 'armv7-unknown-linux-gnueabihf' && matrix.target != 'aarch64-pc-windows-msvc' && matrix.target != 'x86_64-pc-windows-msvc' && matrix.target != 'x86_64-unknown-freebsd'
+        if: matrix.target != 'aarch64-unknown-linux-gnu' && matrix.target != 'aarch64-pc-windows-msvc' && matrix.target != 'x86_64-pc-windows-msvc'
         run: cargo test --target ${{ matrix.target }}
 
 
@@ -143,10 +122,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             os-arch: linux-arm64
             asset_ext: .tar.gz
-          - runner: ubuntu-latest
-            target: armv7-unknown-linux-gnueabihf
-            os-arch: linux-armv7
-            asset_ext: .tar.gz
           - runner: windows-latest
             target: aarch64-pc-windows-msvc
             os-arch: windows-arm64
@@ -154,10 +129,6 @@ jobs:
           - runner: macos-14
             target: aarch64-apple-darwin
             os-arch: macos-arm64
-            asset_ext: .tar.gz
-          - runner: ubuntu-latest
-            target: x86_64-unknown-freebsd
-            os-arch: freebsd-x86_64
             asset_ext: .tar.gz
     steps:
       - name: Checkout code
@@ -170,34 +141,17 @@ jobs:
         if: false # runner.os == 'Windows' - Disabled by user request
         run: choco install nsis
       - name: Install dependencies for ARM cross-compile (Linux)
-        if: runner.os == 'Linux' && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           sudo apt-get update
-          if [ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
-          elif [ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]; then
-            sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armhf-cross
-          fi
+          sudo apt-get install -y gcc-aarch64-linux-gnu libc6-dev-arm64-cross
       - name: Configure cross-linker (Linux ARM)
-        if: runner.os == 'Linux' && (matrix.target == 'aarch64-unknown-linux-gnu' || matrix.target == 'armv7-unknown-linux-gnueabihf')
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
           mkdir -p ~/.cargo
-          if [ "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]; then
-            echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
-            echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
-          elif [ "${{ matrix.target }}" == "armv7-unknown-linux-gnueabihf" ]; then
-            echo '[target.armv7-unknown-linux-gnueabihf]' >> ~/.cargo/config.toml
-            echo 'linker = "arm-linux-gnueabihf-gcc"' >> ~/.cargo/config.toml
-          fi
-      - name: Install cross for FreeBSD
-        if: matrix.target == 'x86_64-unknown-freebsd'
-        run: cargo install cross --git https://github.com/cross-rs/cross
-      - name: Build binary (FreeBSD via cross)
-        if: matrix.target == 'x86_64-unknown-freebsd'
-        # Disable JavaScript feature - rquickjs doesn't have pre-built bindings for FreeBSD
-        run: cross build --release --target ${{ matrix.target }} --no-default-features
+          echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
       - name: Build binary
-        if: matrix.target != 'x86_64-unknown-freebsd'
         run: cargo build --release --target ${{ matrix.target }}
       - name: Package artifacts
         shell: bash
