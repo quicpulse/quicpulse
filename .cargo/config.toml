@@ -1,0 +1,5 @@
+# Cargo configuration for quicpulse
+
+[build]
+# Required for reqwest's unstable http3 feature
+rustflags = ["--cfg", "reqwest_unstable"]

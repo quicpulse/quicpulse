@@ -1,0 +1,141 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "Petstore API",
+    "description": "A sample Swagger 2.0 API for testing",
+    "version": "1.0.0"
+  },
+  "host": "api.petstore.io",
+  "basePath": "/v2",
+  "schemes": ["https"],
+  "consumes": ["application/json"],
+  "produces": ["application/json"],
+  "tags": [
+    {"name": "pets", "description": "Pet operations"},
+    {"name": "users", "description": "User operations"}
+  ],
+  "paths": {
+    "/pets": {
+      "get": {
+        "operationId": "listPets",
+        "summary": "List all pets",
+        "tags": ["pets"],
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "integer",
+            "format": "int32",
+            "description": "Maximum pets to return",
+            "default": 20
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pet list",
+            "schema": {
+              "type": "array",
+              "items": {"$ref": "#/definitions/Pet"}
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createPet",
+        "summary": "Create a pet",
+        "tags": ["pets"],
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {"$ref": "#/definitions/NewPet"}
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Created",
+            "schema": {"$ref": "#/definitions/Pet"}
+          }
+        }
+      }
+    },
+    "/pets/{petId}": {
+      "get": {
+        "operationId": "getPet",
+        "summary": "Get pet by ID",
+        "tags": ["pets"],
+        "parameters": [
+          {
+            "name": "petId",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int64"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pet found",
+            "schema": {"$ref": "#/definitions/Pet"}
+          },
+          "404": {"description": "Not found"}
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "operationId": "listUsers",
+        "summary": "List users",
+        "tags": ["users"],
+        "responses": {
+          "200": {
+            "description": "User list",
+            "schema": {
+              "type": "array",
+              "items": {"$ref": "#/definitions/User"}
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "Pet": {
+      "type": "object",
+      "required": ["id", "name"],
+      "properties": {
+        "id": {"type": "integer", "format": "int64"},
+        "name": {"type": "string"},
+        "tag": {"type": "string"},
+        "status": {
+          "type": "string",
+          "enum": ["available", "pending", "sold"]
+        }
+      }
+    },
+    "NewPet": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {"type": "string"},
+        "tag": {"type": "string"}
+      }
+    },
+    "User": {
+      "type": "object",
+      "properties": {
+        "id": {"type": "integer", "format": "int64"},
+        "username": {"type": "string"},
+        "email": {"type": "string"}
+      }
+    }
+  },
+  "securityDefinitions": {
+    "api_key": {
+      "type": "apiKey",
+      "name": "X-API-Key",
+      "in": "header"
+    }
+  }
+}

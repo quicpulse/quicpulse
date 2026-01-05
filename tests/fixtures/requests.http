@@ -1,0 +1,38 @@
+### Get all users
+GET http://localhost:8080/users
+Accept: application/json
+X-Request-ID: test-001
+
+### Create a new user
+POST http://localhost:8080/users
+Content-Type: application/json
+Accept: application/json
+
+{
+  "name": "John Doe",
+  "email": "john@example.com"
+}
+
+### Get user by ID
+GET http://localhost:8080/users/1
+Accept: application/json
+
+### Update user
+PUT http://localhost:8080/users/1
+Content-Type: application/json
+
+{
+  "name": "John Updated",
+  "email": "john.updated@example.com"
+}
+
+### Delete user
+DELETE http://localhost:8080/users/1
+Authorization: Bearer test-token
+
+### Search with query params
+GET http://localhost:8080/search?q=test&limit=10
+Accept: application/json
+
+### Health check
+GET http://localhost:8080/health

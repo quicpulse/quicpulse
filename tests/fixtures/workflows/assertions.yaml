@@ -1,0 +1,29 @@
+name: Assertions Test Workflow
+description: Tests all assertion types
+
+steps:
+  - name: Test status assertions
+    method: GET
+    url: "{{ base_url }}/status/200"
+    assert:
+      status: 200
+
+  - name: Test body assertions
+    method: POST
+    url: "{{ base_url }}/post"
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "name": "John Doe",
+        "age": 30,
+        "active": true,
+        "score": 95.5,
+        "tags": ["admin", "user"],
+        "metadata": null
+      }
+    assert:
+      status: 200
+      body:
+        json.age: 30
+        json.active: true

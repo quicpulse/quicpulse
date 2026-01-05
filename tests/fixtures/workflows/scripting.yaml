@@ -1,0 +1,56 @@
+name: Scripting Test Workflow
+description: Tests pre_script, post_script, and script_assert
+
+variables:
+  secret: "my_secret_key"
+  counter: 0
+
+steps:
+  - name: Pre-script test
+    method: POST
+    url: "{{ base_url }}/post"
+    pre_script:
+      code: |
+        pub fn main() {
+          // Pre-script can compute values but vars is not available in current implementation
+          // Just verify the script executes successfully
+          let ts = crypto::timestamp();
+          console::log(`Pre-script executed at ${ts}`);
+          true
+        }
+    headers:
+      Content-Type: application/json
+    body: |
+      {"data": "test"}
+    assert:
+      status: 200
+
+  - name: Post-script test
+    method: POST
+    url: "{{ base_url }}/post"
+    headers:
+      Content-Type: application/json
+    body: |
+      {"items": [1, 2, 3, 4, 5]}
+    post_script:
+      code: |
+        pub fn main() {
+          // Post-script executes after the response
+          console::log("Post-script executed");
+          true
+        }
+
+  - name: Script assert test
+    method: GET
+    url: "{{ base_url }}/status/200"
+    script_assert:
+      code: |
+        pub fn main() {
+          // Verify script_assert can run complex logic
+          let value = 200;
+          if value < 200 || value >= 300 {
+            panic!("Status should be success range");
+          }
+          console::log("Script assert passed");
+          true
+        }

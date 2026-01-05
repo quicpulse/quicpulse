@@ -1,0 +1,27 @@
+name: Magic Values Test Workflow
+description: Tests magic value expansion
+
+steps:
+  - name: Test magic values in headers
+    method: GET
+    url: "{{ base_url }}/get"
+    headers:
+      X-Request-ID: "{uuid}"
+      X-Timestamp: "{timestamp}"
+    assert:
+      status: 200
+
+  - name: Test magic values in body
+    method: POST
+    url: "{{ base_url }}/post"
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "id": "{uuid}",
+        "created_at": "{now}",
+        "random_number": {random_int:100},
+        "random_string": "{random_string:8}"
+      }
+    assert:
+      status: 200

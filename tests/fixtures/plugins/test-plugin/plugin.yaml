@@ -1,0 +1,9 @@
+name: test-plugin
+version: "1.0.0"
+description: A test plugin for integration testing
+author: QuicPulse Test
+plugin_type: binary
+entry: plugin.sh
+hooks:
+  - pre_request
+  - post_response

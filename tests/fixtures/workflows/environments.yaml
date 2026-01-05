@@ -1,0 +1,29 @@
+name: Environment Test Workflow
+description: Tests environment variable overrides
+
+variables:
+  api_key: default_key
+  timeout: 30
+
+environments:
+  dev:
+    api_key: dev_key_123
+    timeout: 60
+    debug: true
+  staging:
+    api_key: staging_key_456
+    timeout: 45
+  production:
+    api_key: prod_key_789
+    timeout: 10
+
+steps:
+  - name: Check environment values
+    method: GET
+    url: "{{ base_url }}/get"
+    headers:
+      X-API-Key: "{{ api_key }}"
+    query:
+      timeout: "{{ timeout }}"
+    assert:
+      status: 200

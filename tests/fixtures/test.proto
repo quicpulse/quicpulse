@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package test;
+
+// A simple test service for integration testing
+service TestService {
+  // Echo returns the same message back
+  rpc Echo(EchoRequest) returns (EchoResponse);
+
+  // GetUser retrieves a user by ID
+  rpc GetUser(GetUserRequest) returns (User);
+
+  // ListUsers returns all users
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse);
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message = 1;
+  int64 timestamp = 2;
+}
+
+message GetUserRequest {
+  int32 id = 1;
+}
+
+message User {
+  int32 id = 1;
+  string name = 2;
+  string email = 3;
+}
+
+message ListUsersRequest {
+  int32 page = 1;
+  int32 limit = 2;
+}
+
+message ListUsersResponse {
+  repeated User users = 1;
+  int32 total = 2;
+}

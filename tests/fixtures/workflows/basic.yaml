@@ -1,0 +1,26 @@
+name: Basic Workflow Test
+description: Tests basic workflow functionality
+
+variables:
+  test_var: "hello"
+  numeric_var: 42
+
+steps:
+  - name: Simple GET
+    method: GET
+    url: "{{ base_url }}/get"
+    assert:
+      status: 200
+
+  - name: POST with body
+    method: POST
+    url: "{{ base_url }}/post"
+    headers:
+      Content-Type: application/json
+    body: |
+      {
+        "message": "{{ test_var }}",
+        "count": {{ numeric_var }}
+      }
+    assert:
+      status: 200

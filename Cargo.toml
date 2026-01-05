@@ -1,0 +1,207 @@
+[package]
+name = "quicpulse"
+version = "0.0.1"
+edition = "2021"
+rust-version = "1.90"
+description = "A user-friendly HTTP client for the command line"
+authors = ["quicpulse Contributors"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/quicpulse/quicpulse"
+homepage = "https://github.com/quicpulse/quicpulse"
+documentation = "https://docs.rs/quicpulse"
+keywords = ["http", "cli", "rest", "api", "curl"]
+categories = ["command-line-utilities", "web-programming::http-client"]
+default-run = "quicpulse"
+include = [
+    "src/**/*",
+    "Cargo.toml",
+    "LICENSE-MIT",
+    "LICENSE-APACHE",
+    "README.md",
+]
+
+[dependencies]
+# CLI
+clap = { version = "4", features = ["derive", "env", "wrap_help", "color"] }
+clap_complete = "4"
+clap_mangen = "0.2"
+ctrlc = "3"
+
+# HTTP Client
+reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "stream", "cookies", "gzip", "deflate", "brotli", "zstd", "socks", "rustls", "rustls-native-certs", "http2", "http3", "blocking", "form"] }
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
+
+# HTTP/3 (QUIC) - Pure Rust implementation
+h3 = "0.0.8"
+h3-quinn = "0.0.10"
+
+# gRPC (for Phase 10)
+tonic = { version = "0.14", features = ["tls-ring", "tls-native-roots", "gzip"] }
+prost = "0.14"
+prost-types = "0.14"
+prost-reflect = { version = "0.16", features = ["serde"] }
+protox = "0.9"
+
+# WebSocket
+tokio-tungstenite = { version = "0.28", features = ["rustls-tls-native-roots"] }
+tungstenite = "0.28"
+webpki-roots = "1.0"
+
+# JSON
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_urlencoded = "0.7"
+
+# URL
+url = "2"
+
+# I/O & Streams
+bytes = "1"
+futures = "0.3"
+async-stream = "0.3"
+
+# Tower Middleware (Phase 3: idiomatic Rust middleware pattern)
+tower = "0.5"
+tower-service = "0.3"
+tower-layer = "0.3"
+
+# Encoding
+encoding_rs = "0.8"
+chardetng = "0.1"
+flate2 = "1"
+tar = "0.4"
+
+# Terminal & Output
+crossterm = "0.29"
+indicatif = { version = "0.18", features = ["tokio"] }
+console = "0.16"
+syntect = "5"
+
+# Configuration & Sessions
+dirs = "6"
+home = "0.5"
+
+# Concurrency
+dashmap = "6"
+
+# SSL/TLS (via rustls in reqwest)
+rustls = "0.23"
+rustls-pemfile = "2"
+rustls-native-certs = "0.8"
+
+# Cookies
+cookie = "0.18"
+cookie_store = "0.22"
+
+# Parsing
+winnow = "0.7"
+bitflags = "2"
+
+# Utilities
+anyhow = "1"
+thiserror = "2"
+regex = "1"
+lazy_static = "1"
+once_cell = "1"
+mime = "0.3"
+mime_guess = "2"
+content_disposition = "0.4"
+base64 = "0.22"
+percent-encoding = "2"
+humansize = "2"
+chrono = "0.4"
+rpassword = "7"
+semver = "1"
+sanitize-filename = "0.6"
+
+# Netrc
+netrc-rs = "0.1"
+
+# TTY detection
+atty = "0.2"
+
+# Indexmap for ordered maps
+indexmap = { version = "2", features = ["serde"] }
+
+# Phase 11: Performance & Data
+jaq-core = "2"
+jaq-std = "2"
+jaq-json = { version = "1", features = ["serde_json"] }
+comfy-table = "7"
+csv = "1"
+hdrhistogram = "7"
+
+# Phase 12: Pipelines & Automation
+serde_yaml = "0.9"
+toml = "0.9"
+tera = "1"
+humantime = "2"
+
+# Phase 14: Dynamic Magic Values
+uuid = { version = "1", features = ["v4", "v7"] }
+rand = "0.9"
+urlencoding = "2.1.3"
+
+# Phase 17: Advanced Authentication
+aws-sigv4 = "1"
+aws-credential-types = { version = "1", features = ["hardcoded-credentials"] }
+http = "1"
+sha2 = "0.10"
+hmac = "0.12"
+md5 = "0.8"
+md5_digest = { package = "md-5", version = "0.10" }
+md4 = "0.10"
+hex = "0.4"
+time = "0.3"
+webbrowser = "1"
+
+# Scripting (Rune)
+rune = "0.14"
+rune-modules = { version = "0.14", features = ["http", "json", "toml", "rand", "time", "test", "core", "io"] }
+
+# Scripting (JavaScript via QuickJS)
+rquickjs = { version = "0.11", features = ["full-async", "classes", "properties", "array-buffer", "parallel"], optional = true }
+
+# Scripting modules
+fake = { version = "4", features = ["derive"] }
+dialoguer = "0.12"
+hostname = "0.4"
+
+# Reporting
+junit-report = "0.8"
+
+# Additional crypto
+sha1 = "0.10"
+
+# JSON/XML processing
+jsonpath-rust = "1.0"
+quick-xml = { version = "0.38", features = ["serialize"] }
+jsonschema = "0.38"
+
+# File system
+tempfile = "3"
+
+# Self-update (Phase 25: Clean room - replace custom daemon update checker)
+self_update = "0.42"
+
+# Binary detection (Phase 26: Clean room - replace null-byte heuristic)
+content_inspector = "0.2"
+
+[dev-dependencies]
+tokio-test = "0.4"
+wiremock = "0.6"
+assert_cmd = "2"
+predicates = "3"
+
+[features]
+default = ["javascript"]
+javascript = ["rquickjs"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = 3
+panic = "abort"

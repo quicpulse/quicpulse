@@ -1,0 +1,13 @@
+' OR '1'='1|SQL injection - single quote|4
+" OR "1"="1|SQL injection - double quote|4
+1; DROP TABLE users--|SQL injection - statement termination|5
+<script>alert(1)</script>|XSS - script tag|3
+<img src=x onerror=alert(1)>|XSS - img tag|3
+javascript:alert(1)|XSS - javascript protocol|3
+; ls -la|Command injection - semicolon|5
+| cat /etc/passwd|Command injection - pipe|5
+../../../etc/passwd|Path traversal - unix|4
+..\..\..\..\windows\system32|Path traversal - windows|4
+%00|Null byte injection|3
+{{constructor.constructor('return this')()}}|Prototype pollution|4
+${7*7}|Template injection test|3
