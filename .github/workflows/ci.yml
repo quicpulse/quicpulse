@@ -50,13 +50,23 @@ jobs:
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             musl: false
-          # Linux musl targets (static, Android-compatible)
+          # Linux musl targets (static binaries)
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             musl: true
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-musl
             musl: true
+          # Android targets
+          - runner: ubuntu-latest
+            target: aarch64-linux-android
+            musl: false
+          - runner: ubuntu-latest
+            target: armv7-linux-androideabi
+            musl: false
+          - runner: ubuntu-latest
+            target: x86_64-linux-android
+            musl: false
           # Windows targets
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
@@ -90,6 +100,23 @@ jobs:
           sudo apt-get install -y musl-tools
           curl -LO https://github.com/cross-tools/musl-cross/releases/download/20250929/aarch64-unknown-linux-musl.tar.xz
           tar -xf aarch64-unknown-linux-musl.tar.xz
+      - name: Install Android NDK
+        if: contains(matrix.target, 'android')
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+      - name: Configure Android linkers
+        if: contains(matrix.target, 'android')
+        run: |
+          mkdir -p ~/.cargo
+          echo '[target.aarch64-linux-android]' >> ~/.cargo/config.toml
+          echo 'linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang"' >> ~/.cargo/config.toml
+          echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config.toml
+          echo 'linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi34-clang"' >> ~/.cargo/config.toml
+          echo '[target.x86_64-linux-android]' >> ~/.cargo/config.toml
+          echo 'linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android34-clang"' >> ~/.cargo/config.toml
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
         with:
@@ -130,7 +157,8 @@ jobs:
           matrix.target != 'aarch64-unknown-linux-gnu' &&
           matrix.target != 'aarch64-unknown-linux-musl' &&
           matrix.target != 'aarch64-pc-windows-msvc' &&
-          matrix.target != 'x86_64-pc-windows-msvc'
+          matrix.target != 'x86_64-pc-windows-msvc' &&
+          !contains(matrix.target, 'android')
         run: cargo test --all --target ${{ matrix.target }}
 
 
@@ -160,7 +188,7 @@ jobs:
             os-arch: linux-arm64-gnu
             asset_ext: .tar.gz
             musl: false
-          # Linux musl targets (static, Android-compatible)
+          # Linux musl targets (static binaries)
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-musl
             os-arch: linux-x86_64-musl
@@ -171,6 +199,22 @@ jobs:
             os-arch: linux-arm64-musl
             asset_ext: .tar.gz
             musl: true
+          # Android targets
+          - runner: ubuntu-latest
+            target: aarch64-linux-android
+            os-arch: android-arm64
+            asset_ext: .tar.gz
+            musl: false
+          - runner: ubuntu-latest
+            target: armv7-linux-androideabi
+            os-arch: android-armv7
+            asset_ext: .tar.gz
+            musl: false
+          - runner: ubuntu-latest
+            target: x86_64-linux-android
+            os-arch: android-x86_64
+            asset_ext: .tar.gz
+            musl: false
           # Windows targets
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
@@ -211,6 +255,23 @@ jobs:
           sudo apt-get install -y musl-tools
           curl -LO https://github.com/cross-tools/musl-cross/releases/download/20250929/aarch64-unknown-linux-musl.tar.xz
           tar -xf aarch64-unknown-linux-musl.tar.xz
+      - name: Install Android NDK
+        if: contains(matrix.target, 'android')
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r26d
+          add-to-path: false
+      - name: Configure Android linkers
+        if: contains(matrix.target, 'android')
+        run: |
+          mkdir -p ~/.cargo
+          echo '[target.aarch64-linux-android]' >> ~/.cargo/config.toml
+          echo 'linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang"' >> ~/.cargo/config.toml
+          echo '[target.armv7-linux-androideabi]' >> ~/.cargo/config.toml
+          echo 'linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi34-clang"' >> ~/.cargo/config.toml
+          echo '[target.x86_64-linux-android]' >> ~/.cargo/config.toml
+          echo 'linker = "${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android34-clang"' >> ~/.cargo/config.toml
       - name: Install NSIS (Windows)
         if: false # runner.os == 'Windows' - Disabled by user request
         run: choco install nsis
