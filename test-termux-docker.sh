@@ -1,5 +1,10 @@
 #!/bin/bash
 # test-termux-docker.sh - Test QuicPulse in Termux Docker environment
+#
+# NOTE: For easier testing, use Docker Compose instead:
+#   docker compose -f docker-compose.termux.yml run test
+#
+# This script is useful for CI/CD or when Docker Compose isn't available.
 set -e
 
 echo "=== QuicPulse Termux Docker Test ==="

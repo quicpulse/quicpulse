@@ -2,12 +2,26 @@
 #
 # This Dockerfile sets up a working Termux environment for testing QuicPulse.
 # It includes workarounds for known issues in the termux/termux-docker container:
-# - Broken DNS resolution
-# - Missing CA certificates
-# - Networking limitations
+# - Broken DNS resolution (dnsmasq fails to start)
+# - Missing CA certificates (no /etc/ssl/certs/)
+# - Broken bridge networking (can't route traffic)
 #
 # IMPORTANT: Real Android/Termux installations don't have these issues!
 # This is only needed for Docker-based testing.
+#
+# Why these issues exist in Docker but not on real devices:
+# ┌─────────────────────────────────────────────────────────────────────┐
+# │ Issue              │ Docker Container    │ Real Android/Termux      │
+# ├─────────────────────────────────────────────────────────────────────┤
+# │ DNS Resolution     │ ❌ dnsmasq fails    │ ✅ Uses Android DNS      │
+# │ Bridge Networking  │ ❌ Can't route      │ ✅ Android network stack │
+# │ CA Certificates    │ ❌ Missing /etc/ssl │ ✅ At $PREFIX/etc/tls    │
+# └─────────────────────────────────────────────────────────────────────┘
+#
+# Solutions implemented in this Dockerfile:
+# 1. Host networking (--network host flag) - bypasses broken bridge networking
+# 2. Alpine CA certificates - copied to /etc/ssl/certs/
+# 3. SSL_CERT_FILE env var - tells rustls where to find certificates
 
 FROM --platform=linux/arm64 termux/termux-docker:aarch64
 
@@ -64,7 +78,11 @@ RUN mkdir -p /tmp
 
 # The container expects the QuicPulse binary to be mounted at /tmp/quicpulse
 #
-# Quick Start:
+# Recommended Usage (Docker Compose):
+#   docker compose -f docker-compose.termux.yml run test        # Run automated tests
+#   docker compose -f docker-compose.termux.yml run shell       # Interactive shell
+#
+# Alternative - Automated Script:
 #   ./test-termux-docker.sh
 #
 # Manual Usage:

@@ -76,7 +76,7 @@ cargo build --release
 
 QuicPulse provides static musl binaries that work on Android via [Termux](https://termux.dev/).
 
-📖 **[Complete Termux Guide](docs/termux.md)** | 🐳 **[Docker Testing](Dockerfile.termux)**
+📖 **[Complete Termux Guide](docs/termux.md)** | 🐳 **[Docker Testing](docker-compose.termux.yml)**
 
 1. **Download the appropriate musl binary for your Android device:**
    - **ARM64 (most modern Android devices):** `quicpulse-linux-arm64-musl.tar.gz`

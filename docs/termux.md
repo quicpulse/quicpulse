@@ -321,23 +321,198 @@ For testing QuicPulse in a Termux Docker environment, see [`Dockerfile.termux`](
 # Build the Docker image
 docker build -f Dockerfile.termux -t quicpulse-termux .
 
-# Run a test
-docker run --rm quicpulse-termux /tmp/quicpulse https://httpbin.org/get
+# Run a test (note: requires --network host)
+docker run --rm --network host \
+  -v $(pwd)/target/aarch64-unknown-linux-musl/debug/quicpulse:/tmp/quicpulse:ro \
+  quicpulse-termux \
+  /tmp/quicpulse https://httpbin.org/get
 ```
 
-### Docker Environment Issues
+Or use the automated test script:
+```bash
+./test-termux-docker.sh
+```
 
-The Termux Docker container (`termux/termux-docker`) has known issues:
-- ❌ Broken DNS resolution (dnsmasq fails)
-- ❌ Missing CA certificates by default
-- ❌ Broken bridge networking
+### Using Docker Compose (Recommended for Contributors)
 
-The `Dockerfile.termux` includes workarounds:
-- Uses host networking
-- Installs CA certificates from Alpine
-- Sets proper environment variables
+**Docker Compose solves the `--network host` requirement automatically**, making it easier for contributors who git clone the repo.
 
-**Important:** Real Android devices don't have these issues. The Docker container is useful for CI/CD testing but doesn't represent real Termux behavior.
+**Why Docker Compose?**
+- No need to remember `--network host` flag
+- Codifies all required flags and volume mounts
+- One command for testing: `docker compose -f docker-compose.termux.yml run test`
+- Prevents common mistakes when running manually
+
+**Prerequisites:**
+```bash
+# Build the musl binary first
+cross build --target aarch64-unknown-linux-musl
+```
+
+**Usage:**
+
+1. **Run automated tests:**
+   ```bash
+   docker compose -f docker-compose.termux.yml run test
+   ```
+
+2. **Interactive shell:**
+   ```bash
+   docker compose -f docker-compose.termux.yml run shell
+   # Inside container:
+   /tmp/quicpulse --version
+   /tmp/quicpulse https://httpbin.org/get
+   ```
+
+3. **Single command:**
+   ```bash
+   docker compose -f docker-compose.termux.yml run quicpulse /tmp/quicpulse https://httpbin.org/get
+   ```
+
+**What it does:**
+- Automatically uses `network_mode: host` (solves DNS/networking issues)
+- Mounts the binary at `/tmp/quicpulse` (read-only)
+- Sets `SSL_CERT_FILE` environment variable
+- Provides certificates from Alpine Linux
+
+**For CI/CD or manual testing without Compose,** use `./test-termux-docker.sh` or the docker commands below.
+
+### Understanding the dnsmasq Warning
+
+When running the Termux Docker container, you'll see:
+```
+[!] Failed to start dnsmasq, host name resolution may fail.
+```
+
+**What is dnsmasq?**
+- `dnsmasq` is a lightweight DNS forwarder and DHCP server
+- The Termux Docker container tries to start it on initialization
+- It's used for local DNS caching and resolution
+
+**Why does it fail in Docker?**
+
+The Termux Docker container has architectural limitations:
+1. **Missing privileges:** DNS services require network capabilities that Docker's default security doesn't allow
+2. **Port conflicts:** dnsmasq needs port 53, which may conflict with host DNS
+3. **Network isolation:** Bridge networking in the container is fundamentally broken
+
+**Does this affect QuicPulse?**
+
+In the Docker container: **Yes, without workarounds**
+- Bridge networking: ❌ DNS fails, QuicPulse can't resolve hostnames
+- Host networking: ✅ DNS works, QuicPulse works perfectly
+
+On real Android devices: **No, not at all**
+- Real Termux uses Android's system DNS resolver
+- No dnsmasq required or used
+- DNS resolution works normally
+
+### Docker Environment Issues & Solutions
+
+The Termux Docker container (`termux/termux-docker`) has three major issues that don't exist on real devices:
+
+| Issue | Docker Container | Real Android/Termux | Solution (Docker Only) |
+|-------|------------------|---------------------|------------------------|
+| **DNS Resolution** | ❌ Broken (dnsmasq fails) | ✅ Works (uses Android DNS) | Use `--network host` |
+| **Bridge Networking** | ❌ Broken (can't route) | ✅ Works normally | Use `--network host` |
+| **CA Certificates** | ❌ Missing at `/etc/ssl/certs/` | ✅ Present at `$PREFIX/etc/tls/` | Copy from Alpine + set `SSL_CERT_FILE` |
+
+### How Dockerfile.termux Solves These Issues
+
+Our `Dockerfile.termux` includes three critical workarounds:
+
+#### 1. Host Networking (Solves DNS + Networking)
+
+```bash
+docker run --network host ...
+```
+
+**What this does:**
+- Bypasses Docker's broken bridge networking
+- Uses the host system's network stack directly
+- Gives container access to host's DNS resolver
+- No isolation from host network (acceptable for testing)
+
+**Why bridge networking fails:**
+```bash
+# This WILL NOT WORK - DNS fails
+docker run --rm quicpulse-termux /tmp/quicpulse https://httpbin.org/get
+# Error: DNS resolution fails
+
+# This WORKS - uses host DNS
+docker run --rm --network host quicpulse-termux /tmp/quicpulse https://httpbin.org/get
+# Success!
+```
+
+#### 2. Alpine CA Certificates (Solves TLS)
+
+```dockerfile
+# Multi-stage build copies Alpine's certificates
+FROM alpine:latest AS certs
+RUN tar -czf /tmp/certs.tar.gz /etc/ssl/certs
+
+FROM termux/termux-docker:aarch64
+COPY --from=certs /tmp/certs.tar.gz /tmp/alpine-certs.tar.gz
+RUN cd / && tar -xzf /tmp/alpine-certs.tar.gz
+```
+
+**Why this is needed:**
+- Termux Docker lacks `/etc/ssl/certs/` directory
+- QuicPulse (sideloaded binary) expects standard Linux paths
+- Alpine Linux has a complete, up-to-date CA bundle
+
+#### 3. Environment Variables (Tells rustls where certs are)
+
+```dockerfile
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+```
+
+**How this works:**
+- `rustls-native-certs` checks `SSL_CERT_FILE` first
+- Bypasses platform-specific path detection
+- Points directly to Alpine certificates we installed
+
+### Real Android/Termux Doesn't Need These Workarounds
+
+**Important:** If you're using QuicPulse on an actual Android device with Termux, you only need:
+
+```bash
+# Install certificates (one time)
+pkg install ca-certificates
+
+# Set environment variable (permanent)
+echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
+source ~/.bashrc
+
+# Done! No networking workarounds needed.
+```
+
+Real Termux on Android:
+- ✅ Has working DNS (uses Android's system resolver)
+- ✅ Has working networking (uses Android's network stack)
+- ✅ Has CA certificates at `$PREFIX/etc/tls/`
+- ✅ No dnsmasq warning (dnsmasq isn't used)
+- ✅ No special flags needed
+
+### Testing Matrix
+
+| Environment | DNS | Networking | TLS | Solution |
+|-------------|-----|------------|-----|----------|
+| **Docker (bridge)** | ❌ | ❌ | ❌ | Don't use! |
+| **Docker (host net)** | ✅ | ✅ | ✅ | Use `--network host` + Dockerfile.termux |
+| **Real Android** | ✅ | ✅ | ✅ | Just set `SSL_CERT_FILE` |
+| **Alpine Linux** | ✅ | ✅ | ✅ | Works out of the box |
+
+### Why the Docker Container is Still Useful
+
+Despite its limitations, the Termux Docker container is valuable for:
+- **CI/CD testing:** Automated testing of ARM64 musl binaries
+- **Development:** Quick testing without Android device
+- **Reproducibility:** Consistent environment across machines
+- **Documentation:** Proving the binary works on ARM64 Linux
+
+**Just remember:** The Docker environment is **more restrictive** than real Termux. If it works in Docker, it will definitely work on real Android devices.
 
 ---
 

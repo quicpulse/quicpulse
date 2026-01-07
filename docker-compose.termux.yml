@@ -1,0 +1,78 @@
+# docker-compose.termux.yml - Easy Termux testing for QuicPulse
+#
+# This Docker Compose file solves the --network host requirement
+# for contributors who git clone and want to test locally.
+#
+# Why this is needed:
+# The termux/termux-docker container has broken bridge networking and DNS.
+# Using `network_mode: host` bypasses these issues without contributors
+# needing to remember complex docker run flags.
+#
+# Quick Start:
+#   1. Build the musl binary:
+#      cross build --target aarch64-unknown-linux-musl
+#
+#   2. Run tests:
+#      docker compose -f docker-compose.termux.yml run test
+#
+#   3. Interactive shell:
+#      docker compose -f docker-compose.termux.yml run shell
+#
+#   4. Single command:
+#      docker compose -f docker-compose.termux.yml run quicpulse /tmp/quicpulse https://httpbin.org/get
+
+services:
+  # Base service with common configuration
+  quicpulse:
+    build:
+      context: .
+      dockerfile: Dockerfile.termux
+    image: quicpulse-termux
+    # CRITICAL: Use host networking to bypass broken bridge networking in termux-docker
+    # This solves DNS resolution and routing issues
+    network_mode: host
+    volumes:
+      # Mount the musl binary (read-only)
+      - ./target/aarch64-unknown-linux-musl/debug/quicpulse:/tmp/quicpulse:ro
+    environment:
+      # Already set in Dockerfile, but explicit here for documentation
+      - SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+      - SSL_CERT_DIR=/etc/ssl/certs
+    # Override with bash for manual commands
+    entrypoint: []
+    command: ["/bin/bash"]
+
+  # Service for running interactive shell
+  shell:
+    extends: quicpulse
+    stdin_open: true
+    tty: true
+    command: ["/bin/bash"]
+
+  # Service for running automated tests
+  test:
+    extends: quicpulse
+    command:
+      - /bin/bash
+      - -c
+      - |
+        set -e
+        echo "=== QuicPulse Termux Docker Compose Test ==="
+        echo ""
+
+        echo "Test 1: Version command"
+        /tmp/quicpulse --version
+        echo "✅ Version OK"
+        echo ""
+
+        echo "Test 2: HTTPS GET request"
+        /tmp/quicpulse https://httpbin.org/get
+        echo "✅ GET OK"
+        echo ""
+
+        echo "Test 3: POST with JSON"
+        /tmp/quicpulse POST https://httpbin.org/post name=test value:=42
+        echo "✅ POST OK"
+        echo ""
+
+        echo "✅ All tests passed!"
