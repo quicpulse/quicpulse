@@ -107,6 +107,10 @@ jobs:
       matrix:
         include:
           - runner: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            os-arch: linux-aarch64
+            asset_ext: .tar.gz
+          - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             os-arch: linux-x86_64
             asset_ext: .tar.gz
@@ -140,6 +144,17 @@ jobs:
       - name: Install NSIS (Windows)
         if: false # runner.os == 'Windows' - Disabled by user request
         run: choco install nsis
+      - name: Install musl toolchain
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          curl -LO https://github.com/melsiir/musl-cross-toolchains/releases/download/v1.0.0/aarch64-linux-musl-cross.tgz
+          tar -xzf aarch64-linux-musl-cross.tgz
+      - name: Configure musl linker
+        if: matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          mkdir -p ~/.cargo
+          echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
+          echo 'linker = "'$PWD'/aarch64-linux-musl-cross/bin/aarch64-linux-musl-gcc"' >> ~/.cargo/config.toml
       - name: Install dependencies for ARM cross-compile (Linux)
         if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-gnu'
         run: |
@@ -209,7 +224,7 @@ jobs:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag_name || github.ref_name }}
           draft: true
           files: release-artifacts/*/*
-          
+
   # ===================================================================
   # Job 4: Build and Push Docker Image
   # ===================================================================
