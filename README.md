@@ -1260,18 +1260,18 @@ All contributions to QuicPulse are made under the same dual MIT/Apache-2.0 licen
 
 #### How to Sign Off Commits
 
-When creating a commit, use the `-s` flag to automatically add the sign-off:
+Contributors sign-off that they adhere to these requirements by adding a Signed-off-by line to commit messages.
+
+```
+This is my commit message
+
+Signed-off-by: Random J Developer <random@developer.example.org>
+```
+
+Git even has a `-s` command line option to append this automatically to your commit message:
 
 ```bash
-git commit -s -m "Add new feature"
-```
-
-This adds a "Signed-off-by" line to your commit message:
-
-```
-Add new feature
-
-Signed-off-by: Your Name <your.email@example.com>
+$ git commit -s -m 'This is my commit message'
 ```
 
 #### Signing Off Previous Commits
@@ -1326,7 +1326,3 @@ QuicPulse is dual-licensed under either:
 - **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
 
 at your option.
-
-### Contribution
-
-Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
