@@ -1201,15 +1201,72 @@ quicpulse -I api.example.com/users
 
 ## Troubleshooting
 
-```bash
-# Show traceback on error
-quicpulse --traceback api.example.com/error
+### Debug Mode
 
-# Debug mode (verbose + traceback)
-quicpulse --debug api.example.com/users
+QuicPulse provides comprehensive debugging to help diagnose network issues, especially useful for Android/Termux users experiencing connection problems.
+
+#### Basic Debug Mode
+
+Shows human-readable debug output with platform detection, timing, and request/response details:
+
+```bash
+quicpulse --debug GET https://example.com
+```
+
+**Debug output includes:**
+- Platform detection (OS, Android/Termux identification)
+- Certificate paths (shows SSL_CERT_FILE location)
+- HTTP version negotiation (HTTP/1.1, HTTP/2, HTTP/3)
+- TLS handshake details (cipher suites, ALPN protocol)
+- DNS resolution and connection details
+- Request and response headers
+- Total request timing
+- Detailed error context with phase identification
+
+#### JSON Debug Mode
+
+For parsing by tools or CI/CD pipelines, use `--debug-json` to output structured JSON to stderr:
+
+```bash
+quicpulse --debug-json GET https://example.com 2>debug.json
+```
+
+Each log line is a complete JSON object with structured fields for automated analysis.
+
+#### Android/Termux Specific Debugging
+
+QuicPulse automatically detects Termux/Android and provides helpful diagnostics:
+
+**Common Issues and Solutions:**
+
+1. **"error sending request" with HTTP URLs**
+   - **Cause:** Android 9+ blocks cleartext HTTP traffic by default
+   - **Solution:** Use HTTPS instead
+   - **Debug:** `--debug` will show a warning about cleartext blocking
+
+2. **SSL certificate errors**
+   - **Cause:** Missing or incorrect SSL_CERT_FILE environment variable
+   - **Solution:** Export the certificate path:
+     ```bash
+     export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem
+     ```
+   - **Debug:** `--debug` shows detected certificate paths
+
+3. **Connection timeouts**
+   - **Cause:** Network restrictions or firewall rules
+   - **Debug:** `--debug` shows which phase failed (DNS, connect, TLS, request)
+
+#### Other Troubleshooting Options
+
+```bash
+# Show error traceback
+quicpulse --traceback api.example.com/error
 
 # Skip .netrc credentials
 quicpulse --ignore-netrc api.example.com/users
+
+# Increase timeout for slow connections
+quicpulse --timeout=60 https://slow-api.example.com
 ```
 
 ---

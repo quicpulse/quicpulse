@@ -21,6 +21,7 @@ use crate::graphql;
 use crate::middleware::auth::{Auth, DigestAuth, DigestChallenge};
 use crate::sessions::Session;
 use crate::status::ExitStatus;
+use tracing::{info, debug, trace, instrument};
 
 pub const USER_AGENT_STRING: &str = concat!("QuicPulse/", env!("CARGO_PKG_VERSION"));
 
@@ -95,6 +96,7 @@ pub async fn send_request(
 }
 
 /// Build and send an HTTP request with optional session and download headers
+#[instrument(skip(args, processed, _env, session, download_headers), fields(method = %processed.method, url = %processed.url))]
 pub async fn send_request_with_session(
     args: &Args,
     processed: &ProcessedArgs,
@@ -102,6 +104,7 @@ pub async fn send_request_with_session(
     session: Option<&Session>,
     download_headers: Option<&HeaderMap>,
 ) -> Result<HttpResult, QuicpulseError> {
+    debug!("Building HTTP client");
     // Build the client (pass URL for HTTP version configuration)
     let client = build_client(args, &processed.url)?;
 
@@ -498,8 +501,25 @@ pub async fn send_request_with_session(
     }
 
     // Send the request
+    debug!(method = %method, url = %url, "Sending HTTP request");
     let mut response = request_builder.send().await
         .map_err(QuicpulseError::Request)?;
+
+    // Log response details
+    let version = match response.version() {
+        reqwest::Version::HTTP_09 => "HTTP/0.9",
+        reqwest::Version::HTTP_10 => "HTTP/1.0",
+        reqwest::Version::HTTP_11 => "HTTP/1.1",
+        reqwest::Version::HTTP_2 => "HTTP/2",
+        reqwest::Version::HTTP_3 => "HTTP/3",
+        _ => "Unknown",
+    };
+
+    info!(
+        status = response.status().as_u16(),
+        version = version,
+        "Response received"
+    );
 
     // Handle Digest auth challenge-response (401 retry)
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
@@ -754,13 +774,16 @@ fn infer_aws_service(url: &Url) -> Option<String> {
 }
 
 /// Build the HTTP client with appropriate configuration
+#[instrument(skip(args))]
 fn build_client(args: &Args, url: &str) -> Result<Client, QuicpulseError> {
+    debug!("Configuring HTTP client");
     let mut builder = Client::builder()
         .user_agent(USER_AGENT_STRING);
 
     // Set timeout
     if let Some(timeout) = args.timeout {
         builder = builder.timeout(Duration::from_secs_f64(timeout));
+        debug!(timeout_secs = timeout, "Request timeout configured");
     }
 
     // Configure HTTP version (needs URL to determine if http:// or https://)
@@ -906,6 +929,7 @@ fn configure_http_version(mut builder: reqwest::ClientBuilder, args: &Args, url:
         } else {
             // Enable HTTP/3 with QUIC transport
             // This uses the http3 feature which requires RUSTFLAGS='--cfg reqwest_unstable'
+            info!("HTTP version configured: HTTP/3");
             builder = builder.http3_prior_knowledge();
             return builder;
         }
@@ -915,6 +939,7 @@ fn configure_http_version(mut builder: reqwest::ClientBuilder, args: &Args, url:
     if let Some(ref version) = args.http_version {
         match version.as_str() {
             "1" | "1.0" | "1.1" => {
+                info!("HTTP version configured: HTTP/1.1 only");
                 builder = builder.http1_only();
             }
             "2" => {
@@ -922,7 +947,10 @@ fn configure_http_version(mut builder: reqwest::ClientBuilder, args: &Args, url:
                 // This only works for http:// (h2c - HTTP/2 cleartext)
                 // For https://, HTTP/2 is negotiated via ALPN - don't use prior_knowledge
                 if is_plain_http {
+                    info!("HTTP version configured: HTTP/2 (cleartext)");
                     builder = builder.http2_prior_knowledge();
+                } else {
+                    info!("HTTP version configured: HTTP/2 (ALPN negotiation)");
                 }
                 // For https://, reqwest will automatically use HTTP/2 via ALPN if server supports it
             }
@@ -931,12 +959,14 @@ fn configure_http_version(mut builder: reqwest::ClientBuilder, args: &Args, url:
                     // HTTP/3 requires HTTPS (runs over QUIC which requires TLS)
                     eprintln!("Warning: HTTP/3 requires HTTPS. Falling back to HTTP/1.1 for plaintext connection.");
                 } else {
+                    info!("HTTP version configured: HTTP/3");
                     // Enable HTTP/3 with QUIC transport
                     builder = builder.http3_prior_knowledge();
                 }
             }
             _ => {
                 // Default behavior - let reqwest negotiate
+                debug!("HTTP version: auto-negotiation");
             }
         }
     }

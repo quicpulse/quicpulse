@@ -34,6 +34,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use crate::errors::QuicpulseError;
+use tracing::{info, debug, instrument};
 
 /// TLS protocol versions
 ///
@@ -320,25 +321,37 @@ impl SslConfig {
     }
 
     /// Apply SSL config to a reqwest ClientBuilder
+    #[instrument(skip(self, builder))]
     pub fn apply_to_builder(
         &self,
         mut builder: reqwest::ClientBuilder,
     ) -> Result<reqwest::ClientBuilder, QuicpulseError> {
+        info!(
+            verify = self.verify,
+            tls_version = ?self.version,
+            has_client_cert = self.client_cert.cert_file.is_some(),
+            has_ca_bundle = self.ca_bundle.is_some(),
+            "Configuring TLS"
+        );
+
         // Set minimum TLS version
         if let Some(version) = &self.version {
             if let Some(min_version) = version.min_tls_version() {
                 builder = builder.min_tls_version(min_version);
+                debug!(tls_min_version = ?min_version, "TLS minimum version set");
             }
         }
 
         // Set certificate verification
         if !self.verify {
+            debug!("TLS certificate verification disabled");
             builder = builder.danger_accept_invalid_certs(true);
         }
 
         // Add custom CA bundle (supports multiple certificates)
         if let Some(ca_path) = &self.ca_bundle {
             let certs = load_ca_bundle(ca_path)?;
+            info!(ca_bundle_path = ?ca_path, cert_count = certs.len(), "Custom CA bundle loaded");
             for cert in certs {
                 builder = builder.add_root_certificate(cert);
             }
@@ -346,6 +359,7 @@ impl SslConfig {
 
         // Add client certificate
         if let Some(identity) = self.client_cert.load_identity()? {
+            info!("Client certificate loaded");
             builder = builder.identity(identity);
         }
 

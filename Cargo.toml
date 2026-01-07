@@ -1,6 +1,6 @@
 [package]
 name = "quicpulse"
-version = "0.0.3"
+version = "0.0.4"
 edition = "2021"
 rust-version = "1.90"
 description = "A user-friendly HTTP client for the command line"
@@ -32,6 +32,10 @@ ctrlc = "3"
 reqwest = { version = "0.13", default-features = false, features = ["json", "multipart", "stream", "cookies", "gzip", "deflate", "brotli", "zstd", "socks", "rustls", "rustls-native-certs", "http2", "http3", "blocking", "form"] }
 tokio = { version = "1", features = ["full"] }
 tokio-util = { version = "0.7", features = ["io"] }
+
+# Structured logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
 
 # HTTP/3 (QUIC) - Pure Rust implementation
 h3 = "0.0.8"

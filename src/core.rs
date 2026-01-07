@@ -1,4 +1,6 @@
 use clap::Parser;
+use tracing::{info, debug, error, warn, instrument};
+use tracing_subscriber::{fmt, EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 fn form_urlencode(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
@@ -53,6 +55,40 @@ use crate::status::ExitStatus;
 use crate::table;
 use crate::utils::url_as_host;
 
+/// Initialize tracing subscriber for debug output
+///
+/// Sets up structured logging to stderr when --debug or --debug-json flags are used.
+/// With --debug-json, outputs JSON format. Otherwise, outputs human-readable format.
+fn init_tracing(args: &Args) {
+    if !args.debug && !args.debug_json {
+        return; // No tracing needed
+    }
+
+    let filter = EnvFilter::from_default_env()
+        .add_directive("quicpulse=debug".parse().unwrap())
+        .add_directive("reqwest=trace".parse().unwrap())
+        .add_directive("hyper=debug".parse().unwrap())
+        .add_directive("h3=debug".parse().unwrap())
+        .add_directive("rustls=debug".parse().unwrap());
+
+    if args.debug_json {
+        // JSON output to stderr
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer().json().with_writer(std::io::stderr))
+            .init();
+    } else {
+        // Human-readable output to stderr
+        tracing_subscriber::registry()
+            .with(filter)
+            .with(fmt::layer()
+                .with_target(true)
+                .with_level(true)
+                .with_writer(std::io::stderr))
+            .init();
+    }
+}
+
 /// Main entry point for the CLI.
 ///
 /// Handles argument parsing, configuration loading, and dispatches
@@ -99,6 +135,9 @@ pub fn run(args: Vec<String>, mut env: Environment) -> ExitStatus {
         generate_manpage();
         return ExitStatus::Success;
     }
+
+    // Initialize tracing subscriber for debug output
+    init_tracing(&parsed);
 
     if parsed.update {
         match internal::self_update() {
@@ -203,6 +242,11 @@ pub async fn program(args: Args, env: Environment) -> Result<ExitStatus, Quicpul
     let args = expand_args_variables(args, &env_vars)?;
 
     let processed = process_args(&args)?;
+
+    // Log platform info and warnings when debugging
+    if args.debug || args.debug_json {
+        crate::debug::log_platform_info(&processed.url);
+    }
 
     if args.curl {
         let curl_cmd = generate_curl_command(&args, &processed);
@@ -1325,6 +1369,43 @@ fn merge_default_options(args: Vec<String>, config: &Config) -> Vec<String> {
 }
 
 fn handle_error(error: QuicpulseError, traceback: bool) -> ExitStatus {
+    // Log error with tracing for debug output
+    match &error {
+        QuicpulseError::Request(e) => {
+            if e.is_timeout() {
+                error!(error = %e, "Request timeout");
+            } else if e.is_connect() {
+                error!(error = %e, "Connection failed");
+            } else if e.is_request() {
+                error!(error = %e, "Request failed");
+            } else {
+                error!(error = %e, "Request error");
+            }
+        },
+        QuicpulseError::Ssl(msg) => {
+            error!(error = %msg, "TLS error");
+        },
+        QuicpulseError::Connection(msg) => {
+            error!(error = %msg, "Connection error");
+        },
+        QuicpulseError::Timeout(secs) => {
+            error!(timeout_secs = secs, "Operation timed out");
+        },
+        QuicpulseError::Auth(msg) => {
+            error!(error = %msg, "Authentication error");
+        },
+        QuicpulseError::Config(msg) => {
+            error!(error = %msg, "Configuration error");
+        },
+        QuicpulseError::Parse(msg) => {
+            error!(error = %msg, "Parse error");
+        },
+        _ => {
+            error!(error = %error, "Error occurred");
+        }
+    }
+
+    // Print to user
     if traceback {
         eprintln!("Error: {:?}", error);
     } else {

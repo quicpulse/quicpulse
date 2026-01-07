@@ -596,6 +596,10 @@ pub struct Args {
     #[arg(long = "debug", action = ArgAction::SetTrue)]
     pub debug: bool,
 
+    /// Output debug info as JSON instead of human-readable format
+    #[arg(long = "debug-json", action = ArgAction::SetTrue)]
+    pub debug_json: bool,
+
     // =========================================================================
     // SELF-UPDATE
     // =========================================================================
@@ -1159,6 +1163,7 @@ impl Default for Args {
             default_scheme: "http".to_string(),
             traceback: false,
             debug: false,
+            debug_json: false,
             update: false,
             bench: false,
             bench_requests: 100,

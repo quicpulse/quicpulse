@@ -11,6 +11,7 @@ mod config;
 mod context;
 mod cookies;
 mod core;
+mod debug;
 mod devexp;
 mod downloads;
 mod encoding;

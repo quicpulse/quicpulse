@@ -14,6 +14,7 @@ use tokio::net::lookup_host;
 
 use crate::auth::{AwsSigV4Config, sign_request as aws_sign_request};
 use crate::errors::QuicpulseError;
+use tracing::{info, debug, instrument};
 
 /// HTTP/3 response with body
 #[derive(Debug)]
@@ -36,6 +37,7 @@ pub async fn send_http3_request(
 }
 
 /// Send an HTTP/3 request with TLS options
+#[instrument(skip(headers, body, client_cert, client_key), fields(method = %method, url = %url))]
 pub async fn send_http3_request_with_options(
     method: &str,
     url: &str,
@@ -63,7 +65,9 @@ pub async fn send_http3_request_with_options(
     let port = parsed_url.port().unwrap_or(443);
 
     // Resolve hostname
+    debug!(host = %host, port = port, "Resolving DNS for HTTP/3");
     let addr = resolve_host(host, port).await?;
+    info!(address = %addr, "DNS resolved for HTTP/3");
 
     // Build TLS config for QUIC
     let tls_config = build_tls_config(verify_tls, client_cert, client_key)?;
@@ -79,6 +83,7 @@ pub async fn send_http3_request_with_options(
     endpoint.set_default_client_config(client_config);
 
     // Connect with timeout
+    debug!("Establishing QUIC connection");
     let connect_fut = endpoint.connect(addr, host);
     let conn = tokio::time::timeout(timeout, async {
         connect_fut
@@ -88,12 +93,15 @@ pub async fn send_http3_request_with_options(
     })
     .await
     .map_err(|_| QuicpulseError::Timeout(timeout_secs))??;
+    info!("QUIC connection established");
 
     // Create HTTP/3 connection
+    debug!("Starting HTTP/3 handshake");
     let quinn_conn = h3_quinn::Connection::new(conn);
     let (mut driver, mut send_request) = h3::client::new(quinn_conn)
         .await
         .map_err(|e| QuicpulseError::Connection(format!("HTTP/3 handshake failed: {}", e)))?;
+    info!("HTTP/3 handshake complete");
 
     // Spawn driver task
     tokio::spawn(async move {
@@ -182,11 +190,18 @@ async fn resolve_host(host: &str, port: u16) -> Result<SocketAddr, QuicpulseErro
 }
 
 /// Build TLS config for QUIC with HTTP/3 ALPN
+#[instrument(skip(client_cert, client_key))]
 fn build_tls_config(
     verify: bool,
     client_cert: Option<&std::path::Path>,
     client_key: Option<&std::path::Path>,
 ) -> Result<rustls::ClientConfig, QuicpulseError> {
+    info!(
+        verify = verify,
+        has_client_cert = client_cert.is_some(),
+        "Configuring TLS for HTTP/3"
+    );
+
     // Install default crypto provider if not already installed
     let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
 
