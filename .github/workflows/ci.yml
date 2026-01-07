@@ -43,18 +43,34 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux glibc targets
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-          - runner: windows-latest
-            target: x86_64-pc-windows-msvc
-          - runner: macos-15-intel
-            target: x86_64-apple-darwin
+            musl: false
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-gnu
+            musl: false
+          # Linux musl targets (static, Android-compatible)
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            musl: true
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            musl: true
+          # Windows targets
+          - runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            musl: false
           - runner: windows-latest
             target: aarch64-pc-windows-msvc
+            musl: false
+          # macOS targets
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            musl: false
           - runner: macos-14
             target: aarch64-apple-darwin
+            musl: false
 
     steps:
       - name: Checkout code
@@ -63,6 +79,19 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Install musl-tools (Linux musl targets)
+        if: runner.os == 'Linux' && matrix.musl == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+      - name: Install musl cross-compile tools (Linux ARM musl)
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          sudo apt-get install -y musl-tools
+          wget https://musl.cc/aarch64-linux-musl-cross.tgz
+          tar -xzf aarch64-linux-musl-cross.tgz
+          sudo mv aarch64-linux-musl-cross /opt/
+          echo "/opt/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
         with:
@@ -84,10 +113,20 @@ jobs:
           mkdir -p ~/.cargo
           echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
           echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+      - name: Configure cross-linker (Linux ARM musl)
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          mkdir -p ~/.cargo
+          echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-musl-gcc"' >> ~/.cargo/config.toml
       - name: Build project
         run: cargo build --target ${{ matrix.target }}
       - name: Run tests
-        if: matrix.target != 'aarch64-unknown-linux-gnu' && matrix.target != 'aarch64-pc-windows-msvc' && matrix.target != 'x86_64-pc-windows-msvc'
+        if: |
+          matrix.target != 'aarch64-unknown-linux-gnu' &&
+          matrix.target != 'aarch64-unknown-linux-musl' &&
+          matrix.target != 'aarch64-pc-windows-msvc' &&
+          matrix.target != 'x86_64-pc-windows-msvc'
         run: cargo test --all --target ${{ matrix.target }}
 
 
@@ -106,30 +145,50 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Linux glibc targets
           - runner: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            os-arch: linux-x86_64
+            os-arch: linux-x86_64-gnu
             asset_ext: .tar.gz
+            musl: false
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            os-arch: linux-arm64-gnu
+            asset_ext: .tar.gz
+            musl: false
+          # Linux musl targets (static, Android-compatible)
+          - runner: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            os-arch: linux-x86_64-musl
+            asset_ext: .tar.gz
+            musl: true
+          - runner: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            os-arch: linux-arm64-musl
+            asset_ext: .tar.gz
+            musl: true
+          # Windows targets
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
             os-arch: windows-x86_64
             asset_ext: .exe
-          - runner: macos-15-intel
-            target: x86_64-apple-darwin
-            os-arch: macos-x86_64
-            asset_ext: .tar.gz
-          - runner: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            os-arch: linux-arm64
-            asset_ext: .tar.gz
+            musl: false
           - runner: windows-latest
             target: aarch64-pc-windows-msvc
             os-arch: windows-arm64
             asset_ext: .exe
+            musl: false
+          # macOS targets
+          - runner: macos-15-intel
+            target: x86_64-apple-darwin
+            os-arch: macos-x86_64
+            asset_ext: .tar.gz
+            musl: false
           - runner: macos-14
             target: aarch64-apple-darwin
             os-arch: macos-arm64
             asset_ext: .tar.gz
+            musl: false
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -137,6 +196,19 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      - name: Install musl-tools (Linux musl targets)
+        if: runner.os == 'Linux' && matrix.musl == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+      - name: Install musl cross-compile tools (Linux ARM musl)
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          sudo apt-get install -y musl-tools
+          wget https://musl.cc/aarch64-linux-musl-cross.tgz
+          tar -xzf aarch64-linux-musl-cross.tgz
+          sudo mv aarch64-linux-musl-cross /opt/
+          echo "/opt/aarch64-linux-musl-cross/bin" >> $GITHUB_PATH
       - name: Install NSIS (Windows)
         if: false # runner.os == 'Windows' - Disabled by user request
         run: choco install nsis
@@ -151,6 +223,12 @@ jobs:
           mkdir -p ~/.cargo
           echo '[target.aarch64-unknown-linux-gnu]' >> ~/.cargo/config.toml
           echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
+      - name: Configure cross-linker (Linux ARM musl)
+        if: runner.os == 'Linux' && matrix.target == 'aarch64-unknown-linux-musl'
+        run: |
+          mkdir -p ~/.cargo
+          echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
+          echo 'linker = "aarch64-linux-musl-gcc"' >> ~/.cargo/config.toml
       - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
       - name: Package artifacts

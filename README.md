@@ -28,6 +28,7 @@ A powerful, API testing framework for the command line, written in Rust. Inspire
 - [Configuration](#configuration)
 - [Troubleshooting](#troubleshooting)
 - [Documentation](#documentation)
+- [Contributing](#contributing)
 
 ## Features Overview
 
@@ -70,6 +71,37 @@ cargo build --release
 
 # Binary will be at ./target/release/quicpulse
 ```
+
+### Android (Termux)
+
+QuicPulse provides static musl binaries that work on Android via [Termux](https://termux.dev/):
+
+1. **Download the appropriate musl binary for your Android device:**
+   - **ARM64 (most modern Android devices):** `quicpulse-linux-arm64-musl.tar.gz`
+   - **x86_64 (Android emulators):** `quicpulse-linux-x86_64-musl.tar.gz`
+
+2. **Install in Termux:**
+   ```bash
+   # Install required tools
+   pkg install wget tar
+
+   # Download (replace with appropriate architecture)
+   wget https://github.com/quicpulse/quicpulse/releases/latest/download/quicpulse-linux-arm64-musl.tar.gz
+
+   # Extract
+   tar -xzf quicpulse-linux-arm64-musl.tar.gz
+
+   # Make executable and move to PATH
+   chmod +x quicpulse
+   mv quicpulse $PREFIX/bin/
+   ```
+
+3. **Verify installation:**
+   ```bash
+   quicpulse --version
+   ```
+
+**Note:** Use the `-musl` suffixed binaries for Android. The standard Linux binaries (with `-gnu` suffix) require glibc and will not work on Android.
 
 ## Quick Start
 
@@ -1211,6 +1243,78 @@ For detailed documentation on all features, see the [docs/](docs/) folder:
 | [Mock Server](docs/mock-server.md) | Built-in HTTP mock server |
 | [Plugins](docs/plugins.md) | Plugin ecosystem |
 | [Pager](docs/pager.md) | Output paging |
+
+---
+
+## Contributing
+
+We welcome contributions to QuicPulse! To contribute, you must certify that you have the right to submit your contribution and agree to license it under the project's dual MIT/Apache-2.0 license.
+
+### Developer Certificate of Origin (DCO)
+
+QuicPulse uses the [Developer Certificate of Origin (DCO)](https://developercertificate.org/) process. This is a lightweight way for contributors to certify that they wrote or otherwise have the right to submit code or documentation to an open source project.
+
+#### Inbound = Outbound License
+
+All contributions to QuicPulse are made under the same dual MIT/Apache-2.0 license as the project itself. By signing off on your commits, you agree that your contributions will be licensed under these same terms, with no additional restrictions.
+
+#### How to Sign Off Commits
+
+When creating a commit, use the `-s` flag to automatically add the sign-off:
+
+```bash
+git commit -s -m "Add new feature"
+```
+
+This adds a "Signed-off-by" line to your commit message:
+
+```
+Add new feature
+
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+#### Signing Off Previous Commits
+
+If you forgot to sign off your commits:
+
+**For a single commit:**
+```bash
+git commit --amend --signoff
+git push --force-with-lease
+```
+
+**For multiple commits (rebase last N commits):**
+```bash
+git rebase --signoff HEAD~N
+git push --force-with-lease
+```
+
+#### What the Sign-Off Means
+
+By signing off, you certify that:
+1. You wrote the contribution, or have the right to submit it under an open source license
+2. You agree to license your contribution under the project's MIT OR Apache-2.0 dual license
+3. You understand that your contribution is public and may be redistributed
+
+For the full text of the Developer Certificate of Origin, see https://developercertificate.org/
+
+#### Configure Git Identity
+
+Make sure your git identity is configured correctly before committing:
+
+```bash
+git config --global user.name "Your Name"
+git config --global user.email "your.email@example.com"
+```
+
+### Contribution Guidelines
+
+- Ensure your code follows the project's coding standards
+- Include tests for new features when applicable
+- Update documentation as needed
+- All commits must include DCO sign-off
+- Pull requests without properly signed commits cannot be merged
 
 ---
 
