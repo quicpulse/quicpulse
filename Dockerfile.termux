@@ -1,0 +1,110 @@
+# Dockerfile.termux - Test QuicPulse in Termux Docker environment
+#
+# This Dockerfile sets up a working Termux environment for testing QuicPulse.
+# It includes workarounds for known issues in the termux/termux-docker container:
+# - Broken DNS resolution
+# - Missing CA certificates
+# - Networking limitations
+#
+# IMPORTANT: Real Android/Termux installations don't have these issues!
+# This is only needed for Docker-based testing.
+
+FROM --platform=linux/arm64 termux/termux-docker:aarch64
+
+# Metadata
+LABEL maintainer="QuicPulse Contributors"
+LABEL description="Termux environment for testing QuicPulse on Android ARM64"
+LABEL version="1.0"
+
+# Set working directory
+WORKDIR /root
+
+# ============================================================================
+# Fix 1: Install CA Certificates from Alpine
+# ============================================================================
+# The termux/termux-docker container is missing /etc/ssl/certs/
+# We copy them from Alpine Linux which has a complete cert bundle
+
+# Use a multi-stage approach to get Alpine certs
+FROM --platform=linux/arm64 alpine:latest AS certs
+RUN tar -czf /tmp/certs.tar.gz /etc/ssl/certs
+
+# Back to Termux base
+FROM --platform=linux/arm64 termux/termux-docker:aarch64
+
+# Copy certificates from Alpine
+COPY --from=certs /tmp/certs.tar.gz /tmp/alpine-certs.tar.gz
+
+# Extract certificates
+RUN cd / && tar -xzf /tmp/alpine-certs.tar.gz && rm /tmp/alpine-certs.tar.gz
+
+# Verify certificates were installed
+RUN ls -la /etc/ssl/certs/ca-certificates.crt
+
+# ============================================================================
+# Fix 2: Set Environment Variables
+# ============================================================================
+# Tell rustls-native-certs where to find CA certificates
+
+ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt
+ENV SSL_CERT_DIR=/etc/ssl/certs
+
+# Set Termux environment variables
+ENV PREFIX=/data/data/com.termux/files/usr
+ENV PATH=$PREFIX/bin:$PATH
+
+# ============================================================================
+# Fix 3: Create test directory
+# ============================================================================
+RUN mkdir -p /tmp
+
+# ============================================================================
+# Usage Instructions (shown when building)
+# ============================================================================
+
+# The container expects the QuicPulse binary to be mounted at /tmp/quicpulse
+#
+# Quick Start:
+#   ./test-termux-docker.sh
+#
+# Manual Usage:
+#
+# Build:
+#   docker build -f Dockerfile.termux -t quicpulse-termux .
+#
+# Run (with host networking to fix DNS):
+#   docker run --rm --network host \
+#     -v $(pwd)/target/aarch64-unknown-linux-musl/debug/quicpulse:/tmp/quicpulse:ro \
+#     quicpulse-termux \
+#     /tmp/quicpulse https://httpbin.org/get
+#
+# Or run interactively:
+#   docker run -it --network host \
+#     -v $(pwd)/target/aarch64-unknown-linux-musl/debug/quicpulse:/tmp/quicpulse:ro \
+#     quicpulse-termux \
+#     bash
+#
+# Then inside the container:
+#   /tmp/quicpulse --version
+#   /tmp/quicpulse https://httpbin.org/get
+
+# ============================================================================
+# Default command - show help
+# ============================================================================
+
+CMD ["/bin/bash", "-c", "echo 'QuicPulse Termux Test Environment'; \
+     echo ''; \
+     echo 'QuicPulse binary should be mounted at /tmp/quicpulse'; \
+     echo ''; \
+     echo 'Usage:'; \
+     echo '  docker run --rm --network host \\'; \
+     echo '    -v /path/to/quicpulse:/tmp/quicpulse:ro \\'; \
+     echo '    quicpulse-termux \\'; \
+     echo '    /tmp/quicpulse https://httpbin.org/get'; \
+     echo ''; \
+     echo 'Environment:'; \
+     echo '  SSL_CERT_FILE=$SSL_CERT_FILE'; \
+     echo '  SSL_CERT_DIR=$SSL_CERT_DIR'; \
+     echo ''; \
+     echo 'For interactive shell: docker run -it --network host ... quicpulse-termux bash'; \
+     exec /bin/bash"]

@@ -74,7 +74,9 @@ cargo build --release
 
 ### Android (Termux)
 
-QuicPulse provides static musl binaries that work on Android via [Termux](https://termux.dev/):
+QuicPulse provides static musl binaries that work on Android via [Termux](https://termux.dev/).
+
+📖 **[Complete Termux Guide](docs/termux.md)** | 🐳 **[Docker Testing](Dockerfile.termux)**
 
 1. **Download the appropriate musl binary for your Android device:**
    - **ARM64 (most modern Android devices):** `quicpulse-linux-arm64-musl.tar.gz`
@@ -102,6 +104,26 @@ QuicPulse provides static musl binaries that work on Android via [Termux](https:
    ```
 
 **Note:** Use the `-musl` suffixed binaries for Android. The standard Linux binaries (with `-gnu` suffix) require glibc and will not work on Android.
+
+#### Troubleshooting HTTPS on Android/Termux
+
+If you encounter SSL/TLS certificate errors when making HTTPS requests, install CA certificates:
+
+```bash
+pkg update
+pkg install ca-certificates
+```
+
+If you still have issues:
+1. **Check system time:** Incorrect date/time causes certificate validation failures
+2. **Verify certificates installed:** `ls -la $PREFIX/etc/tls/certs/`
+3. **Test with HTTP first:** `quicpulse http://httpbin.org/get` to isolate TLS issues
+
+**For complete troubleshooting and advanced setup, see [docs/termux.md](docs/termux.md).**
+
+Additional resources:
+- [Termux CA Certificates Issue #1546](https://github.com/termux/termux-packages/issues/1546)
+- [Termux TLS Verification Issue #4893](https://github.com/termux/termux-app/issues/4893)
 
 ## Quick Start
 
@@ -1235,6 +1257,7 @@ For detailed documentation on all features, see the [docs/](docs/) folder:
 | [Kubernetes](docs/kubernetes.md) | Native k8s:// URL support |
 | [OpenAPI](docs/workflow-openapi.md) | Generate workflows from specs |
 | [HAR Replay](docs/workflow-har.md) | Replay browser recordings |
+| [Termux (Android)](docs/termux.md) | Running on Android with Termux |
 
 ### Developer Tools
 
