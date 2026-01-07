@@ -84,8 +84,8 @@ QuicPulse provides static musl binaries that work on Android via [Termux](https:
 
 2. **Install in Termux:**
    ```bash
-   # Install required tools
-   pkg install wget tar
+   # Install required tools and certificates
+   pkg install wget tar ca-certificates
 
    # Download (replace with appropriate architecture)
    wget https://github.com/quicpulse/quicpulse/releases/latest/download/quicpulse-linux-arm64-musl.tar.gz
@@ -98,26 +98,42 @@ QuicPulse provides static musl binaries that work on Android via [Termux](https:
    mv quicpulse $PREFIX/bin/
    ```
 
-3. **Verify installation:**
+3. **Configure SSL certificates (REQUIRED):**
+   ```bash
+   echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
+   source ~/.bashrc
+   ```
+
+4. **Verify installation:**
    ```bash
    quicpulse --version
+   quicpulse https://httpbin.org/get
    ```
 
 **Note:** Use the `-musl` suffixed binaries for Android. The standard Linux binaries (with `-gnu` suffix) require glibc and will not work on Android.
 
 #### Troubleshooting HTTPS on Android/Termux
 
-If you encounter SSL/TLS certificate errors when making HTTPS requests, install CA certificates:
+If you encounter SSL/TLS certificate errors, the most common cause is missing `SSL_CERT_FILE` environment variable:
 
 ```bash
-pkg update
-pkg install ca-certificates
+# Set the environment variable
+export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem
+
+# Make it permanent
+echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
+source ~/.bashrc
+
+# Verify and test
+echo $SSL_CERT_FILE
+quicpulse https://httpbin.org/get
 ```
 
 If you still have issues:
-1. **Check system time:** Incorrect date/time causes certificate validation failures
-2. **Verify certificates installed:** `ls -la $PREFIX/etc/tls/certs/`
-3. **Test with HTTP first:** `quicpulse http://httpbin.org/get` to isolate TLS issues
+1. **Ensure ca-certificates installed:** `pkg install ca-certificates`
+2. **Check system time:** Incorrect date/time causes certificate validation failures
+3. **Verify certificates exist:** `ls -la $PREFIX/etc/tls/cert.pem`
+4. **Test with HTTP first:** `quicpulse http://httpbin.org/get` to isolate TLS issues
 
 **For complete troubleshooting and advanced setup, see [docs/termux.md](docs/termux.md).**
 

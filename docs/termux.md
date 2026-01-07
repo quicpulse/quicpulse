@@ -47,16 +47,44 @@ chmod +x quicpulse
 mv quicpulse $PREFIX/bin/
 ```
 
-### 4. Verify Installation
+### 4. Configure SSL Certificate Path
+
+**CRITICAL for sideloaded binaries:** QuicPulse is built with `rustls-native-certs`, which expects certificates at standard Linux paths. Termux stores certificates in a non-standard location, so we need to tell rustls where to find them.
+
+```bash
+# Add to your shell profile
+echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
+source ~/.bashrc
+```
+
+For other shells:
+```bash
+# For zsh
+echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.zshrc
+source ~/.zshrc
+
+# For fish
+echo 'set -gx SSL_CERT_FILE $PREFIX/etc/tls/cert.pem' >> ~/.config/fish/config.fish
+```
+
+**Why this is necessary:** Sideloaded binaries (like QuicPulse's static musl build) look for certificates at `/etc/ssl/certs/`, but Termux stores them at `$PREFIX/etc/tls/`. The `SSL_CERT_FILE` environment variable tells rustls where to actually find them.
+
+### 5. Verify Installation
 
 ```bash
 quicpulse --version
 ```
 
-### 5. Test with a Request
+### 6. Test with a Request
 
 ```bash
 quicpulse https://httpbin.org/get
+```
+
+If you get certificate errors, verify the environment variable is set:
+```bash
+echo $SSL_CERT_FILE
+# Should output: /data/data/com.termux/files/usr/etc/tls/cert.pem
 ```
 
 ---
@@ -103,6 +131,43 @@ ls -la $PREFIX/etc/tls/certs/
 ls $PREFIX/etc/tls/certs/*.pem | wc -l
 ```
 
+### Adding Custom/Self-Signed Certificates
+
+If you need to trust custom certificates (e.g., for corporate proxies, self-signed servers, or internal CAs), Termux provides the `add-trusted-certificate` script.
+
+**Method 1: Using add-trusted-certificate (Recommended)**
+```bash
+# Download or obtain your certificate file (PEM, CRT, CER format)
+# Example: corporate-ca.crt
+
+# Add it to Termux's trust store
+add-trusted-certificate corporate-ca.crt
+
+# Verify it was added
+ls $PREFIX/etc/tls/certs/ | grep corporate
+```
+
+**Method 2: Manual Installation**
+```bash
+# Copy certificate to the certs directory
+cp your-certificate.pem $PREFIX/etc/tls/certs/
+
+# Set proper permissions
+chmod 644 $PREFIX/etc/tls/certs/your-certificate.pem
+
+# Rehash certificates (if openssl-tool is installed)
+c_rehash $PREFIX/etc/tls/certs/
+```
+
+**Supported formats:**
+- `.pem` - Privacy Enhanced Mail (preferred)
+- `.crt` - Certificate file
+- `.cer` - Certificate file (alternative)
+
+**Important:** After adding certificates, restart your shell or run `source ~/.bashrc` to ensure environment variables are refreshed.
+
+**For Android system certificates:** Note that Termux does not automatically trust certificates installed in Android's system settings. You must manually export and add them using the methods above.
+
 ---
 
 ## Troubleshooting
@@ -113,9 +178,33 @@ ls $PREFIX/etc/tls/certs/*.pem | wc -l
 ```
 Error: Request error: tls: failed to verify certificate
 Error: Request error: x509: certificate signed by unknown authority
+Error: Request error: builder error
 ```
 
-**Solution:**
+**Primary Solution - Set SSL_CERT_FILE (Issue #4893):**
+
+This is the **most common cause** for sideloaded binaries like QuicPulse. The binary expects certificates at standard Linux paths but Termux stores them elsewhere.
+
+```bash
+# Set the environment variable
+export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem
+
+# Make it permanent
+echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
+source ~/.bashrc
+
+# Verify it's set
+echo $SSL_CERT_FILE
+# Should output: /data/data/com.termux/files/usr/etc/tls/cert.pem
+
+# Test again
+quicpulse https://httpbin.org/get
+```
+
+**Secondary Solution - Install/Update Certificates:**
+
+If `SSL_CERT_FILE` is set but you still get errors:
+
 ```bash
 # Update package lists and install certificates
 pkg update
@@ -126,12 +215,27 @@ ls -la $PREFIX/etc/tls/certs/
 ```
 
 **If still failing:**
-1. Check system date/time (incorrect time causes cert validation failures)
-2. Try with HTTP first to isolate the issue:
+1. **Check environment variable:** Run `echo $SSL_CERT_FILE` - must be set!
+2. **Check system date/time:** Incorrect time causes cert validation failures
+   ```bash
+   date
+   # Should show correct current time
+   ```
+3. **Try with HTTP first** to isolate the issue:
    ```bash
    quicpulse http://httpbin.org/get
    ```
-3. Check Termux app permissions (Storage, Network)
+4. **Check certificate file exists:**
+   ```bash
+   ls -la $PREFIX/etc/tls/cert.pem
+   # Should show a file, not an error
+   ```
+5. **Check Termux app permissions:** Storage, Network (in Android settings)
+6. **For self-signed/custom certificates:** See [Adding Custom Certificates](#adding-customself-signed-certificates) above
+
+**Related Issues:**
+- [termux/termux-app#4893](https://github.com/termux/termux-app/issues/4893) - TLS verification for sideloaded binaries
+- [termux/termux-packages#1546](https://github.com/termux/termux-packages/issues/1546) - Custom certificate support
 
 ### Issue 2: DNS Resolution Failures
 
