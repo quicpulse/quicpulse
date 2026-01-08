@@ -161,7 +161,11 @@ jobs:
           mkdir -p ~/.cargo
           echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
           echo 'linker = "'$PWD'/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc"' >> ~/.cargo/config.toml
-      - name: Build project
+      - name: Build project (Android - no JavaScript)
+        if: contains(matrix.target, 'android')
+        run: cargo build --target ${{ matrix.target }} --no-default-features
+      - name: Build project (Other platforms)
+        if: "!contains(matrix.target, 'android')"
         run: cargo build --target ${{ matrix.target }}
       - name: Run tests
         if: |
@@ -320,7 +324,11 @@ jobs:
           mkdir -p ~/.cargo
           echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
           echo 'linker = "'$PWD'/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc"' >> ~/.cargo/config.toml
-      - name: Build binary
+      - name: Build binary (Android - no JavaScript)
+        if: contains(matrix.target, 'android')
+        run: cargo build --release --target ${{ matrix.target }} --no-default-features
+      - name: Build binary (Other platforms)
+        if: "!contains(matrix.target, 'android')"
         run: cargo build --release --target ${{ matrix.target }}
       - name: Package artifacts
         shell: bash

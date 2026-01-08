@@ -2,9 +2,10 @@
 # test-termux-docker.sh - Test QuicPulse in Termux Docker environment
 #
 # NOTE: For easier testing, use Docker Compose instead:
-#   docker compose -f docker-compose.termux.yml run test
+#   docker compose -f platform/android-not-supported/docker-compose.termux.yml run test
 #
 # This script is useful for CI/CD or when Docker Compose isn't available.
+# Run this script from the repository root.
 set -e
 
 echo "=== QuicPulse Termux Docker Test ==="
@@ -19,7 +20,7 @@ fi
 
 # Build Docker image
 echo "Step 1: Building Docker image..."
-docker build -f Dockerfile.termux -t quicpulse-termux .
+docker build -f platform/android-not-supported/Dockerfile.termux -t quicpulse-termux .
 
 echo ""
 echo "Step 2: Testing version command..."

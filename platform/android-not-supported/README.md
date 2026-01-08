@@ -1,6 +1,8 @@
 # Running QuicPulse on Android with Termux
 
-QuicPulse provides static musl binaries that work perfectly on Android via [Termux](https://termux.dev/). This guide covers installation, troubleshooting, and Docker testing.
+QuicPulse provides static musl binaries that work on Android via [Termux](https://termux.dev/). This guide covers installation, troubleshooting, and Docker testing.
+
+**Note:** Native Android builds (using the `*-linux-android` targets) are built without JavaScript scripting support due to `rquickjs` library limitations on Android. All other features remain fully functional.
 
 ## Table of Contents
 
@@ -9,6 +11,7 @@ QuicPulse provides static musl binaries that work perfectly on Android via [Term
 - [Troubleshooting](#troubleshooting)
 - [Docker Testing](#docker-testing)
 - [Common Issues](#common-issues)
+- [Limitations](#limitations)
 
 ---
 
@@ -170,6 +173,56 @@ c_rehash $PREFIX/etc/tls/certs/
 
 ---
 
+## Debug Mode
+
+QuicPulse provides comprehensive debugging to help diagnose network issues on Android/Termux.
+
+### Basic Debug Mode
+
+Shows human-readable debug output with platform detection, timing, and request/response details:
+
+```bash
+quicpulse --debug GET https://example.com
+```
+
+**Debug output includes:**
+- Platform detection (OS, Android/Termux identification)
+- Certificate paths (shows SSL_CERT_FILE location)
+- HTTP version negotiation (HTTP/1.1, HTTP/2, HTTP/3)
+- TLS handshake details (cipher suites, ALPN protocol)
+- DNS resolution and connection details
+- Request and response headers
+- Total request timing
+- Detailed error context with phase identification
+
+### JSON Debug Mode
+
+For parsing by tools or CI/CD pipelines, use `--debug-json` to output structured JSON to stderr:
+
+```bash
+quicpulse --debug-json GET https://example.com 2>debug.json
+```
+
+Each log line is a complete JSON object with structured fields for automated analysis.
+
+### Common Android/Termux Issues Detected by Debug Mode
+
+1. **"error sending request" with HTTP URLs**
+   - **Cause:** Android 9+ blocks cleartext HTTP traffic by default
+   - **Solution:** Use HTTPS instead
+   - **Debug:** `--debug` will show a warning about cleartext blocking
+
+2. **SSL certificate errors**
+   - **Cause:** Missing or incorrect SSL_CERT_FILE environment variable
+   - **Solution:** Export the certificate path (see below)
+   - **Debug:** `--debug` shows detected certificate paths
+
+3. **Connection timeouts**
+   - **Cause:** Network restrictions or firewall rules
+   - **Debug:** `--debug` shows which phase failed (DNS, connect, TLS, request)
+
+---
+
 ## Troubleshooting
 
 ### Issue 1: SSL/TLS Certificate Errors
@@ -313,13 +366,13 @@ Error: Request error: Network unreachable
 
 ## Docker Testing
 
-For testing QuicPulse in a Termux Docker environment, see [`Dockerfile.termux`](../Dockerfile.termux) in the repository root.
+For testing QuicPulse in a Termux Docker environment, see [`Dockerfile.termux`](Dockerfile.termux) in this directory.
 
 ### Quick Docker Test
 
 ```bash
-# Build the Docker image
-docker build -f Dockerfile.termux -t quicpulse-termux .
+# Build the Docker image (run from repository root)
+docker build -f platform/android-not-supported/Dockerfile.termux -t quicpulse-termux .
 
 # Run a test (note: requires --network host)
 docker run --rm --network host \
@@ -330,7 +383,7 @@ docker run --rm --network host \
 
 Or use the automated test script:
 ```bash
-./test-termux-docker.sh
+./platform/android-not-supported/test-termux-docker.sh
 ```
 
 ### Using Docker Compose (Recommended for Contributors)
@@ -340,25 +393,25 @@ Or use the automated test script:
 **Why Docker Compose?**
 - No need to remember `--network host` flag
 - Codifies all required flags and volume mounts
-- One command for testing: `docker compose -f docker-compose.termux.yml run test`
+- One command for testing: `docker compose -f platform/android-not-supported/docker-compose.termux.yml run test`
 - Prevents common mistakes when running manually
 
 **Prerequisites:**
 ```bash
-# Build the musl binary first
+# Build the musl binary first (run from repository root)
 cross build --target aarch64-unknown-linux-musl
 ```
 
-**Usage:**
+**Usage (run from repository root):**
 
 1. **Run automated tests:**
    ```bash
-   docker compose -f docker-compose.termux.yml run test
+   docker compose -f platform/android-not-supported/docker-compose.termux.yml run test
    ```
 
 2. **Interactive shell:**
    ```bash
-   docker compose -f docker-compose.termux.yml run shell
+   docker compose -f platform/android-not-supported/docker-compose.termux.yml run shell
    # Inside container:
    /tmp/quicpulse --version
    /tmp/quicpulse https://httpbin.org/get
@@ -366,7 +419,7 @@ cross build --target aarch64-unknown-linux-musl
 
 3. **Single command:**
    ```bash
-   docker compose -f docker-compose.termux.yml run quicpulse /tmp/quicpulse https://httpbin.org/get
+   docker compose -f platform/android-not-supported/docker-compose.termux.yml run quicpulse /tmp/quicpulse https://httpbin.org/get
    ```
 
 **What it does:**
@@ -375,7 +428,7 @@ cross build --target aarch64-unknown-linux-musl
 - Sets `SSL_CERT_FILE` environment variable
 - Provides certificates from Alpine Linux
 
-**For CI/CD or manual testing without Compose,** use `./test-termux-docker.sh` or the docker commands below.
+**For CI/CD or manual testing without Compose,** use `./platform/android-not-supported/test-termux-docker.sh` or the docker commands below.
 
 ### Understanding the dnsmasq Warning
 
@@ -681,11 +734,39 @@ quicpulse --auth-type basic https://api.example.com
 
 ## Getting Help
 
-- **Documentation:** [docs/](../docs/)
+- **Documentation:** [docs/](../../docs/)
 - **Issues:** [GitHub Issues](https://github.com/quicpulse/quicpulse/issues)
 - **Termux Issues:**
   - [Termux CA Certificates #1546](https://github.com/termux/termux-packages/issues/1546)
   - [Termux TLS Verification #4893](https://github.com/termux/termux-app/issues/4893)
+
+---
+
+## Limitations
+
+### Android Native Builds
+
+QuicPulse binaries built for Android targets (`*-linux-android`) have the following limitations compared to standard Linux builds:
+
+**Not Available:**
+- ❌ **JavaScript Scripting** - The `rquickjs` library does not support Android platforms due to missing precompiled bindings
+  - Cannot use `--script` flag with JavaScript files
+  - JavaScript-based request/response processing unavailable
+
+**Fully Available:**
+- ✅ **Rune Scripting** - Native Rust scripting language works perfectly
+- ✅ **All HTTP Features** - HTTP/1.1, HTTP/2, HTTP/3, WebSocket, gRPC, GraphQL
+- ✅ **Authentication** - All auth methods (Basic, Digest, Bearer, OAuth2, AWS SigV4)
+- ✅ **All Other Features** - Sessions, workflows, filtering, assertions, etc.
+
+### Musl Static Binaries (Recommended for Termux)
+
+The musl static binaries (aarch64-unknown-linux-musl, x86_64-unknown-linux-musl) include **full JavaScript support** and are recommended for Termux users. These binaries:
+- ✅ Include all features including JavaScript scripting
+- ✅ Work reliably in Termux with proper SSL_CERT_FILE configuration
+- ✅ Are statically linked and self-contained
+
+**Recommendation:** Use the musl binaries (`quicpulse-linux-arm64-musl.tar.gz`) for Termux instead of the Android-specific builds.
 
 ---
 

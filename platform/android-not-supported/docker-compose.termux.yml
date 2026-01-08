@@ -8,25 +8,25 @@
 # Using `network_mode: host` bypasses these issues without contributors
 # needing to remember complex docker run flags.
 #
-# Quick Start:
+# Quick Start (run from repository root):
 #   1. Build the musl binary:
 #      cross build --target aarch64-unknown-linux-musl
 #
 #   2. Run tests:
-#      docker compose -f docker-compose.termux.yml run test
+#      docker compose -f platform/android-not-supported/docker-compose.termux.yml run test
 #
 #   3. Interactive shell:
-#      docker compose -f docker-compose.termux.yml run shell
+#      docker compose -f platform/android-not-supported/docker-compose.termux.yml run shell
 #
 #   4. Single command:
-#      docker compose -f docker-compose.termux.yml run quicpulse /tmp/quicpulse https://httpbin.org/get
+#      docker compose -f platform/android-not-supported/docker-compose.termux.yml run quicpulse /tmp/quicpulse https://httpbin.org/get
 
 services:
   # Base service with common configuration
   quicpulse:
     build:
-      context: .
-      dockerfile: Dockerfile.termux
+      context: ../..
+      dockerfile: platform/android-not-supported/Dockerfile.termux
     image: quicpulse-termux
     # CRITICAL: Use host networking to bypass broken bridge networking in termux-docker
     # This solves DNS resolution and routing issues

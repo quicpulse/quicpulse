@@ -72,75 +72,6 @@ cargo build --release
 # Binary will be at ./target/release/quicpulse
 ```
 
-### Android (Termux)
-
-QuicPulse provides static musl binaries that work on Android via [Termux](https://termux.dev/).
-
-📖 **[Complete Termux Guide](docs/termux.md)** | 🐳 **[Docker Testing](docker-compose.termux.yml)**
-
-1. **Download the appropriate musl binary for your Android device:**
-   - **ARM64 (most modern Android devices):** `quicpulse-linux-arm64-musl.tar.gz`
-   - **x86_64 (Android emulators):** `quicpulse-linux-x86_64-musl.tar.gz`
-
-2. **Install in Termux:**
-   ```bash
-   # Install required tools and certificates
-   pkg install wget tar ca-certificates
-
-   # Download (replace with appropriate architecture)
-   wget https://github.com/quicpulse/quicpulse/releases/latest/download/quicpulse-linux-arm64-musl.tar.gz
-
-   # Extract
-   tar -xzf quicpulse-linux-arm64-musl.tar.gz
-
-   # Make executable and move to PATH
-   chmod +x quicpulse
-   mv quicpulse $PREFIX/bin/
-   ```
-
-3. **Configure SSL certificates (REQUIRED):**
-   ```bash
-   echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
-   source ~/.bashrc
-   ```
-
-4. **Verify installation:**
-   ```bash
-   quicpulse --version
-   quicpulse https://httpbin.org/get
-   ```
-
-**Note:** Use the `-musl` suffixed binaries for Android. The standard Linux binaries (with `-gnu` suffix) require glibc and will not work on Android.
-
-#### Troubleshooting HTTPS on Android/Termux
-
-If you encounter SSL/TLS certificate errors, the most common cause is missing `SSL_CERT_FILE` environment variable:
-
-```bash
-# Set the environment variable
-export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem
-
-# Make it permanent
-echo 'export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem' >> ~/.bashrc
-source ~/.bashrc
-
-# Verify and test
-echo $SSL_CERT_FILE
-quicpulse https://httpbin.org/get
-```
-
-If you still have issues:
-1. **Ensure ca-certificates installed:** `pkg install ca-certificates`
-2. **Check system time:** Incorrect date/time causes certificate validation failures
-3. **Verify certificates exist:** `ls -la $PREFIX/etc/tls/cert.pem`
-4. **Test with HTTP first:** `quicpulse http://httpbin.org/get` to isolate TLS issues
-
-**For complete troubleshooting and advanced setup, see [docs/termux.md](docs/termux.md).**
-
-Additional resources:
-- [Termux CA Certificates Issue #1546](https://github.com/termux/termux-packages/issues/1546)
-- [Termux TLS Verification Issue #4893](https://github.com/termux/termux-app/issues/4893)
-
 ## Quick Start
 
 ```bash
@@ -1203,7 +1134,7 @@ quicpulse -I api.example.com/users
 
 ### Debug Mode
 
-QuicPulse provides comprehensive debugging to help diagnose network issues, especially useful for Android/Termux users experiencing connection problems.
+QuicPulse provides comprehensive debugging to help diagnose network issues.
 
 #### Basic Debug Mode
 
@@ -1214,8 +1145,8 @@ quicpulse --debug GET https://example.com
 ```
 
 **Debug output includes:**
-- Platform detection (OS, Android/Termux identification)
-- Certificate paths (shows SSL_CERT_FILE location)
+- Platform detection and system information
+- Certificate paths and TLS configuration
 - HTTP version negotiation (HTTP/1.1, HTTP/2, HTTP/3)
 - TLS handshake details (cipher suites, ALPN protocol)
 - DNS resolution and connection details
@@ -1232,29 +1163,6 @@ quicpulse --debug-json GET https://example.com 2>debug.json
 ```
 
 Each log line is a complete JSON object with structured fields for automated analysis.
-
-#### Android/Termux Specific Debugging
-
-QuicPulse automatically detects Termux/Android and provides helpful diagnostics:
-
-**Common Issues and Solutions:**
-
-1. **"error sending request" with HTTP URLs**
-   - **Cause:** Android 9+ blocks cleartext HTTP traffic by default
-   - **Solution:** Use HTTPS instead
-   - **Debug:** `--debug` will show a warning about cleartext blocking
-
-2. **SSL certificate errors**
-   - **Cause:** Missing or incorrect SSL_CERT_FILE environment variable
-   - **Solution:** Export the certificate path:
-     ```bash
-     export SSL_CERT_FILE=$PREFIX/etc/tls/cert.pem
-     ```
-   - **Debug:** `--debug` shows detected certificate paths
-
-3. **Connection timeouts**
-   - **Cause:** Network restrictions or firewall rules
-   - **Debug:** `--debug` shows which phase failed (DNS, connect, TLS, request)
 
 #### Other Troubleshooting Options
 
@@ -1330,7 +1238,6 @@ For detailed documentation on all features, see the [docs/](docs/) folder:
 | [Kubernetes](docs/kubernetes.md) | Native k8s:// URL support |
 | [OpenAPI](docs/workflow-openapi.md) | Generate workflows from specs |
 | [HAR Replay](docs/workflow-har.md) | Replay browser recordings |
-| [Termux (Android)](docs/termux.md) | Running on Android with Termux |
 
 ### Developer Tools
 
