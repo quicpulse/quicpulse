@@ -1251,73 +1251,11 @@ For detailed documentation on all features, see the [docs/](docs/) folder:
 
 ## Contributing
 
-We welcome contributions to QuicPulse! To contribute, you must certify that you have the right to submit your contribution and agree to license it under the project's dual MIT/Apache-2.0 license.
-
-### Developer Certificate of Origin (DCO)
-
-QuicPulse uses the [Developer Certificate of Origin (DCO)](https://developercertificate.org/) process. This is a lightweight way for contributors to certify that they wrote or otherwise have the right to submit code or documentation to an open source project.
+We welcome contributions to QuicPulse!
 
 #### Inbound = Outbound License
 
-All contributions to QuicPulse are made under the same dual MIT/Apache-2.0 license as the project itself. By signing off on your commits, you agree that your contributions will be licensed under these same terms, with no additional restrictions.
-
-#### How to Sign Off Commits
-
-Contributors sign-off that they adhere to these requirements by adding a Signed-off-by line to commit messages.
-
-```
-This is my commit message
-
-Signed-off-by: Random J Developer <random@developer.example.org>
-```
-
-Git even has a `-s` command line option to append this automatically to your commit message:
-
-```bash
-$ git commit -s -m 'This is my commit message'
-```
-
-#### Signing Off Previous Commits
-
-If you forgot to sign off your commits:
-
-**For a single commit:**
-```bash
-git commit --amend --signoff
-git push --force-with-lease
-```
-
-**For multiple commits (rebase last N commits):**
-```bash
-git rebase --signoff HEAD~N
-git push --force-with-lease
-```
-
-#### What the Sign-Off Means
-
-By signing off, you certify that:
-1. You wrote the contribution, or have the right to submit it under an open source license
-2. You agree to license your contribution under the project's MIT OR Apache-2.0 dual license
-3. You understand that your contribution is public and may be redistributed
-
-For the full text of the Developer Certificate of Origin, see https://developercertificate.org/
-
-#### Configure Git Identity
-
-Make sure your git identity is configured correctly before committing:
-
-```bash
-git config --global user.name "Your Name"
-git config --global user.email "your.email@example.com"
-```
-
-### Contribution Guidelines
-
-- Ensure your code follows the project's coding standards
-- Include tests for new features when applicable
-- Update documentation as needed
-- All commits must include DCO sign-off
-- Pull requests without properly signed commits cannot be merged
+All contributions to QuicPulse are made under the same dual MIT/Apache-2.0 license as the project itself.
 
 ---
 
@@ -1325,7 +1263,8 @@ git config --global user.email "your.email@example.com"
 
 QuicPulse is dual-licensed under either:
 
-- **MIT License** ([LICENSE-MIT](LICENSE-MIT) or http://opensource.org/licenses/MIT)
-- **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE) or http://www.apache.org/licenses/LICENSE-2.0)
+- **MIT License** ([LICENSE-MIT](LICENSE-MIT)
+or
+- **Apache License, Version 2.0** ([LICENSE-APACHE](LICENSE-APACHE)
 
 at your option.
