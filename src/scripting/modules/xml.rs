@@ -2,11 +2,11 @@
 //!
 //! Provides XML parsing and conversion to JSON.
 
-use rune::alloc::String as RuneString;
-use rune::{ContextError, Module};
 use quick_xml::events::Event;
 use quick_xml::Reader;
-use serde_json::{json, Value as JsonValue, Map};
+use rune::alloc::String as RuneString;
+use rune::{ContextError, Module};
+use serde_json::{json, Map, Value as JsonValue};
 
 /// Create the xml module
 pub fn module() -> Result<Module, ContextError> {

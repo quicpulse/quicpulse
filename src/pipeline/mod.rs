@@ -2,22 +2,25 @@
 
 pub mod assertions;
 pub mod dependency;
+pub mod report;
 pub mod runner;
 pub mod sharing;
 pub mod workflow;
-pub mod report;
 
 pub use assertions::Assertion;
-pub use runner::{PipelineRunner, WorkflowOptions, StepResult, format_workflow_results, format_workflow_results_json};
+pub use report::{generate_report, ReportConfig, ReportFormat, WorkflowSummary};
+pub use runner::{
+    format_workflow_results, format_workflow_results_json, PipelineRunner, StepResult,
+    WorkflowOptions,
+};
 pub use sharing::handle_workflow_commands;
-pub use workflow::{load_workflow, apply_environment, apply_cli_variables};
-pub use report::{ReportConfig, ReportFormat, generate_report, WorkflowSummary};
+pub use workflow::{apply_cli_variables, apply_environment, load_workflow};
 
-use std::time::Duration;
 use crate::cli::Args;
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
 use crate::status::ExitStatus;
+use std::time::Duration;
 
 pub const EXIT_ASSERTION_FAILED: i32 = 10;
 
@@ -73,7 +76,10 @@ pub async fn run_workflow(
                 return Ok(ExitStatus::Success);
             }
             Err(errors) => {
-                eprintln!("  Workflow validation failed with {} error(s):", errors.len());
+                eprintln!(
+                    "  Workflow validation failed with {} error(s):",
+                    errors.len()
+                );
                 for error in &errors {
                     eprintln!("    - {}", error);
                 }

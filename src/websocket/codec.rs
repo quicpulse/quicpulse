@@ -1,23 +1,23 @@
 //! WebSocket message encoding/decoding utilities
 
-use crate::errors::QuicpulseError;
 use super::types::BinaryMode;
+use crate::errors::QuicpulseError;
 
 /// Encode binary data to string representation
 pub fn encode_binary(data: &[u8], mode: BinaryMode) -> String {
     match mode {
         BinaryMode::Hex => hex::encode(data),
-        BinaryMode::Base64 => base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data),
+        BinaryMode::Base64 => {
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, data)
+        }
     }
 }
 
 /// Decode string representation to binary data
 pub fn decode_binary(s: &str, mode: BinaryMode) -> Result<Vec<u8>, QuicpulseError> {
     match mode {
-        BinaryMode::Hex => {
-            hex::decode(s.trim())
-                .map_err(|e| QuicpulseError::WebSocket(format!("Invalid hex: {}", e)))
-        }
+        BinaryMode::Hex => hex::decode(s.trim())
+            .map_err(|e| QuicpulseError::WebSocket(format!("Invalid hex: {}", e))),
         BinaryMode::Base64 => {
             base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s.trim())
                 .map_err(|e| QuicpulseError::WebSocket(format!("Invalid base64: {}", e)))

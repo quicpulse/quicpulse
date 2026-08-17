@@ -1,11 +1,11 @@
 //! OpenAPI/Swagger Import and Workflow Generation
 
-mod parser;
 pub mod generator;
+mod parser;
 mod schema_mapper;
 
-pub use parser::{OpenApiSpec, parse_spec};
-pub use generator::{generate_workflow, GeneratorOptions, workflow_to_yaml};
+pub use generator::{generate_workflow, workflow_to_yaml, GeneratorOptions};
+pub use parser::{parse_spec, OpenApiSpec};
 pub use schema_mapper::SchemaMapper;
 
 use crate::cli::Args;
@@ -37,16 +37,25 @@ pub fn run_openapi_import(
         }
         eprintln!("\nEndpoints ({}):", spec.endpoints.len());
         for endpoint in &spec.endpoints {
-            let deprecated = if endpoint.deprecated { " [DEPRECATED]" } else { "" };
+            let deprecated = if endpoint.deprecated {
+                " [DEPRECATED]"
+            } else {
+                ""
+            };
             let tags = if !endpoint.tags.is_empty() {
                 format!(" [{}]", endpoint.tags.join(", "))
             } else {
                 String::new()
             };
-            let summary = endpoint.summary.as_deref()
+            let summary = endpoint
+                .summary
+                .as_deref()
                 .or(endpoint.operation_id.as_deref())
                 .unwrap_or("");
-            eprintln!("  {:7} {}{}{}", endpoint.method, endpoint.path, tags, deprecated);
+            eprintln!(
+                "  {:7} {}{}{}",
+                endpoint.method, endpoint.path, tags, deprecated
+            );
             if !summary.is_empty() {
                 eprintln!("          {}", summary);
             }
@@ -73,8 +82,7 @@ pub fn run_openapi_import(
         .map_err(|e| QuicpulseError::Argument(format!("Failed to serialize workflow: {}", e)))?;
 
     if let Some(ref output_path) = args.generate_workflow {
-        fs::write(output_path, &yaml)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        fs::write(output_path, &yaml).map_err(|e| QuicpulseError::Io(e))?;
         eprintln!("Generated workflow written to: {}", output_path.display());
         eprintln!("  API: {} v{}", spec.title, spec.version);
         eprintln!("  Endpoints: {}", spec.endpoints.len());
@@ -83,7 +91,11 @@ pub fn run_openapi_import(
         if env.stdout_isatty {
             eprintln!("# Generated from: {}", openapi_path.display());
             eprintln!("# API: {} v{}", spec.title, spec.version);
-            eprintln!("# Endpoints: {}, Steps: {}", spec.endpoints.len(), workflow.steps.len());
+            eprintln!(
+                "# Endpoints: {}, Steps: {}",
+                spec.endpoints.len(),
+                workflow.steps.len()
+            );
             eprintln!();
         }
         print!("{}", yaml);

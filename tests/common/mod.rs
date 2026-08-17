@@ -46,6 +46,7 @@ impl From<i32> for ExitStatus {
 
 /// Result of running the HTTP CLI
 #[derive(Debug)]
+#[allow(dead_code)]
 pub struct CliResponse {
     /// Standard output
     pub stdout: String,
@@ -59,6 +60,7 @@ pub struct CliResponse {
     json_cache: Option<serde_json::Value>,
 }
 
+#[allow(dead_code)]
 impl CliResponse {
     /// Parse the response body as JSON
     pub fn json(&self) -> Option<&serde_json::Value> {
@@ -172,29 +174,33 @@ pub fn http(args: &[&str]) -> CliResponse {
 pub fn http_with_env(args: &[&str], env: &MockEnvironment) -> CliResponse {
     // Build the command - use cargo run in test mode
     let mut cmd = Command::new(env!("CARGO_BIN_EXE_quicpulse"));
-    
+
     // Add a timeout to prevent hanging tests (2s is plenty for mock servers)
     cmd.args(["--timeout", "2"]);
     cmd.args(args);
-    
+
     // Set up environment
     cmd.env("QUICPULSE_CONFIG_DIR", env.config_path());
     for (key, value) in &env.env_vars {
         cmd.env(key, value);
     }
-    
+
     // Configure stdio
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
-    
+
     if let Some(ref stdin_data) = env.stdin {
         cmd.stdin(Stdio::piped());
         let mut child = cmd.spawn().expect("Failed to spawn command");
         {
             let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-            stdin.write_all(stdin_data).expect("Failed to write to stdin");
+            stdin
+                .write_all(stdin_data)
+                .expect("Failed to write to stdin");
         }
-        let output = child.wait_with_output().expect("Failed to wait for command");
+        let output = child
+            .wait_with_output()
+            .expect("Failed to wait for command");
         parse_output(output)
     } else {
         cmd.stdin(Stdio::null());
@@ -233,9 +239,13 @@ pub fn http_error_with_env(args: &[&str], env: &MockEnvironment) -> CliResponse 
         let mut child = cmd.spawn().expect("Failed to spawn command");
         {
             let stdin = child.stdin.as_mut().expect("Failed to open stdin");
-            stdin.write_all(stdin_data).expect("Failed to write to stdin");
+            stdin
+                .write_all(stdin_data)
+                .expect("Failed to write to stdin");
         }
-        let output = child.wait_with_output().expect("Failed to wait for command");
+        let output = child
+            .wait_with_output()
+            .expect("Failed to wait for command");
         parse_output(output)
     } else {
         cmd.stdin(Stdio::null());
@@ -248,10 +258,10 @@ fn parse_output(output: Output) -> CliResponse {
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(1);
-    
+
     // Try to parse JSON from the response body
     let json_cache = extract_json(&stdout);
-    
+
     CliResponse {
         stdout,
         stderr,
@@ -269,7 +279,7 @@ fn extract_json(output: &str) -> Option<serde_json::Value> {
             return Some(json);
         }
     }
-    
+
     // Try to find JSON in the body (after headers)
     if let Some(pos) = output.find("\r\n\r\n") {
         let body = &output[pos + 4..];
@@ -277,14 +287,14 @@ fn extract_json(output: &str) -> Option<serde_json::Value> {
             return Some(json);
         }
     }
-    
+
     if let Some(pos) = output.find("\n\n") {
         let body = &output[pos + 2..];
         if let Ok(json) = serde_json::from_str(body.trim()) {
             return Some(json);
         }
     }
-    
+
     None
 }
 
@@ -321,11 +331,13 @@ pub fn create_json_file(content: &serde_json::Value) -> (TempDir, PathBuf) {
 
 /// Test fixture paths
 pub mod fixtures {
-    use std::path::PathBuf;
     use once_cell::sync::Lazy;
+    use std::path::PathBuf;
 
     pub static FIXTURES_DIR: Lazy<PathBuf> = Lazy::new(|| {
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests").join("fixtures")
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("tests")
+            .join("fixtures")
     });
 
     /// Get path to a fixture file

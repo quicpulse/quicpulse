@@ -16,10 +16,8 @@ use crate::errors::QuicpulseError;
 /// In async contexts, prefer `compress_deflate_async`.
 pub fn compress_deflate(data: &[u8]) -> Result<Vec<u8>, QuicpulseError> {
     let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data)
-        .map_err(|e| QuicpulseError::Io(e))?;
-    encoder.finish()
-        .map_err(|e| QuicpulseError::Io(e))
+    encoder.write_all(data).map_err(|e| QuicpulseError::Io(e))?;
+    encoder.finish().map_err(|e| QuicpulseError::Io(e))
 }
 
 /// Bug #5 fix: Async version of compress_deflate that uses spawn_blocking
@@ -49,7 +47,10 @@ pub fn compress_request(data: &[u8], always: bool) -> Result<(Vec<u8>, bool), Qu
 
 /// Bug #5 fix: Async version of compress_request that uses spawn_blocking
 /// to avoid blocking the tokio event loop during CPU-intensive compression.
-pub async fn compress_request_async(data: Vec<u8>, always: bool) -> Result<(Vec<u8>, bool), QuicpulseError> {
+pub async fn compress_request_async(
+    data: Vec<u8>,
+    always: bool,
+) -> Result<(Vec<u8>, bool), QuicpulseError> {
     tokio::task::spawn_blocking(move || compress_request(&data, always))
         .await
         .map_err(|e| QuicpulseError::Parse(format!("Compression task panicked: {}", e)))?
@@ -63,7 +64,7 @@ mod tests {
     fn test_compress_deflate() {
         let data = b"Hello, World! Hello, World! Hello, World!";
         let compressed = compress_deflate(data).unwrap();
-        
+
         // Compressed should be smaller for repetitive data
         assert!(compressed.len() < data.len());
     }
@@ -73,7 +74,7 @@ mod tests {
         // Small data might not compress well
         let data = b"Hi";
         let (result, was_compressed) = compress_request(data, false).unwrap();
-        
+
         // Should return original if compression doesn't help
         if !was_compressed {
             assert_eq!(result, data);
@@ -84,7 +85,7 @@ mod tests {
     fn test_compress_request_always() {
         let data = b"Hi";
         let (_, was_compressed) = compress_request(data, true).unwrap();
-        
+
         // Should always compress when always=true
         assert!(was_compressed);
     }

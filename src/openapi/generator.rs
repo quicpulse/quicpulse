@@ -7,18 +7,17 @@
 //! - Schema-based assertions
 //! - CRUD ordering (Create -> Read -> Update -> Delete)
 
-use super::parser::{OpenApiSpec, Endpoint, Schema, RequestBody, Parameter};
+use super::parser::{Endpoint, OpenApiSpec, Parameter, RequestBody, Schema};
 use super::schema_mapper::SchemaMapper;
-use crate::pipeline::workflow::{Workflow, WorkflowStep, StepAssertions, StatusAssertion};
-use std::collections::HashMap;
+use crate::pipeline::workflow::{StatusAssertion, StepAssertions, Workflow, WorkflowStep};
 use once_cell::sync::Lazy;
-use serde_json::Value;
 use regex::Regex;
+use serde_json::Value;
+use std::collections::HashMap;
 
 /// SIMD-optimized cached regex for camelCase to Title Case conversion
-static CAMEL_CASE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"([a-z])([A-Z])").expect("Invalid camelCase regex")
-});
+static CAMEL_CASE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"([a-z])([A-Z])").expect("Invalid camelCase regex"));
 
 /// Options for workflow generation
 #[derive(Debug, Clone)]
@@ -64,7 +63,9 @@ impl Default for GeneratorOptions {
 
 /// Generate a workflow from an OpenAPI spec
 pub fn generate_workflow(spec: &OpenApiSpec, options: &GeneratorOptions) -> Workflow {
-    let base_url = options.base_url.clone()
+    let base_url = options
+        .base_url
+        .clone()
         .or_else(|| spec.servers.first().map(|s| s.url.clone()))
         .unwrap_or_else(|| "http://localhost".to_string());
 
@@ -73,11 +74,16 @@ pub fn generate_workflow(spec: &OpenApiSpec, options: &GeneratorOptions) -> Work
 
     // Add auth placeholder if security is defined
     if !spec.security_schemes.is_empty() || !spec.security.is_empty() {
-        variables.insert("auth_token".to_string(), Value::String("YOUR_TOKEN_HERE".to_string()));
+        variables.insert(
+            "auth_token".to_string(),
+            Value::String("YOUR_TOKEN_HERE".to_string()),
+        );
     }
 
     // Filter and sort endpoints
-    let mut endpoints: Vec<&Endpoint> = spec.endpoints.iter()
+    let mut endpoints: Vec<&Endpoint> = spec
+        .endpoints
+        .iter()
         .filter(|e| options.include_deprecated || !e.deprecated)
         .filter(|e| {
             if options.filter_tags.is_empty() {
@@ -97,7 +103,10 @@ pub fn generate_workflow(spec: &OpenApiSpec, options: &GeneratorOptions) -> Work
             if options.filter_methods.is_empty() {
                 true
             } else {
-                options.filter_methods.iter().any(|m| m.eq_ignore_ascii_case(&e.method))
+                options
+                    .filter_methods
+                    .iter()
+                    .any(|m| m.eq_ignore_ascii_case(&e.method))
             }
         })
         .collect();
@@ -125,16 +134,26 @@ pub fn generate_workflow(spec: &OpenApiSpec, options: &GeneratorOptions) -> Work
     let mut extracted_vars: HashMap<String, String> = HashMap::new();
 
     // Generate steps
-    let steps: Vec<WorkflowStep> = endpoints.iter()
+    let steps: Vec<WorkflowStep> = endpoints
+        .iter()
         .map(|endpoint| {
-            generate_step(endpoint, &spec.schemas, options, &mut extracted_vars, &spec.security_schemes)
+            generate_step(
+                endpoint,
+                &spec.schemas,
+                options,
+                &mut extracted_vars,
+                &spec.security_schemes,
+            )
         })
         .collect();
 
     Workflow {
         name: format!("{} API Test Suite", spec.title),
         description: spec.description.clone().unwrap_or_else(|| {
-            format!("Auto-generated test suite for {} v{}", spec.title, spec.version)
+            format!(
+                "Auto-generated test suite for {} v{}",
+                spec.title, spec.version
+            )
         }),
         base_url: Some("{{base_url}}".to_string()),
         variables,
@@ -243,7 +262,8 @@ fn generate_step_name(endpoint: &Endpoint) -> String {
     } else if let Some(op_id) = &endpoint.operation_id {
         // Convert camelCase/snake_case to Title Case using cached regex
         let spaced = CAMEL_CASE_RE.replace_all(op_id, "$1 $2");
-        spaced.replace('_', " ")
+        spaced
+            .replace('_', " ")
             .split_whitespace()
             .map(|word| {
                 let mut chars = word.chars();
@@ -272,7 +292,10 @@ fn build_url(
         let placeholder = format!("{{{}}}", param.name);
 
         // Check if we have an extracted variable for this parameter
-        let var_name = format!("{}_id", param.name.trim_end_matches("Id").trim_end_matches("_id"));
+        let var_name = format!(
+            "{}_id",
+            param.name.trim_end_matches("Id").trim_end_matches("_id")
+        );
         let value = if let Some(var) = extracted_vars.get(&var_name) {
             format!("{{{{{}}}}}", var)
         } else if let Some(var) = extracted_vars.get(&param.name) {
@@ -287,7 +310,9 @@ fn build_url(
 
     // Add query parameters
     if !endpoint.query_params.is_empty() {
-        let query_parts: Vec<String> = endpoint.query_params.iter()
+        let query_parts: Vec<String> = endpoint
+            .query_params
+            .iter()
             .filter(|p| p.required)
             .map(|p| {
                 let value = generate_param_value(p, schemas);
@@ -344,7 +369,9 @@ fn generate_request_body(
     let rb = request_body.as_ref()?;
 
     // Prefer JSON content type
-    let media_type = rb.content.get("application/json")
+    let media_type = rb
+        .content
+        .get("application/json")
         .or_else(|| rb.content.values().next())?;
 
     let schema = media_type.schema.as_ref()?;
@@ -367,10 +394,10 @@ fn generate_extractions(
     let mut extractions = HashMap::new();
 
     // Only extract from successful responses (2xx)
-    let success_responses: Vec<_> = endpoint.responses.iter()
-        .filter(|(status, _)| {
-            status.starts_with('2') || status.as_str() == "default"
-        })
+    let success_responses: Vec<_> = endpoint
+        .responses
+        .iter()
+        .filter(|(status, _)| status.starts_with('2') || status.as_str() == "default")
         .collect();
 
     for (_, response) in success_responses {
@@ -378,7 +405,16 @@ fn generate_extractions(
             if let Some(schema) = &media_type.schema {
                 // Look for id fields to extract (with visited tracking to prevent infinite recursion)
                 let mut visited = std::collections::HashSet::new();
-                extract_id_fields(schema, schemas, &mut extractions, "", endpoint, extracted_vars, &mut visited, 0);
+                extract_id_fields(
+                    schema,
+                    schemas,
+                    &mut extractions,
+                    "",
+                    endpoint,
+                    extracted_vars,
+                    &mut visited,
+                    0,
+                );
             }
         }
     }
@@ -417,7 +453,16 @@ fn extract_id_fields(
         visited.insert(ref_name.to_string());
 
         if let Some(ref_schema) = schemas.get(ref_name) {
-            extract_id_fields(ref_schema, schemas, extractions, prefix, endpoint, extracted_vars, visited, depth + 1);
+            extract_id_fields(
+                ref_schema,
+                schemas,
+                extractions,
+                prefix,
+                endpoint,
+                extracted_vars,
+                visited,
+                depth + 1,
+            );
         }
         return;
     }
@@ -453,7 +498,8 @@ fn extract_id_fields(
 /// Extract resource name from path (e.g., /users/{id} -> user)
 fn extract_resource_name(path: &str) -> String {
     // Split path and find the last non-parameter segment
-    let segments: Vec<&str> = path.split('/')
+    let segments: Vec<&str> = path
+        .split('/')
         .filter(|s| !s.is_empty() && !s.starts_with('{'))
         .collect();
 
@@ -461,7 +507,7 @@ fn extract_resource_name(path: &str) -> String {
         // Singularize if ends with 's'
         let name = last.to_string();
         if name.ends_with('s') && name.len() > 1 {
-            name[..name.len()-1].to_string()
+            name[..name.len() - 1].to_string()
         } else {
             name
         }
@@ -475,7 +521,9 @@ fn generate_assertions(endpoint: &Endpoint, options: &GeneratorOptions) -> StepA
     let mut assertions = StepAssertions::default();
 
     // Find expected success status code
-    let success_status = endpoint.responses.keys()
+    let success_status = endpoint
+        .responses
+        .keys()
         .filter(|s| s.starts_with('2'))
         .min()
         .map(|s| s.parse::<u16>().ok())
@@ -494,7 +542,9 @@ fn generate_assertions(endpoint: &Endpoint, options: &GeneratorOptions) -> StepA
     }
 
     // Add body assertions based on response schema
-    if let Some(response) = endpoint.responses.get("200")
+    if let Some(response) = endpoint
+        .responses
+        .get("200")
         .or_else(|| endpoint.responses.get("201"))
         .or_else(|| endpoint.responses.get("default"))
     {
@@ -604,9 +654,7 @@ fn generate_step_headers(
 }
 
 fn escape_jq_field(field: &str) -> String {
-    field
-        .replace('\\', "\\\\")
-        .replace('"', "\\\"")
+    field.replace('\\', "\\\\").replace('"', "\\\"")
 }
 
 /// Output workflow as YAML string

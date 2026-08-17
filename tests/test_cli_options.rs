@@ -3,10 +3,9 @@
 //! Tests that all CLI options are correctly parsed and handle edge cases.
 
 mod common;
-use common::{http_with_env, MockEnvironment};
 
-use quicpulse::cli::Args;
 use clap::Parser;
+use quicpulse::cli::Args;
 
 // ============================================================================
 // Helper macros
@@ -149,7 +148,10 @@ fn test_socks_proxy() {
 
 #[test]
 fn test_socks_proxy_alias() {
-    let args = assert_parses!("--socks-proxy=socks5://localhost:1080", "http://example.com");
+    let args = assert_parses!(
+        "--socks-proxy=socks5://localhost:1080",
+        "http://example.com"
+    );
     assert!(args.socks_proxy.is_some());
 }
 
@@ -183,7 +185,11 @@ fn test_ssl_version() {
 
 #[test]
 fn test_cert_options() {
-    let args = assert_parses!("--cert=client.pem", "--cert-key=key.pem", "https://example.com");
+    let args = assert_parses!(
+        "--cert=client.pem",
+        "--cert-key=key.pem",
+        "https://example.com"
+    );
     assert!(args.cert.is_some());
     assert!(args.cert_key.is_some());
 }
@@ -274,7 +280,10 @@ fn test_assert_body() {
 
 #[test]
 fn test_assert_header() {
-    let args = assert_parses!("--assert-header=Content-Type:application/json", "http://example.com");
+    let args = assert_parses!(
+        "--assert-header=Content-Type:application/json",
+        "http://example.com"
+    );
     assert!(!args.assert_header.is_empty());
 }
 
@@ -345,7 +354,11 @@ fn test_grpc() {
 
 #[test]
 fn test_grpc_proto() {
-    let args = assert_parses!("--grpc", "--proto=service.proto", "grpc://localhost:50051/service/Method");
+    let args = assert_parses!(
+        "--grpc",
+        "--proto=service.proto",
+        "grpc://localhost:50051/service/Method"
+    );
     assert!(args.grpc);
     assert!(args.proto.is_some());
 }
@@ -474,7 +487,11 @@ fn test_mock_record() {
 
 #[test]
 fn test_mock_tls() {
-    let args = assert_parses!("--mock", "--mock-tls-cert=cert.pem", "--mock-tls-key=key.pem");
+    let args = assert_parses!(
+        "--mock",
+        "--mock-tls-cert=cert.pem",
+        "--mock-tls-key=key.pem"
+    );
     assert!(args.mock_server);
     assert!(args.mock_tls_cert.is_some());
     assert!(args.mock_tls_key.is_some());
@@ -564,7 +581,12 @@ fn test_pager_cmd() {
 
 #[test]
 fn test_benchmark() {
-    let args = assert_parses!("--bench", "--requests=100", "--concurrency=10", "http://example.com");
+    let args = assert_parses!(
+        "--bench",
+        "--requests=100",
+        "--concurrency=10",
+        "http://example.com"
+    );
     assert!(args.bench);
     assert_eq!(args.bench_requests, 100);
     assert_eq!(args.bench_concurrency, 10);
@@ -582,7 +604,12 @@ fn test_fuzz() {
 
 #[test]
 fn test_fuzz_category() {
-    let args = assert_parses!("--fuzz", "--fuzz-category=sql", "POST", "http://example.com");
+    let args = assert_parses!(
+        "--fuzz",
+        "--fuzz-category=sql",
+        "POST",
+        "http://example.com"
+    );
     assert!(args.fuzz);
     assert!(!args.fuzz_categories.is_empty());
 }
@@ -649,7 +676,12 @@ fn test_form_mode() {
 
 #[test]
 fn test_multipart() {
-    let args = assert_parses!("--multipart", "POST", "http://example.com", "file@image.jpg");
+    let args = assert_parses!(
+        "--multipart",
+        "POST",
+        "http://example.com",
+        "file@image.jpg"
+    );
     assert!(args.multipart);
 }
 
@@ -710,7 +742,8 @@ fn test_update() {
 #[test]
 fn test_combined_auth_and_proxy() {
     let args = assert_parses!(
-        "-a", "user:pass",
+        "-a",
+        "user:pass",
         "--proxy=http://proxy:8080",
         "http://example.com"
     );
@@ -754,7 +787,7 @@ fn test_combined_mock_options() {
 
 #[test]
 fn test_invalid_http_version() {
-    let result = parse_args!("--http-version=99", "http://example.com");
+    let _result = parse_args!("--http-version=99", "http://example.com");
     // Should either fail or accept and validate later
     // This depends on the implementation
 }
@@ -762,6 +795,6 @@ fn test_invalid_http_version() {
 #[test]
 fn test_missing_url_for_request() {
     // --offline still requires a URL in the args
-    let result = parse_args!("--offline", "POST");
+    let _result = parse_args!("--offline", "POST");
     // This may or may not be an error depending on impl
 }

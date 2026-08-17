@@ -3,12 +3,12 @@
 //! Supports loading environment variables from .env files and expanding
 //! {{variable}} syntax in request arguments.
 
+use crate::errors::QuicpulseError;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use once_cell::sync::Lazy;
-use regex::Regex;
-use crate::errors::QuicpulseError;
 
 /// SIMD-optimized regex for variable expansion: {{VAR_NAME}} or {{VAR_NAME:-default}}
 static EXPAND_VAR_RE: Lazy<Regex> = Lazy::new(|| {
@@ -42,9 +42,8 @@ impl EnvVars {
 
     /// Load from a .env file
     pub fn load_file(path: &Path) -> Result<Self, QuicpulseError> {
-        let content = fs::read_to_string(path).map_err(|e| {
-            QuicpulseError::Config(format!("Failed to read .env file: {}", e))
-        })?;
+        let content = fs::read_to_string(path)
+            .map_err(|e| QuicpulseError::Config(format!("Failed to read .env file: {}", e)))?;
 
         Self::parse(&content)
     }
@@ -139,7 +138,8 @@ fn parse_env_line(line: &str) -> Option<(String, String)> {
     let value_part = line[eq_pos + 1..].trim();
 
     // Handle quoted values
-    let value = if value_part.starts_with('"') && value_part.ends_with('"') && value_part.len() >= 2 {
+    let value = if value_part.starts_with('"') && value_part.ends_with('"') && value_part.len() >= 2
+    {
         // Double-quoted: process escape sequences
         unescape_double_quoted(&value_part[1..value_part.len() - 1])
     } else if value_part.starts_with('\'') && value_part.ends_with('\'') && value_part.len() >= 2 {
@@ -188,12 +188,16 @@ fn unescape_double_quoted(s: &str) -> String {
 
 /// Expand {{variable}} syntax in a string
 /// Uses SIMD-optimized cached regex for performance
-pub fn expand_variables(input: &str, vars: &HashMap<String, String>) -> Result<String, QuicpulseError> {
+pub fn expand_variables(
+    input: &str,
+    vars: &HashMap<String, String>,
+) -> Result<String, QuicpulseError> {
     let mut result = input.to_string();
     let mut missing: Vec<String> = Vec::new();
 
     // Find all matches and collect replacements using cached regex
-    let replacements: Vec<(String, String)> = EXPAND_VAR_RE.captures_iter(input)
+    let replacements: Vec<(String, String)> = EXPAND_VAR_RE
+        .captures_iter(input)
         .map(|cap| {
             let full_match = cap.get(0).unwrap().as_str().to_string();
             let var_name = cap.get(1).unwrap().as_str();

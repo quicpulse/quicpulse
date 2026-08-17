@@ -3,14 +3,14 @@
 //! Provides the JsScriptEngine that executes JavaScript code with access
 //! to the same modules available in Rune scripts.
 
-use rquickjs::{Context, Runtime, Function, Value, Ctx};
+use rquickjs::{Context, Ctx, Function, Runtime, Value};
 use std::sync::Arc;
 
+use super::context::inject_context;
+use super::modules;
 use crate::errors::QuicpulseError;
 use crate::scripting::context::ScriptContext;
 use crate::scripting::runtime::ScriptResult;
-use super::context::inject_context;
-use super::modules;
 
 /// JavaScript script engine powered by QuickJS
 pub struct JsScriptEngine {
@@ -56,7 +56,8 @@ impl JsScriptEngine {
             inject_context(&ctx, request.as_ref(), response.as_ref(), &variables, &env)?;
 
             // Evaluate the script
-            let result: Value = ctx.eval(source.as_bytes())
+            let result: Value = ctx
+                .eval(source.as_bytes())
                 .map_err(|e| QuicpulseError::Script(format!("JS execution error: {}", e)))?;
 
             // Convert result to ScriptResult
@@ -82,7 +83,10 @@ impl JsScriptEngine {
 }
 
 /// Convert a QuickJS Value to ScriptResult
-fn convert_js_value<'js>(ctx: &Ctx<'js>, value: Value<'js>) -> Result<ScriptResult, QuicpulseError> {
+fn convert_js_value<'js>(
+    ctx: &Ctx<'js>,
+    value: Value<'js>,
+) -> Result<ScriptResult, QuicpulseError> {
     if value.is_undefined() || value.is_null() {
         return Ok(ScriptResult::Unit);
     }
@@ -100,14 +104,16 @@ fn convert_js_value<'js>(ctx: &Ctx<'js>, value: Value<'js>) -> Result<ScriptResu
     }
 
     if let Some(s) = value.as_string() {
-        let s = s.to_string()
+        let s = s
+            .to_string()
             .map_err(|e| QuicpulseError::Script(format!("Failed to convert string: {}", e)))?;
         return Ok(ScriptResult::String(s));
     }
 
     // Try to convert objects/arrays to JSON
     if value.is_object() || value.is_array() {
-        let json_str = ctx.globals()
+        let json_str = ctx
+            .globals()
             .get::<_, Function>("JSON")
             .and_then(|json| json.get::<_, Function>("stringify"))
             .and_then(|stringify| stringify.call::<_, String>((value.clone(),)));

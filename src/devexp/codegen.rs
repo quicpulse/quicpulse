@@ -2,8 +2,8 @@
 //!
 //! Generates equivalent code in Python, Node.js, Go, Java, PHP, Rust, and Ruby.
 
-use crate::cli::Args;
 use crate::cli::parser::ProcessedArgs;
+use crate::cli::Args;
 use crate::input::InputItem;
 
 /// Supported languages for code generation
@@ -36,12 +36,17 @@ impl Language {
 }
 
 /// Generate code snippet for the specified language
-pub fn generate_code(language: &str, args: &Args, processed: &ProcessedArgs) -> Result<String, String> {
-    let lang = Language::from_str(language)
-        .ok_or_else(|| format!(
+pub fn generate_code(
+    language: &str,
+    args: &Args,
+    processed: &ProcessedArgs,
+) -> Result<String, String> {
+    let lang = Language::from_str(language).ok_or_else(|| {
+        format!(
             "Unknown language '{}'. Supported: python, node, go, java, php, rust, ruby, csharp",
             language
-        ))?;
+        )
+    })?;
 
     Ok(match lang {
         Language::Python => generate_python(args, processed),
@@ -57,15 +62,15 @@ pub fn generate_code(language: &str, args: &Args, processed: &ProcessedArgs) -> 
 
 /// Extract headers from processed args
 fn get_headers(processed: &ProcessedArgs) -> Vec<(String, String)> {
-    processed.items.iter()
-        .filter_map(|item| {
-            match item {
-                InputItem::Header { name, value } => Some((name.clone(), value.clone())),
-                InputItem::HeaderFile { name, path } => {
-                    std::fs::read_to_string(path).ok().map(|v| (name.clone(), v.trim().to_string()))
-                }
-                _ => None,
-            }
+    processed
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            InputItem::Header { name, value } => Some((name.clone(), value.clone())),
+            InputItem::HeaderFile { name, path } => std::fs::read_to_string(path)
+                .ok()
+                .map(|v| (name.clone(), v.trim().to_string())),
+            _ => None,
         })
         .collect()
 }
@@ -76,21 +81,18 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Option<String> {
         return Some(raw.clone());
     }
 
-    let data_items: Vec<_> = processed.items.iter()
-        .filter(|i| i.is_data())
-        .collect();
+    let data_items: Vec<_> = processed.items.iter().filter(|i| i.is_data()).collect();
 
     if data_items.is_empty() {
         return None;
     }
 
     if args.form {
-        let pairs: Vec<String> = data_items.iter()
-            .filter_map(|item| {
-                match item {
-                    InputItem::DataField { key, value } => Some(format!("{}={}", key, value)),
-                    _ => None,
-                }
+        let pairs: Vec<String> = data_items
+            .iter()
+            .filter_map(|item| match item {
+                InputItem::DataField { key, value } => Some(format!("{}={}", key, value)),
+                _ => None,
             })
             .collect();
         Some(pairs.join("&"))
@@ -102,9 +104,7 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Option<String> {
                 InputItem::DataField { key, value } => {
                     (key.clone(), serde_json::Value::String(value.clone()))
                 }
-                InputItem::JsonField { key, value } => {
-                    (key.clone(), value.clone())
-                }
+                InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                 _ => continue,
             };
             obj.insert(key, value);
@@ -127,7 +127,11 @@ fn generate_python(args: &Args, processed: &ProcessedArgs) -> String {
     if !headers.is_empty() {
         code.push_str("headers = {\n");
         for (name, value) in &headers {
-            code.push_str(&format!("    \"{}\": \"{}\",\n", name, escape_string(value)));
+            code.push_str(&format!(
+                "    \"{}\": \"{}\",\n",
+                name,
+                escape_string(value)
+            ));
         }
         code.push_str("}\n");
     }
@@ -236,10 +240,19 @@ fn generate_go(args: &Args, processed: &ProcessedArgs) -> String {
     code.push_str(&format!("\turl := \"{}\"\n\n", processed.url));
 
     if let Some(ref body_str) = body {
-        code.push_str(&format!("\tpayload := bytes.NewBufferString(`{}`)\n\n", body_str));
-        code.push_str(&format!("\treq, err := http.NewRequest(\"{}\", url, payload)\n", processed.method));
+        code.push_str(&format!(
+            "\tpayload := bytes.NewBufferString(`{}`)\n\n",
+            body_str
+        ));
+        code.push_str(&format!(
+            "\treq, err := http.NewRequest(\"{}\", url, payload)\n",
+            processed.method
+        ));
     } else {
-        code.push_str(&format!("\treq, err := http.NewRequest(\"{}\", url, nil)\n", processed.method));
+        code.push_str(&format!(
+            "\treq, err := http.NewRequest(\"{}\", url, nil)\n",
+            processed.method
+        ));
     }
 
     code.push_str("\tif err != nil {\n");
@@ -250,7 +263,11 @@ fn generate_go(args: &Args, processed: &ProcessedArgs) -> String {
         code.push_str("\treq.Header.Set(\"Content-Type\", \"application/json\")\n");
     }
     for (name, value) in &headers {
-        code.push_str(&format!("\treq.Header.Set(\"{}\", \"{}\")\n", name, escape_string(value)));
+        code.push_str(&format!(
+            "\treq.Header.Set(\"{}\", \"{}\")\n",
+            name,
+            escape_string(value)
+        ));
     }
 
     code.push_str("\n\tclient := &http.Client{}\n");
@@ -280,7 +297,10 @@ fn generate_java(args: &Args, processed: &ProcessedArgs) -> String {
     code.push_str("        HttpClient client = HttpClient.newHttpClient();\n\n");
 
     code.push_str("        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()\n");
-    code.push_str(&format!("            .uri(URI.create(\"{}\"))\n", processed.url));
+    code.push_str(&format!(
+        "            .uri(URI.create(\"{}\"))\n",
+        processed.url
+    ));
 
     if let Some(ref body_str) = body {
         code.push_str(&format!(
@@ -299,7 +319,11 @@ fn generate_java(args: &Args, processed: &ProcessedArgs) -> String {
         code.push_str("            .header(\"Content-Type\", \"application/json\")\n");
     }
     for (name, value) in &headers {
-        code.push_str(&format!("            .header(\"{}\", \"{}\")\n", name, escape_java_string(value)));
+        code.push_str(&format!(
+            "            .header(\"{}\", \"{}\")\n",
+            name,
+            escape_java_string(value)
+        ));
     }
 
     code.push_str("            .build();\n\n");
@@ -327,7 +351,10 @@ fn generate_php(args: &Args, processed: &ProcessedArgs) -> String {
     code.push_str("curl_setopt_array($curl, [\n");
     code.push_str(&format!("    CURLOPT_URL => \"{}\",\n", processed.url));
     code.push_str("    CURLOPT_RETURNTRANSFER => true,\n");
-    code.push_str(&format!("    CURLOPT_CUSTOMREQUEST => \"{}\",\n", processed.method));
+    code.push_str(&format!(
+        "    CURLOPT_CUSTOMREQUEST => \"{}\",\n",
+        processed.method
+    ));
 
     let mut header_array = Vec::new();
     if !args.form {
@@ -338,11 +365,17 @@ fn generate_php(args: &Args, processed: &ProcessedArgs) -> String {
     }
 
     if !header_array.is_empty() {
-        code.push_str(&format!("    CURLOPT_HTTPHEADER => [{}],\n", header_array.join(", ")));
+        code.push_str(&format!(
+            "    CURLOPT_HTTPHEADER => [{}],\n",
+            header_array.join(", ")
+        ));
     }
 
     if let Some(ref body_str) = body {
-        code.push_str(&format!("    CURLOPT_POSTFIELDS => '{}',\n", escape_string(body_str)));
+        code.push_str(&format!(
+            "    CURLOPT_POSTFIELDS => '{}',\n",
+            escape_string(body_str)
+        ));
     }
 
     code.push_str("]);\n\n");
@@ -374,14 +407,21 @@ fn generate_rust(args: &Args, processed: &ProcessedArgs) -> String {
     ));
 
     for (name, value) in &headers {
-        code.push_str(&format!("        .header(\"{}\", \"{}\")\n", name, escape_string(value)));
+        code.push_str(&format!(
+            "        .header(\"{}\", \"{}\")\n",
+            name,
+            escape_string(value)
+        ));
     }
 
     if let Some(ref body_str) = body {
         if args.form {
             code.push_str(&format!("        .body(\"{}\")\n", escape_string(body_str)));
         } else {
-            code.push_str(&format!("        .json(&serde_json::json!({}))\n", body_str));
+            code.push_str(&format!(
+                "        .json(&serde_json::json!({}))\n",
+                body_str
+            ));
         }
     }
 
@@ -418,13 +458,20 @@ fn generate_ruby(args: &Args, processed: &ProcessedArgs) -> String {
         _ => "Net::HTTP::Get",
     };
 
-    code.push_str(&format!("request = {}.new(uri.request_uri)\n", method_class));
+    code.push_str(&format!(
+        "request = {}.new(uri.request_uri)\n",
+        method_class
+    ));
 
     if !args.form {
         code.push_str("request['Content-Type'] = 'application/json'\n");
     }
     for (name, value) in &headers {
-        code.push_str(&format!("request['{}'] = '{}'\n", name, escape_string(value)));
+        code.push_str(&format!(
+            "request['{}'] = '{}'\n",
+            name,
+            escape_string(value)
+        ));
     }
 
     if let Some(ref body_str) = body {
@@ -455,7 +502,8 @@ fn generate_csharp(args: &Args, processed: &ProcessedArgs) -> String {
     for (name, value) in &headers {
         code.push_str(&format!(
             "        client.DefaultRequestHeaders.Add(\"{}\", \"{}\");\n",
-            name, escape_string(value)
+            name,
+            escape_string(value)
         ));
     }
 
@@ -463,7 +511,11 @@ fn generate_csharp(args: &Args, processed: &ProcessedArgs) -> String {
         code.push_str(&format!(
             "\n        var content = new StringContent(\"{}\", Encoding.UTF8, \"{}\");\n",
             escape_csharp_string(body_str),
-            if args.form { "application/x-www-form-urlencoded" } else { "application/json" }
+            if args.form {
+                "application/x-www-form-urlencoded"
+            } else {
+                "application/json"
+            }
         ));
     }
 

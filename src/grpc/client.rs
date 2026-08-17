@@ -10,20 +10,20 @@
 //! - Client streaming: stream of requests, single response
 //! - Bidirectional streaming: stream of requests, stream of responses
 
-use std::time::Duration;
-use std::path::Path;
-use std::pin::Pin;
-use bytes::Bytes;
-use futures::stream::{Stream, StreamExt};
-use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
-use tonic::metadata::{MetadataMap, MetadataKey, AsciiMetadataValue, Ascii};
-use tonic::Status;
-use serde_json::Value as JsonValue;
+use super::dynamic::{decode_to_json_schemaless, GrpcSchema, MethodInfo, RawCodec, RawMessage};
+use super::proto_parser::ProtoSchema;
+use super::GrpcEndpoint;
 use crate::client::ssl::SslConfig;
 use crate::errors::QuicpulseError;
-use super::GrpcEndpoint;
-use super::dynamic::{GrpcSchema, MethodInfo, RawMessage, RawCodec, decode_to_json_schemaless};
-use super::proto_parser::ProtoSchema;
+use bytes::Bytes;
+use futures::stream::{Stream, StreamExt};
+use serde_json::Value as JsonValue;
+use std::path::Path;
+use std::pin::Pin;
+use std::time::Duration;
+use tonic::metadata::{Ascii, AsciiMetadataValue, MetadataKey, MetadataMap};
+use tonic::transport::{Channel, ClientTlsConfig, Endpoint};
+use tonic::Status;
 
 /// gRPC client for making dynamic calls
 pub struct GrpcClient {
@@ -71,8 +71,9 @@ impl GrpcClient {
         // Bug #2 fix: Configure TLS using the provided SslConfig if available
         if endpoint.use_tls {
             let tls_config = build_grpc_tls_config(ssl_config)?;
-            ep = ep.tls_config(tls_config)
-                .map_err(|e| QuicpulseError::Connection(format!("TLS configuration error: {}", e)))?;
+            ep = ep.tls_config(tls_config).map_err(|e| {
+                QuicpulseError::Connection(format!("TLS configuration error: {}", e))
+            })?;
         }
 
         // NOTE: Don't set endpoint-level timeout here - it applies to streaming too
@@ -82,9 +83,9 @@ impl GrpcClient {
         ep = ep.tcp_keepalive(Some(Duration::from_secs(60)));
 
         // Connect
-        let channel = ep.connect()
-            .await
-            .map_err(|e| QuicpulseError::Connection(format!("Failed to connect to {}: {}", uri, e)))?;
+        let channel = ep.connect().await.map_err(|e| {
+            QuicpulseError::Connection(format!("Failed to connect to {}: {}", uri, e))
+        })?;
 
         // Build metadata from headers
         let mut metadata = MetadataMap::new();
@@ -138,9 +139,11 @@ impl GrpcClient {
 
     /// Add metadata header
     pub fn add_metadata(&mut self, key: &str, value: &str) -> Result<(), QuicpulseError> {
-        let key: MetadataKey<Ascii> = key.parse()
+        let key: MetadataKey<Ascii> = key
+            .parse()
             .map_err(|_| QuicpulseError::Argument(format!("Invalid header key: {}", key)))?;
-        let val = value.parse::<AsciiMetadataValue>()
+        let val = value
+            .parse::<AsciiMetadataValue>()
             .map_err(|_| QuicpulseError::Argument(format!("Invalid header value: {}", value)))?;
         self.metadata.insert(key, val);
         Ok(())
@@ -179,7 +182,8 @@ impl GrpcClient {
             } else {
                 // Schema parsed but not compiled - this shouldn't happen with protox
                 return Err(QuicpulseError::Argument(
-                    "Proto schema loaded but not properly compiled. Please check your .proto file.".to_string()
+                    "Proto schema loaded but not properly compiled. Please check your .proto file."
+                        .to_string(),
                 ));
             }
         } else {
@@ -212,7 +216,10 @@ impl GrpcClient {
                     }
                 }
                 tonic::metadata::KeyAndValueRef::Binary(key, value) => {
-                    if let Ok(k) = key.as_str().parse::<tonic::metadata::MetadataKey<tonic::metadata::Binary>>() {
+                    if let Ok(k) = key
+                        .as_str()
+                        .parse::<tonic::metadata::MetadataKey<tonic::metadata::Binary>>()
+                    {
                         request.metadata_mut().insert_bin(k, value.clone());
                     }
                 }
@@ -220,7 +227,8 @@ impl GrpcClient {
         }
 
         // Make the unary call
-        let path_uri: http::uri::PathAndQuery = path.parse()
+        let path_uri: http::uri::PathAndQuery = path
+            .parse()
             .map_err(|e| QuicpulseError::Argument(format!("Invalid gRPC path: {}", e)))?;
 
         let response = client.unary(request, path_uri, RawCodec).await;
@@ -253,14 +261,12 @@ impl GrpcClient {
                     trailing_metadata: MetadataMap::new(),
                 })
             }
-            Err(status) => {
-                Ok(GrpcResponse {
-                    status,
-                    body: Vec::new(),
-                    metadata: MetadataMap::new(),
-                    trailing_metadata: MetadataMap::new(),
-                })
-            }
+            Err(status) => Ok(GrpcResponse {
+                status,
+                body: Vec::new(),
+                metadata: MetadataMap::new(),
+                trailing_metadata: MetadataMap::new(),
+            }),
         }
     }
 
@@ -271,7 +277,8 @@ impl GrpcClient {
 
     /// Get method info (streaming type)
     pub fn get_method_info(&self, service: &str, method: &str) -> Option<MethodInfo> {
-        self.grpc_schema().and_then(|s| s.get_method_info(service, method))
+        self.grpc_schema()
+            .and_then(|s| s.get_method_info(service, method))
     }
 
     /// Make a server streaming call (single request, stream of responses)
@@ -286,7 +293,8 @@ impl GrpcClient {
 
         // Build the gRPC path
         let path = format!("/{}/{}", service, method);
-        let path_uri: http::uri::PathAndQuery = path.parse()
+        let path_uri: http::uri::PathAndQuery = path
+            .parse()
             .map_err(|e| QuicpulseError::Argument(format!("Invalid gRPC path: {}", e)))?;
 
         // Create a gRPC client
@@ -319,7 +327,11 @@ impl GrpcClient {
                                     Ok(JsonValue::Object(serde_json::Map::new()))
                                 } else if let Some(ref schema) = schema {
                                     if let Some(grpc_schema) = schema.grpc_schema() {
-                                        grpc_schema.decode_response(&service_name, &method_name, &bytes)
+                                        grpc_schema.decode_response(
+                                            &service_name,
+                                            &method_name,
+                                            &bytes,
+                                        )
                                     } else {
                                         decode_to_json_schemaless(&bytes)
                                     }
@@ -328,7 +340,9 @@ impl GrpcClient {
                                 }
                             }
                             Err(status) => Err(QuicpulseError::Connection(format!(
-                                "Stream error: {:?} - {}", status.code(), status.message()
+                                "Stream error: {:?} - {}",
+                                status.code(),
+                                status.message()
                             ))),
                         }
                     })),
@@ -383,7 +397,8 @@ impl GrpcClient {
 
         // Build the gRPC path
         let path = format!("/{}/{}", service, method);
-        let path_uri: http::uri::PathAndQuery = path.parse()
+        let path_uri: http::uri::PathAndQuery = path
+            .parse()
             .map_err(|e| QuicpulseError::Argument(format!("Invalid gRPC path: {}", e)))?;
 
         // Create a gRPC client
@@ -421,14 +436,12 @@ impl GrpcClient {
                     trailing_metadata: MetadataMap::new(),
                 })
             }
-            Err(status) => {
-                Ok(GrpcResponse {
-                    status,
-                    body: Vec::new(),
-                    metadata: MetadataMap::new(),
-                    trailing_metadata: MetadataMap::new(),
-                })
-            }
+            Err(status) => Ok(GrpcResponse {
+                status,
+                body: Vec::new(),
+                metadata: MetadataMap::new(),
+                trailing_metadata: MetadataMap::new(),
+            }),
         }
     }
 
@@ -470,7 +483,8 @@ impl GrpcClient {
 
         // Build the gRPC path
         let path = format!("/{}/{}", service, method);
-        let path_uri: http::uri::PathAndQuery = path.parse()
+        let path_uri: http::uri::PathAndQuery = path
+            .parse()
             .map_err(|e| QuicpulseError::Argument(format!("Invalid gRPC path: {}", e)))?;
 
         // Create a gRPC client
@@ -512,35 +526,40 @@ impl GrpcClient {
                                 }
                             }
                             Err(status) => Err(QuicpulseError::Connection(format!(
-                                "Stream error: {:?} - {}", status.code(), status.message()
+                                "Stream error: {:?} - {}",
+                                status.code(),
+                                status.message()
                             ))),
                         }
                     })),
                 })
             }
-            Err(status) => {
-                Ok(GrpcStreamingResponse {
-                    status,
-                    metadata: MetadataMap::new(),
-                    stream: Box::pin(futures::stream::empty()),
-                })
-            }
+            Err(status) => Ok(GrpcStreamingResponse {
+                status,
+                metadata: MetadataMap::new(),
+                stream: Box::pin(futures::stream::empty()),
+            }),
         }
     }
 
     /// Helper to encode a request using the schema
-    fn encode_request(&self, service: &str, method: &str, json: &JsonValue) -> Result<Bytes, QuicpulseError> {
+    fn encode_request(
+        &self,
+        service: &str,
+        method: &str,
+        json: &JsonValue,
+    ) -> Result<Bytes, QuicpulseError> {
         if let Some(ref schema) = self.schema {
             if let Some(grpc_schema) = schema.grpc_schema() {
                 grpc_schema.encode_request(service, method, json)
             } else {
                 Err(QuicpulseError::Argument(
-                    "Proto schema loaded but not properly compiled.".to_string()
+                    "Proto schema loaded but not properly compiled.".to_string(),
                 ))
             }
         } else {
             Err(QuicpulseError::Argument(
-                "No proto schema loaded. Use --proto to specify a .proto file.".to_string()
+                "No proto schema loaded. Use --proto to specify a .proto file.".to_string(),
             ))
         }
     }
@@ -555,7 +574,10 @@ impl GrpcClient {
                     }
                 }
                 tonic::metadata::KeyAndValueRef::Binary(key, value) => {
-                    if let Ok(k) = key.as_str().parse::<tonic::metadata::MetadataKey<tonic::metadata::Binary>>() {
+                    if let Ok(k) = key
+                        .as_str()
+                        .parse::<tonic::metadata::MetadataKey<tonic::metadata::Binary>>()
+                    {
                         request.metadata_mut().insert_bin(k, value.clone());
                     }
                 }
@@ -565,7 +587,8 @@ impl GrpcClient {
 
     /// List services from the loaded schema
     pub fn list_services(&self) -> Vec<String> {
-        self.schema.as_ref()
+        self.schema
+            .as_ref()
             .and_then(|s| s.grpc_schema())
             .map(|gs| gs.list_services())
             .unwrap_or_default()
@@ -573,7 +596,8 @@ impl GrpcClient {
 
     /// List methods for a service from the loaded schema
     pub fn list_methods(&self, service: &str) -> Vec<String> {
-        self.schema.as_ref()
+        self.schema
+            .as_ref()
             .and_then(|s| s.grpc_schema())
             .map(|gs| gs.list_methods(service))
             .unwrap_or_default()
@@ -581,14 +605,16 @@ impl GrpcClient {
 
     /// Describe a service from the loaded schema
     pub fn describe_service(&self, service: &str) -> Option<String> {
-        self.schema.as_ref()
+        self.schema
+            .as_ref()
             .and_then(|s| s.grpc_schema())
             .and_then(|gs| gs.describe_service(service))
     }
 
     /// Describe a message type from the loaded schema
     pub fn describe_message(&self, message: &str) -> Option<String> {
-        self.schema.as_ref()
+        self.schema
+            .as_ref()
             .and_then(|s| s.grpc_schema())
             .and_then(|gs| gs.describe_message(message))
     }
@@ -629,9 +655,11 @@ impl GrpcRequest {
 
     /// Add a metadata header
     pub fn with_metadata(mut self, key: &str, value: &str) -> Result<Self, QuicpulseError> {
-        let key: MetadataKey<Ascii> = key.parse()
+        let key: MetadataKey<Ascii> = key
+            .parse()
             .map_err(|_| QuicpulseError::Argument(format!("Invalid key: {}", key)))?;
-        let val = value.parse::<AsciiMetadataValue>()
+        let val = value
+            .parse::<AsciiMetadataValue>()
             .map_err(|_| QuicpulseError::Argument(format!("Invalid value: {}", value)))?;
         self.metadata.insert(key, val);
         Ok(self)
@@ -674,7 +702,11 @@ impl GrpcResponse {
         let mut output = String::new();
 
         // Status line
-        output.push_str(&format!("Status: {:?} ({})\n", self.code(), self.status.message()));
+        output.push_str(&format!(
+            "Status: {:?} ({})\n",
+            self.code(),
+            self.status.message()
+        ));
 
         // Metadata
         if !self.metadata.is_empty() {
@@ -687,7 +719,11 @@ impl GrpcResponse {
                         }
                     }
                     tonic::metadata::KeyAndValueRef::Binary(key, value) => {
-                        output.push_str(&format!("  {}: <binary {} bytes>\n", key.as_str(), value.as_ref().len()));
+                        output.push_str(&format!(
+                            "  {}: <binary {} bytes>\n",
+                            key.as_str(),
+                            value.as_ref().len()
+                        ));
                     }
                 }
             }
@@ -735,14 +771,18 @@ impl GrpcStreamingResponse {
     }
 
     /// Take the stream out of the response
-    pub fn into_stream(self) -> Pin<Box<dyn Stream<Item = Result<JsonValue, QuicpulseError>> + Send>> {
+    pub fn into_stream(
+        self,
+    ) -> Pin<Box<dyn Stream<Item = Result<JsonValue, QuicpulseError>> + Send>> {
         self.stream
     }
 }
 
 /// Bug #2 fix: Build a ClientTlsConfig from SslConfig
 /// This enables gRPC to use the same TLS settings as HTTP (--verify, --cert, --cert-key)
-fn build_grpc_tls_config(ssl_config: Option<&SslConfig>) -> Result<ClientTlsConfig, QuicpulseError> {
+fn build_grpc_tls_config(
+    ssl_config: Option<&SslConfig>,
+) -> Result<ClientTlsConfig, QuicpulseError> {
     let mut tls_config = ClientTlsConfig::new();
 
     if let Some(config) = ssl_config {
@@ -750,16 +790,21 @@ fn build_grpc_tls_config(ssl_config: Option<&SslConfig>) -> Result<ClientTlsConf
         if !config.verify {
             // Note: tonic doesn't have a direct way to disable cert verification like reqwest
             // For gRPC with self-signed certs, users should provide the CA bundle via --verify=/path/to/ca.pem
-            eprintln!("Warning: --verify=no is not fully supported for gRPC. \
-                       For self-signed certificates, use --verify=/path/to/ca.pem instead.");
+            eprintln!(
+                "Warning: --verify=no is not fully supported for gRPC. \
+                       For self-signed certificates, use --verify=/path/to/ca.pem instead."
+            );
         }
 
         // Load custom CA bundle if specified
         if let Some(ca_bundle) = &config.ca_bundle {
-            let ca_data = std::fs::read(ca_bundle)
-                .map_err(|e| QuicpulseError::Ssl(format!(
-                    "Failed to read CA bundle '{}': {}", ca_bundle.display(), e
-                )))?;
+            let ca_data = std::fs::read(ca_bundle).map_err(|e| {
+                QuicpulseError::Ssl(format!(
+                    "Failed to read CA bundle '{}': {}",
+                    ca_bundle.display(),
+                    e
+                ))
+            })?;
 
             let ca_cert = tonic::transport::Certificate::from_pem(ca_data);
             tls_config = tls_config.ca_certificate(ca_cert);
@@ -768,16 +813,22 @@ fn build_grpc_tls_config(ssl_config: Option<&SslConfig>) -> Result<ClientTlsConf
         // Handle client certificate (mTLS)
         if config.client_cert.is_configured() {
             if let Some(cert_path) = &config.client_cert.cert_file {
-                let cert_data = std::fs::read(cert_path)
-                    .map_err(|e| QuicpulseError::Ssl(format!(
-                        "Failed to read client cert '{}': {}", cert_path.display(), e
-                    )))?;
+                let cert_data = std::fs::read(cert_path).map_err(|e| {
+                    QuicpulseError::Ssl(format!(
+                        "Failed to read client cert '{}': {}",
+                        cert_path.display(),
+                        e
+                    ))
+                })?;
 
                 let key_data = if let Some(key_path) = &config.client_cert.key_file {
-                    std::fs::read(key_path)
-                        .map_err(|e| QuicpulseError::Ssl(format!(
-                            "Failed to read client key '{}': {}", key_path.display(), e
-                        )))?
+                    std::fs::read(key_path).map_err(|e| {
+                        QuicpulseError::Ssl(format!(
+                            "Failed to read client key '{}': {}",
+                            key_path.display(),
+                            e
+                        ))
+                    })?
                 } else {
                     // Key might be in the same file as cert
                     cert_data.clone()
@@ -807,9 +858,7 @@ mod tests {
     #[test]
     fn test_grpc_request_with_json() {
         let json = serde_json::json!({"name": "test"});
-        let req = GrpcRequest::new("Test", "Method")
-            .with_json(&json)
-            .unwrap();
+        let req = GrpcRequest::new("Test", "Method").with_json(&json).unwrap();
 
         assert!(!req.body.is_empty());
     }

@@ -1,10 +1,10 @@
 //! Plugin manager
 
-use std::collections::HashMap;
-use crate::errors::QuicpulseError;
 use super::config::PluginsConfig;
 use super::hooks::{HookContext, HookResult, PluginHook};
-use super::loader::{LoadedPlugin, PluginLoader, execute_script_hook};
+use super::loader::{execute_script_hook, LoadedPlugin, PluginLoader};
+use crate::errors::QuicpulseError;
+use std::collections::HashMap;
 
 /// Plugin manager
 pub struct PluginManager {
@@ -95,7 +95,10 @@ impl PluginManager {
 
     /// Check if any plugins handle a hook
     pub fn has_hook_handlers(&self, hook: PluginHook) -> bool {
-        self.hook_map.get(&hook).map(|v| !v.is_empty()).unwrap_or(false)
+        self.hook_map
+            .get(&hook)
+            .map(|v| !v.is_empty())
+            .unwrap_or(false)
     }
 
     /// Execute all plugins for a hook
@@ -141,11 +144,15 @@ impl PluginManager {
             // Merge headers
             for (key, value) in &result.headers {
                 final_result.headers.insert(key.clone(), value.clone());
-                current_context.request_headers.insert(key.clone(), value.clone());
+                current_context
+                    .request_headers
+                    .insert(key.clone(), value.clone());
             }
 
             // Merge remove_headers
-            final_result.remove_headers.extend(result.remove_headers.clone());
+            final_result
+                .remove_headers
+                .extend(result.remove_headers.clone());
 
             // Merge data
             for (key, value) in &result.data {
@@ -164,7 +171,8 @@ impl PluginManager {
 
     /// List all registered plugins
     pub fn list_plugins(&self) -> Vec<(&str, &str, bool)> {
-        self.plugins.iter()
+        self.plugins
+            .iter()
             .map(|p| {
                 let name = p.name();
                 let version = p.version();

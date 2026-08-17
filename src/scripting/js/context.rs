@@ -3,9 +3,9 @@
 //! Injects ScriptContext data (request, response, variables) into the
 //! JavaScript global scope so scripts can access them.
 
-use rquickjs::{Ctx, Object, Array, Value, IntoJs};
-use std::collections::HashMap;
+use rquickjs::{Array, Ctx, IntoJs, Object, Value};
 use serde_json::Value as JsonValue;
+use std::collections::HashMap;
 
 use crate::errors::QuicpulseError;
 use crate::scripting::context::{RequestData, ResponseData};
@@ -22,66 +22,81 @@ pub fn inject_context(
 
     // Inject request object
     if let Some(req) = request {
-        let request_obj = Object::new(ctx.clone())
-            .map_err(|e| QuicpulseError::Script(format!("Failed to create request object: {}", e)))?;
+        let request_obj = Object::new(ctx.clone()).map_err(|e| {
+            QuicpulseError::Script(format!("Failed to create request object: {}", e))
+        })?;
 
-        request_obj.set("method", req.method.as_str())
+        request_obj
+            .set("method", req.method.as_str())
             .map_err(|e| QuicpulseError::Script(format!("Failed to set method: {}", e)))?;
-        request_obj.set("url", req.url.as_str())
+        request_obj
+            .set("url", req.url.as_str())
             .map_err(|e| QuicpulseError::Script(format!("Failed to set url: {}", e)))?;
 
         // Headers as object
         let headers_obj = hashmap_to_js_object(ctx, &req.headers)?;
-        request_obj.set("headers", headers_obj)
+        request_obj
+            .set("headers", headers_obj)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set headers: {}", e)))?;
 
         // Query params as object
         let query_obj = hashmap_to_js_object(ctx, &req.query)?;
-        request_obj.set("query", query_obj)
+        request_obj
+            .set("query", query_obj)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set query: {}", e)))?;
 
         // Form data as object
         let form_obj = hashmap_to_js_object(ctx, &req.form)?;
-        request_obj.set("form", form_obj)
+        request_obj
+            .set("form", form_obj)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set form: {}", e)))?;
 
         // Body as JSON value
         if let Some(ref body) = req.body {
             let body_val = json_to_js_value(ctx, body)?;
-            request_obj.set("body", body_val)
+            request_obj
+                .set("body", body_val)
                 .map_err(|e| QuicpulseError::Script(format!("Failed to set body: {}", e)))?;
         }
 
-        globals.set("request", request_obj)
+        globals
+            .set("request", request_obj)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set request global: {}", e)))?;
     }
 
     // Inject response object
     if let Some(resp) = response {
-        let response_obj = Object::new(ctx.clone())
-            .map_err(|e| QuicpulseError::Script(format!("Failed to create response object: {}", e)))?;
+        let response_obj = Object::new(ctx.clone()).map_err(|e| {
+            QuicpulseError::Script(format!("Failed to create response object: {}", e))
+        })?;
 
-        response_obj.set("status", resp.status as i32)
+        response_obj
+            .set("status", resp.status as i32)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set status: {}", e)))?;
 
         // Headers as object
         let headers_obj = hashmap_to_js_object(ctx, &resp.headers)?;
-        response_obj.set("headers", headers_obj)
+        response_obj
+            .set("headers", headers_obj)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set headers: {}", e)))?;
 
         // Body as JSON value
         let body_val = json_to_js_value(ctx, &resp.body)?;
-        response_obj.set("body", body_val)
+        response_obj
+            .set("body", body_val)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set body: {}", e)))?;
 
-        response_obj.set("elapsed_ms", resp.elapsed_ms as f64)
+        response_obj
+            .set("elapsed_ms", resp.elapsed_ms as f64)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set elapsed_ms: {}", e)))?;
 
         // Convenience: status as top-level variable
-        globals.set("status", resp.status as i32)
+        globals
+            .set("status", resp.status as i32)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set status global: {}", e)))?;
 
-        globals.set("response", response_obj)
+        globals
+            .set("response", response_obj)
             .map_err(|e| QuicpulseError::Script(format!("Failed to set response global: {}", e)))?;
     }
 
@@ -90,22 +105,28 @@ pub fn inject_context(
         .map_err(|e| QuicpulseError::Script(format!("Failed to create variables object: {}", e)))?;
     for (key, value) in variables {
         let js_val = json_to_js_value(ctx, value)?;
-        variables_obj.set(key.as_str(), js_val)
-            .map_err(|e| QuicpulseError::Script(format!("Failed to set variable {}: {}", key, e)))?;
+        variables_obj.set(key.as_str(), js_val).map_err(|e| {
+            QuicpulseError::Script(format!("Failed to set variable {}: {}", key, e))
+        })?;
     }
-    globals.set("variables", variables_obj)
+    globals
+        .set("variables", variables_obj)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set variables global: {}", e)))?;
 
     // Inject env object (safe subset)
     let env_obj = hashmap_to_js_object(ctx, env)?;
-    globals.set("env", env_obj)
+    globals
+        .set("env", env_obj)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set env global: {}", e)))?;
 
     Ok(())
 }
 
 /// Convert a HashMap<String, String> to a JavaScript object
-fn hashmap_to_js_object<'js>(ctx: &Ctx<'js>, map: &HashMap<String, String>) -> Result<Object<'js>, QuicpulseError> {
+fn hashmap_to_js_object<'js>(
+    ctx: &Ctx<'js>,
+    map: &HashMap<String, String>,
+) -> Result<Object<'js>, QuicpulseError> {
     let obj = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create object: {}", e)))?;
 
@@ -131,17 +152,18 @@ fn json_to_js_value<'js>(ctx: &Ctx<'js>, json: &JsonValue) -> Result<Value<'js>,
                 Ok(Value::new_float(ctx.clone(), 0.0))
             }
         }
-        JsonValue::String(s) => {
-            s.as_str().into_js(ctx)
-                .map_err(|e| QuicpulseError::Script(format!("Failed to convert string: {}", e)))
-        }
+        JsonValue::String(s) => s
+            .as_str()
+            .into_js(ctx)
+            .map_err(|e| QuicpulseError::Script(format!("Failed to convert string: {}", e))),
         JsonValue::Array(arr) => {
             let js_arr = Array::new(ctx.clone())
                 .map_err(|e| QuicpulseError::Script(format!("Failed to create array: {}", e)))?;
             for (i, item) in arr.iter().enumerate() {
                 let val = json_to_js_value(ctx, item)?;
-                js_arr.set(i, val)
-                    .map_err(|e| QuicpulseError::Script(format!("Failed to set array item: {}", e)))?;
+                js_arr.set(i, val).map_err(|e| {
+                    QuicpulseError::Script(format!("Failed to set array item: {}", e))
+                })?;
             }
             Ok(js_arr.into_value())
         }
@@ -150,8 +172,9 @@ fn json_to_js_value<'js>(ctx: &Ctx<'js>, json: &JsonValue) -> Result<Value<'js>,
                 .map_err(|e| QuicpulseError::Script(format!("Failed to create object: {}", e)))?;
             for (key, value) in obj {
                 let val = json_to_js_value(ctx, value)?;
-                js_obj.set(key.as_str(), val)
-                    .map_err(|e| QuicpulseError::Script(format!("Failed to set object key: {}", e)))?;
+                js_obj.set(key.as_str(), val).map_err(|e| {
+                    QuicpulseError::Script(format!("Failed to set object key: {}", e))
+                })?;
             }
             Ok(js_obj.into_value())
         }
@@ -161,7 +184,7 @@ fn json_to_js_value<'js>(ctx: &Ctx<'js>, json: &JsonValue) -> Result<Value<'js>,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rquickjs::{Runtime, Context};
+    use rquickjs::{Context, Runtime};
 
     #[test]
     fn test_inject_empty_context() {
@@ -169,13 +192,7 @@ mod tests {
         let context = Context::full(&runtime).unwrap();
 
         context.with(|ctx| {
-            let result = inject_context(
-                &ctx,
-                None,
-                None,
-                &HashMap::new(),
-                &HashMap::new(),
-            );
+            let result = inject_context(&ctx, None, None, &HashMap::new(), &HashMap::new());
             assert!(result.is_ok());
         });
     }

@@ -1,22 +1,22 @@
 //! gRPC support module
 
 pub mod client;
-pub mod reflection;
 pub mod codec;
 pub mod dynamic;
 pub mod interactive;
 pub mod proto_parser;
+pub mod reflection;
 
-pub use proto_parser::ProtoSchema;
 pub use dynamic::{GrpcSchema, MethodInfo};
 pub use interactive::run_interactive;
+pub use proto_parser::ProtoSchema;
 
-use crate::cli::Args;
 use crate::cli::parser::ProcessedArgs;
+use crate::cli::Args;
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
-use crate::output::terminal::{self, colors, RESET};
 use crate::output::formatters::{ColorFormatter, ColorStyle};
+use crate::output::terminal::{self, colors, RESET};
 use crate::status::ExitStatus;
 
 /// Check if request should be treated as gRPC
@@ -33,7 +33,8 @@ pub fn parse_grpc_endpoint(url: &str) -> Result<GrpcEndpoint, QuicpulseError> {
     let url = url.trim();
 
     // Remove grpc:// prefix if present
-    let url = url.strip_prefix("grpc://")
+    let url = url
+        .strip_prefix("grpc://")
         .or_else(|| url.strip_prefix("grpcs://"))
         .unwrap_or(url);
 
@@ -59,7 +60,10 @@ pub fn parse_grpc_endpoint(url: &str) -> Result<GrpcEndpoint, QuicpulseError> {
     // Parse service and method from path
     let (service, method) = if !path.is_empty() {
         if let Some(idx) = path.rfind('/') {
-            (Some(path[..idx].to_string()), Some(path[idx + 1..].to_string()))
+            (
+                Some(path[..idx].to_string()),
+                Some(path[idx + 1..].to_string()),
+            )
         } else {
             (Some(path.to_string()), None)
         }
@@ -116,7 +120,8 @@ mod tests {
 
     #[test]
     fn test_parse_grpc_endpoint_full() {
-        let endpoint = parse_grpc_endpoint("grpc://localhost:50051/mypackage.MyService/MyMethod").unwrap();
+        let endpoint =
+            parse_grpc_endpoint("grpc://localhost:50051/mypackage.MyService/MyMethod").unwrap();
         assert_eq!(endpoint.host, "localhost");
         assert_eq!(endpoint.port, 50051);
         assert_eq!(endpoint.service, Some("mypackage.MyService".to_string()));
@@ -162,16 +167,16 @@ pub async fn run_grpc(
 
     let endpoint = parse_grpc_endpoint(&processed.url)?;
 
-    let headers: Vec<(String, String)> = processed.items.iter()
-        .filter_map(|item| {
-            match item {
-                InputItem::Header { name, value } => Some((name.clone(), value.clone())),
-                InputItem::EmptyHeader { name } => Some((name.clone(), String::new())),
-                InputItem::HeaderFile { name, path } => {
-                    std::fs::read_to_string(path).ok().map(|v| (name.clone(), v.trim().to_string()))
-                }
-                _ => None,
-            }
+    let headers: Vec<(String, String)> = processed
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            InputItem::Header { name, value } => Some((name.clone(), value.clone())),
+            InputItem::EmptyHeader { name } => Some((name.clone(), String::new())),
+            InputItem::HeaderFile { name, path } => std::fs::read_to_string(path)
+                .ok()
+                .map(|v| (name.clone(), v.trim().to_string())),
+            _ => None,
         })
         .collect();
 
@@ -187,29 +192,55 @@ pub async fn run_grpc(
         args.cert_key_pass.as_deref(),
     );
 
-    let mut client = client::GrpcClient::connect_with_options(endpoint.clone(), timeout, Some(headers), Some(&ssl_config)).await?;
+    let mut client = client::GrpcClient::connect_with_options(
+        endpoint.clone(),
+        timeout,
+        Some(headers),
+        Some(&ssl_config),
+    )
+    .await?;
 
     if let Some(ref proto_path) = args.proto {
         client.load_proto(proto_path)?;
         if args.verbose > 0 {
-            eprintln!("{}: {}", terminal::info("Loaded proto schema from"), proto_path.display());
+            eprintln!(
+                "{}: {}",
+                terminal::info("Loaded proto schema from"),
+                proto_path.display()
+            );
             if let Some(schema) = client.schema() {
                 eprintln!("  {}: {}", terminal::label("Package"), schema.package);
-                eprintln!("  {}: {}", terminal::label("Messages"), schema.messages.len());
-                eprintln!("  {}: {}", terminal::label("Services"), schema.services.len());
+                eprintln!(
+                    "  {}: {}",
+                    terminal::label("Messages"),
+                    schema.messages.len()
+                );
+                eprintln!(
+                    "  {}: {}",
+                    terminal::label("Services"),
+                    schema.services.len()
+                );
             }
         }
     }
 
     // Handle interactive mode
     if args.grpc_interactive {
-        eprintln!("{} {}...", terminal::info("Starting gRPC interactive REPL for"), terminal::label(&endpoint.uri()));
+        eprintln!(
+            "{} {}...",
+            terminal::info("Starting gRPC interactive REPL for"),
+            terminal::label(&endpoint.uri())
+        );
         run_interactive(client, args.verbose > 0).await?;
         return Ok(ExitStatus::Success);
     }
 
     if args.grpc_list {
-        eprintln!("{} {}...", terminal::info("Discovering services on"), terminal::label(&endpoint.uri()));
+        eprintln!(
+            "{} {}...",
+            terminal::info("Discovering services on"),
+            terminal::label(&endpoint.uri())
+        );
 
         match reflection::list_services(client.channel()).await {
             Ok(services) => {
@@ -221,22 +252,28 @@ pub async fn run_grpc(
             }
             Err(e) => {
                 if let Some(schema) = client.schema() {
-                    println!("{}", terminal::bold("Services from proto file:", colors::WHITE));
+                    println!(
+                        "{}",
+                        terminal::bold("Services from proto file:", colors::WHITE)
+                    );
                     for service in &schema.services {
                         println!("\n  {}", terminal::label(&service.full_name));
                         for method in &service.methods {
-                            let stream_info = match (method.client_streaming, method.server_streaming) {
-                                (true, true) => terminal::muted(" (bidirectional streaming)"),
-                                (true, false) => terminal::muted(" (client streaming)"),
-                                (false, true) => terminal::muted(" (server streaming)"),
-                                (false, false) => String::new(),
-                            };
-                            println!("    {} {} ({}) -> {}{}",
+                            let stream_info =
+                                match (method.client_streaming, method.server_streaming) {
+                                    (true, true) => terminal::muted(" (bidirectional streaming)"),
+                                    (true, false) => terminal::muted(" (client streaming)"),
+                                    (false, true) => terminal::muted(" (server streaming)"),
+                                    (false, false) => String::new(),
+                                };
+                            println!(
+                                "    {} {} ({}) -> {}{}",
                                 terminal::colorize("rpc", colors::PURPLE),
                                 terminal::value(&method.name),
                                 terminal::key(&method.input_type),
                                 terminal::key(&method.output_type),
-                                stream_info);
+                                stream_info
+                            );
                         }
                     }
                     return Ok(ExitStatus::Success);
@@ -250,15 +287,31 @@ pub async fn run_grpc(
         if let Some(schema) = client.schema() {
             for service in &schema.services {
                 if service.name == *service_name || service.full_name == *service_name {
-                    println!("{} {} {{", terminal::colorize("service", colors::PURPLE), terminal::label(&service.name));
+                    println!(
+                        "{} {} {{",
+                        terminal::colorize("service", colors::PURPLE),
+                        terminal::label(&service.name)
+                    );
                     for method in &service.methods {
-                        let client_stream = if method.client_streaming { "stream " } else { "" };
-                        let server_stream = if method.server_streaming { "stream " } else { "" };
-                        println!("  {} {}({}{}) returns ({}{});",
+                        let client_stream = if method.client_streaming {
+                            "stream "
+                        } else {
+                            ""
+                        };
+                        let server_stream = if method.server_streaming {
+                            "stream "
+                        } else {
+                            ""
+                        };
+                        println!(
+                            "  {} {}({}{}) returns ({}{});",
                             terminal::colorize("rpc", colors::PURPLE),
                             terminal::value(&method.name),
-                            terminal::muted(client_stream), terminal::key(&method.input_type),
-                            terminal::muted(server_stream), terminal::key(&method.output_type));
+                            terminal::muted(client_stream),
+                            terminal::key(&method.input_type),
+                            terminal::muted(server_stream),
+                            terminal::key(&method.output_type)
+                        );
                     }
                     println!("}}");
                     return Ok(ExitStatus::Success);
@@ -273,7 +326,8 @@ pub async fn run_grpc(
             }
             Err(e) => {
                 return Err(QuicpulseError::Argument(format!(
-                    "Could not describe service '{}': {}", service_name, e
+                    "Could not describe service '{}': {}",
+                    service_name, e
                 )));
             }
         }
@@ -293,19 +347,16 @@ pub async fn run_grpc(
         let mut obj = serde_json::Map::new();
         for item in &processed.items {
             let (key, value) = match item {
-                InputItem::DataField { key, value } => {
-                    (key.clone(), serde_json::json!(value))
-                }
+                InputItem::DataField { key, value } => (key.clone(), serde_json::json!(value)),
                 InputItem::DataFieldFile { key, path } => {
                     let content = std::fs::read_to_string(path).unwrap_or_default();
                     (key.clone(), serde_json::json!(content.trim()))
                 }
-                InputItem::JsonField { key, value } => {
-                    (key.clone(), value.clone())
-                }
+                InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                 InputItem::JsonFieldFile { key, path } => {
                     let content = std::fs::read_to_string(path).unwrap_or_default();
-                    let json_val = serde_json::from_str(&content).unwrap_or(serde_json::json!(content));
+                    let json_val =
+                        serde_json::from_str(&content).unwrap_or(serde_json::json!(content));
                     (key.clone(), json_val)
                 }
                 _ => continue,
@@ -316,15 +367,30 @@ pub async fn run_grpc(
     };
 
     if args.verbose > 0 {
-        eprintln!("{}: {}/{}", terminal::info("gRPC Call"), terminal::label(&service), terminal::value(&method));
+        eprintln!(
+            "{}: {}/{}",
+            terminal::info("gRPC Call"),
+            terminal::label(&service),
+            terminal::value(&method)
+        );
         let formatter = ColorFormatter::new(ColorStyle::Auto);
         let req_str = serde_json::to_string_pretty(&request_json).unwrap_or_default();
-        eprintln!("{}: {}", terminal::info("Request"), formatter.format_json(&req_str));
+        eprintln!(
+            "{}: {}",
+            terminal::info("Request"),
+            formatter.format_json(&req_str)
+        );
     }
 
     let method_info = client.get_method_info(&service, &method);
-    let is_server_streaming = method_info.as_ref().map(|m| m.server_streaming).unwrap_or(false);
-    let is_client_streaming = method_info.as_ref().map(|m| m.client_streaming).unwrap_or(false);
+    let is_server_streaming = method_info
+        .as_ref()
+        .map(|m| m.server_streaming)
+        .unwrap_or(false);
+    let is_client_streaming = method_info
+        .as_ref()
+        .map(|m| m.client_streaming)
+        .unwrap_or(false);
 
     if is_client_streaming && is_server_streaming {
         run_grpc_bidi_streaming(&client, &service, &method, args).await
@@ -336,7 +402,11 @@ pub async fn run_grpc(
         let response = client.call_unary(&service, &method, &request_json).await?;
 
         if response.is_ok() {
-            println!("{}: {}", terminal::label("Status"), terminal::success(&format!("{:?}", response.code())));
+            println!(
+                "{}: {}",
+                terminal::label("Status"),
+                terminal::success(&format!("{:?}", response.code()))
+            );
             if let Ok(json) = response.json() {
                 let formatter = ColorFormatter::new(ColorStyle::Auto);
                 let pretty = serde_json::to_string_pretty(&json).unwrap_or_default();
@@ -344,8 +414,12 @@ pub async fn run_grpc(
             }
             Ok(ExitStatus::Success)
         } else {
-            eprintln!("{}: {} - {}", terminal::error("gRPC Error"),
-                terminal::warning(&format!("{:?}", response.code())), response.message());
+            eprintln!(
+                "{}: {} - {}",
+                terminal::error("gRPC Error"),
+                terminal::warning(&format!("{:?}", response.code())),
+                response.message()
+            );
             Ok(ExitStatus::Error)
         }
     }
@@ -364,15 +438,25 @@ async fn run_grpc_server_streaming(
         eprintln!("{}...", terminal::info("Server streaming call"));
     }
 
-    let response = client.call_server_streaming(service, method, request_json).await?;
+    let response = client
+        .call_server_streaming(service, method, request_json)
+        .await?;
 
     if !response.is_ok() {
-        eprintln!("{}: {} - {}", terminal::error("gRPC Error"),
-            terminal::warning(&format!("{:?}", response.code())), response.message());
+        eprintln!(
+            "{}: {} - {}",
+            terminal::error("gRPC Error"),
+            terminal::warning(&format!("{:?}", response.code())),
+            response.message()
+        );
         return Ok(ExitStatus::Error);
     }
 
-    println!("{}: {}", terminal::label("Status"), terminal::success(&format!("{:?}", response.code())));
+    println!(
+        "{}: {}",
+        terminal::label("Status"),
+        terminal::success(&format!("{:?}", response.code()))
+    );
 
     let formatter = ColorFormatter::new(ColorStyle::Auto);
     let mut stream = response.into_stream();
@@ -392,7 +476,11 @@ async fn run_grpc_server_streaming(
     }
 
     if args.verbose > 0 {
-        eprintln!("{} {} messages", terminal::info("Received"), terminal::number(&count.to_string()));
+        eprintln!(
+            "{} {} messages",
+            terminal::info("Received"),
+            terminal::number(&count.to_string())
+        );
     }
 
     Ok(ExitStatus::Success)
@@ -407,30 +495,46 @@ async fn run_grpc_client_streaming(
     use futures::stream;
 
     if args.verbose > 0 {
-        eprintln!("{} - reading NDJSON from stdin...", terminal::info("Client streaming call"));
+        eprintln!(
+            "{} - reading NDJSON from stdin...",
+            terminal::info("Client streaming call")
+        );
     }
 
     let lines: Vec<serde_json::Value> = tokio::task::spawn_blocking(|| {
         use std::io::BufRead;
         let stdin = std::io::stdin();
-        stdin.lock()
+        stdin
+            .lock()
             .lines()
             .filter_map(|line| line.ok())
             .filter(|line| !line.trim().is_empty())
             .filter_map(|line| serde_json::from_str(&line).ok())
             .collect()
-    }).await.unwrap_or_default();
+    })
+    .await
+    .unwrap_or_default();
 
     if args.verbose > 0 {
-        eprintln!("{} {} messages from stdin", terminal::info("Read"), terminal::number(&lines.len().to_string()));
+        eprintln!(
+            "{} {} messages from stdin",
+            terminal::info("Read"),
+            terminal::number(&lines.len().to_string())
+        );
     }
 
     let request_stream = stream::iter(lines);
 
-    let response = client.call_client_streaming(service, method, request_stream).await?;
+    let response = client
+        .call_client_streaming(service, method, request_stream)
+        .await?;
 
     if response.is_ok() {
-        println!("{}: {}", terminal::label("Status"), terminal::success(&format!("{:?}", response.code())));
+        println!(
+            "{}: {}",
+            terminal::label("Status"),
+            terminal::success(&format!("{:?}", response.code()))
+        );
         if let Ok(json) = response.json() {
             let formatter = ColorFormatter::new(ColorStyle::Auto);
             let pretty = serde_json::to_string_pretty(&json).unwrap_or_default();
@@ -438,8 +542,12 @@ async fn run_grpc_client_streaming(
         }
         Ok(ExitStatus::Success)
     } else {
-        eprintln!("{}: {} - {}", terminal::error("gRPC Error"),
-            terminal::warning(&format!("{:?}", response.code())), response.message());
+        eprintln!(
+            "{}: {} - {}",
+            terminal::error("gRPC Error"),
+            terminal::warning(&format!("{:?}", response.code())),
+            response.message()
+        );
         Ok(ExitStatus::Error)
     }
 }
@@ -453,35 +561,55 @@ async fn run_grpc_bidi_streaming(
     use futures::{stream, StreamExt};
 
     if args.verbose > 0 {
-        eprintln!("{} - reading NDJSON from stdin...", terminal::info("Bidirectional streaming call"));
+        eprintln!(
+            "{} - reading NDJSON from stdin...",
+            terminal::info("Bidirectional streaming call")
+        );
     }
 
     let lines: Vec<serde_json::Value> = tokio::task::spawn_blocking(|| {
         use std::io::BufRead;
         let stdin = std::io::stdin();
-        stdin.lock()
+        stdin
+            .lock()
             .lines()
             .filter_map(|line| line.ok())
             .filter(|line| !line.trim().is_empty())
             .filter_map(|line| serde_json::from_str(&line).ok())
             .collect()
-    }).await.unwrap_or_default();
+    })
+    .await
+    .unwrap_or_default();
 
     if args.verbose > 0 {
-        eprintln!("{} {} messages from stdin", terminal::info("Read"), terminal::number(&lines.len().to_string()));
+        eprintln!(
+            "{} {} messages from stdin",
+            terminal::info("Read"),
+            terminal::number(&lines.len().to_string())
+        );
     }
 
     let request_stream = stream::iter(lines);
 
-    let response = client.call_bidi_streaming(service, method, request_stream).await?;
+    let response = client
+        .call_bidi_streaming(service, method, request_stream)
+        .await?;
 
     if !response.is_ok() {
-        eprintln!("{}: {} - {}", terminal::error("gRPC Error"),
-            terminal::warning(&format!("{:?}", response.code())), response.message());
+        eprintln!(
+            "{}: {} - {}",
+            terminal::error("gRPC Error"),
+            terminal::warning(&format!("{:?}", response.code())),
+            response.message()
+        );
         return Ok(ExitStatus::Error);
     }
 
-    println!("{}: {}", terminal::label("Status"), terminal::success(&format!("{:?}", response.code())));
+    println!(
+        "{}: {}",
+        terminal::label("Status"),
+        terminal::success(&format!("{:?}", response.code()))
+    );
 
     let formatter = ColorFormatter::new(ColorStyle::Auto);
     let mut stream = response.into_stream();
@@ -501,7 +629,11 @@ async fn run_grpc_bidi_streaming(
     }
 
     if args.verbose > 0 {
-        eprintln!("{} {} messages", terminal::info("Received"), terminal::number(&count.to_string()));
+        eprintln!(
+            "{} {} messages",
+            terminal::info("Received"),
+            terminal::number(&count.to_string())
+        );
     }
 
     Ok(ExitStatus::Success)

@@ -47,7 +47,10 @@ pub enum WsMessage {
 impl WsMessage {
     /// Check if message is a control frame
     pub fn is_control(&self) -> bool {
-        matches!(self, WsMessage::Ping(_) | WsMessage::Pong(_) | WsMessage::Close(_, _))
+        matches!(
+            self,
+            WsMessage::Ping(_) | WsMessage::Pong(_) | WsMessage::Close(_, _)
+        )
     }
 
     /// Get message type name
@@ -113,7 +116,10 @@ impl std::str::FromStr for BinaryMode {
         match s.to_lowercase().as_str() {
             "hex" => Ok(BinaryMode::Hex),
             "base64" | "b64" => Ok(BinaryMode::Base64),
-            _ => Err(format!("Unknown binary mode: '{}'. Use 'hex' or 'base64'", s)),
+            _ => Err(format!(
+                "Unknown binary mode: '{}'. Use 'hex' or 'base64'",
+                s
+            )),
         }
     }
 }

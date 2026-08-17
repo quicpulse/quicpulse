@@ -3,12 +3,12 @@
 //! This module provides GraphQL query building, variable handling,
 //! and schema introspection capabilities.
 
+pub mod introspection;
 pub mod query;
 pub mod variables;
-pub mod introspection;
 
-pub use query::GraphQLRequestBuilder;
 pub use introspection::build_introspection_query;
+pub use query::GraphQLRequestBuilder;
 
 use crate::cli::Args;
 use crate::errors::QuicpulseError;
@@ -95,7 +95,10 @@ pub fn extract_errors(response: &JsonValue) -> Option<Vec<String>> {
 
 /// Check if GraphQL response has errors
 pub fn has_errors(response: &JsonValue) -> bool {
-    response.get("errors").map(|e| !e.is_null() && e.as_array().map(|a| !a.is_empty()).unwrap_or(false)).unwrap_or(false)
+    response
+        .get("errors")
+        .map(|e| !e.is_null() && e.as_array().map(|a| !a.is_empty()).unwrap_or(false))
+        .unwrap_or(false)
 }
 
 #[cfg(test)]

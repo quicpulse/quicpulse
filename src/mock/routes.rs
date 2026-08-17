@@ -1,8 +1,8 @@
 //! Mock server route definitions and matching
 
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use regex::Regex;
 
 /// HTTP method for route matching
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -95,7 +95,9 @@ impl ResponseConfig {
     pub fn text(body: &str) -> Self {
         Self {
             body: Some(body.to_string()),
-            headers: [("Content-Type".to_string(), "text/plain".to_string())].into_iter().collect(),
+            headers: [("Content-Type".to_string(), "text/plain".to_string())]
+                .into_iter()
+                .collect(),
             ..Default::default()
         }
     }
@@ -104,7 +106,9 @@ impl ResponseConfig {
     pub fn json_body(value: serde_json::Value) -> Self {
         Self {
             json: Some(value),
-            headers: [("Content-Type".to_string(), "application/json".to_string())].into_iter().collect(),
+            headers: [("Content-Type".to_string(), "application/json".to_string())]
+                .into_iter()
+                .collect(),
             ..Default::default()
         }
     }

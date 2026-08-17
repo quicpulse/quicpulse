@@ -3,8 +3,8 @@
 //! Provides JavaScript scripting support via QuickJS.
 //! This plugin is disabled by default and must be explicitly enabled.
 
-use crate::plugins::config::{PluginManifest, PluginConfig, PluginType};
 use super::BundledPlugin;
+use crate::plugins::config::{PluginConfig, PluginManifest, PluginType};
 use std::collections::HashMap;
 
 /// Plugin name constant

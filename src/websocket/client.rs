@@ -1,24 +1,18 @@
 //! WebSocket client implementation
 
-use std::sync::Arc;
 use futures::{SinkExt, StreamExt};
+use rustls::ClientConfig;
+use std::sync::Arc;
+use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async_tls_with_config,
-    tungstenite::{
-        protocol::Message,
-        client::IntoClientRequest,
-        http::HeaderValue,
-    },
-    Connector,
-    MaybeTlsStream,
-    WebSocketStream,
+    tungstenite::{client::IntoClientRequest, http::HeaderValue, protocol::Message},
+    Connector, MaybeTlsStream, WebSocketStream,
 };
-use tokio::net::TcpStream;
-use rustls::ClientConfig;
 
+use super::types::{WsEndpoint, WsMessage, WsOptions};
 use crate::cli::Args;
 use crate::errors::QuicpulseError;
-use super::types::{WsEndpoint, WsMessage, WsOptions};
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -39,7 +33,8 @@ impl WsClient {
         let url = endpoint.url();
 
         // Build the request
-        let mut request = url.into_client_request()
+        let mut request = url
+            .into_client_request()
             .map_err(|e| QuicpulseError::WebSocket(format!("Invalid WebSocket URL: {}", e)))?;
 
         // Add custom headers
@@ -77,19 +72,19 @@ impl WsClient {
                 // This ensures corporate proxies with custom CAs work for WebSocket too
                 let mut root_store = rustls::RootCertStore::empty();
                 let cert_result = rustls_native_certs::load_native_certs();
-                
+
                 // CertificateResult has certs and errors fields (rustls-native-certs 0.8 API)
                 for cert in cert_result.certs {
                     root_store.add(cert).ok(); // Ignore errors for individual certs
                 }
-                
+
                 // If no certs loaded, fall back to webpki-roots
                 if root_store.is_empty() {
                     root_store = rustls::RootCertStore::from_iter(
-                        webpki_roots::TLS_SERVER_ROOTS.iter().cloned()
+                        webpki_roots::TLS_SERVER_ROOTS.iter().cloned(),
                     );
                 }
-                
+
                 ClientConfig::builder()
                     .with_root_certificates(root_store)
                     .with_no_client_auth()
@@ -137,7 +132,8 @@ impl WsClient {
         let url = endpoint.url();
 
         // Build the request
-        let mut request = url.into_client_request()
+        let mut request = url
+            .into_client_request()
             .map_err(|e| QuicpulseError::WebSocket(format!("Invalid WebSocket URL: {}", e)))?;
 
         // Add custom headers
@@ -171,19 +167,19 @@ impl WsClient {
                 // This ensures corporate proxies with custom CAs work for WebSocket too
                 let mut root_store = rustls::RootCertStore::empty();
                 let cert_result = rustls_native_certs::load_native_certs();
-                
+
                 // CertificateResult has certs and errors fields (rustls-native-certs 0.8 API)
                 for cert in cert_result.certs {
                     root_store.add(cert).ok(); // Ignore errors for individual certs
                 }
-                
+
                 // If no certs loaded, fall back to webpki-roots
                 if root_store.is_empty() {
                     root_store = rustls::RootCertStore::from_iter(
-                        webpki_roots::TLS_SERVER_ROOTS.iter().cloned()
+                        webpki_roots::TLS_SERVER_ROOTS.iter().cloned(),
                     );
                 }
-                
+
                 ClientConfig::builder()
                     .with_root_certificates(root_store)
                     .with_no_client_auth()
@@ -216,21 +212,24 @@ impl WsClient {
 
     /// Send a text message
     pub async fn send_text(&mut self, text: &str) -> Result<(), QuicpulseError> {
-        self.stream.send(Message::Text(text.to_string().into()))
+        self.stream
+            .send(Message::Text(text.to_string().into()))
             .await
             .map_err(|e| QuicpulseError::WebSocket(format!("Send failed: {}", e)))
     }
 
     /// Send a binary message
     pub async fn send_binary(&mut self, data: &[u8]) -> Result<(), QuicpulseError> {
-        self.stream.send(Message::Binary(data.to_vec().into()))
+        self.stream
+            .send(Message::Binary(data.to_vec().into()))
             .await
             .map_err(|e| QuicpulseError::WebSocket(format!("Send failed: {}", e)))
     }
 
     /// Send a ping
     pub async fn send_ping(&mut self, data: &[u8]) -> Result<(), QuicpulseError> {
-        self.stream.send(Message::Ping(data.to_vec().into()))
+        self.stream
+            .send(Message::Ping(data.to_vec().into()))
             .await
             .map_err(|e| QuicpulseError::WebSocket(format!("Ping failed: {}", e)))
     }
@@ -259,7 +258,8 @@ impl WsClient {
 
     /// Close the connection
     pub async fn close(&mut self) -> Result<(), QuicpulseError> {
-        self.stream.close(None)
+        self.stream
+            .close(None)
             .await
             .map_err(|e| QuicpulseError::WebSocket(format!("Close failed: {}", e)))
     }

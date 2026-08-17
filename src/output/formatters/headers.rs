@@ -21,7 +21,7 @@ pub fn format_headers(headers: &str, options: &HeadersFormatterOptions) -> Strin
 
     // Split headers (skip status line)
     let mut lines: Vec<&str> = headers.lines().collect();
-    
+
     if lines.is_empty() {
         return headers.to_string();
     }
@@ -32,7 +32,7 @@ pub fn format_headers(headers: &str, options: &HeadersFormatterOptions) -> Strin
 
     let mut result = String::from(first_line);
     result.push('\n');
-    
+
     for line in lines {
         result.push_str(line);
         result.push('\n');

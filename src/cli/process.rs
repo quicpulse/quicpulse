@@ -17,8 +17,15 @@ fn has_url_scheme(s: &str) -> bool {
     if let Some(pos) = s.find("://") {
         let scheme = &s[..pos];
         !scheme.is_empty()
-            && scheme.chars().next().map(|c| c.is_ascii_alphabetic()).unwrap_or(false)
-            && scheme.chars().skip(1).all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
+            && scheme
+                .chars()
+                .next()
+                .map(|c| c.is_ascii_alphabetic())
+                .unwrap_or(false)
+            && scheme
+                .chars()
+                .skip(1)
+                .all(|c| c.is_ascii_alphanumeric() || c == '+' || c == '-' || c == '.')
     } else {
         false
     }
@@ -128,9 +135,7 @@ pub fn process_args(args: &Args) -> Result<ProcessedArgs, QuicpulseError> {
                 (None, m.clone())
             }
         }
-        (Some(u), None) => {
-            (None, u.clone())
-        }
+        (Some(u), None) => (None, u.clone()),
         (None, _) => {
             return Err(QuicpulseError::Argument("URL is required".to_string()));
         }
@@ -180,7 +185,8 @@ fn determine_request_type(args: &Args) -> RequestType {
 
 /// Parse all request items and expand magic values
 fn parse_request_items(items: &[String]) -> Result<Vec<InputItem>, QuicpulseError> {
-    items.iter()
+    items
+        .iter()
         .map(|s| {
             let expanded = expand_magic_values(s);
             InputItem::parse(&expanded.value)

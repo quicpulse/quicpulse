@@ -72,9 +72,15 @@ pub fn format_xml(xml: &str, options: &XmlFormatterOptions) -> String {
                 in_tag = true;
                 current_tag.clear();
                 current_tag.push(c);
-                if i + 8 < chars.len() && chars[i+1..i+9].iter().collect::<String>() == "![CDATA[" {
+                if i + 8 < chars.len()
+                    && chars[i + 1..i + 9].iter().collect::<String>() == "![CDATA["
+                {
                     in_cdata = true;
-                } else if i + 3 < chars.len() && chars[i + 1] == '!' && chars[i + 2] == '-' && chars[i + 3] == '-' {
+                } else if i + 3 < chars.len()
+                    && chars[i + 1] == '!'
+                    && chars[i + 2] == '-'
+                    && chars[i + 3] == '-'
+                {
                     in_comment = true;
                 }
             }

@@ -15,9 +15,11 @@ fn test_mock_route_cli() {
     // Running with --mock starts a server, but without a port binding it should work
     let response = http(&[
         "--mock",
-        "--mock-port", "0",  // Use any available port
-        "--mock-route", "GET:/api/test:200:OK",
-        "--help"  // Just get help to validate args are accepted
+        "--mock-port",
+        "0", // Use any available port
+        "--mock-route",
+        "GET:/api/test:200:OK",
+        "--help", // Just get help to validate args are accepted
     ]);
 
     // Should recognize mock arguments
@@ -29,9 +31,11 @@ fn test_mock_multiple_routes_cli() {
     // Multiple routes via CLI
     let response = http(&[
         "--mock",
-        "--mock-route", "GET:/api/users:200:users list",
-        "--mock-route", "POST:/api/users:201:created",
-        "--help"
+        "--mock-route",
+        "GET:/api/users:200:users list",
+        "--mock-route",
+        "POST:/api/users:201:created",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -62,8 +66,9 @@ routes:
     // Try to load the config (will show help since we add --help)
     let response = http(&[
         "--mock",
-        "--mock-config", config_path.to_str().unwrap(),
-        "--help"
+        "--mock-config",
+        config_path.to_str().unwrap(),
+        "--help",
     ]);
 
     // Config argument should be accepted
@@ -94,8 +99,9 @@ fn test_mock_config_json() {
 
     let response = http(&[
         "--mock",
-        "--mock-config", config_path.to_str().unwrap(),
-        "--help"
+        "--mock-config",
+        config_path.to_str().unwrap(),
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -123,8 +129,9 @@ body = "Hello from TOML config"
 
     let response = http(&[
         "--mock",
-        "--mock-config", config_path.to_str().unwrap(),
-        "--help"
+        "--mock-config",
+        config_path.to_str().unwrap(),
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -139,8 +146,9 @@ fn test_mock_cors_option() {
     let response = http(&[
         "--mock",
         "--mock-cors",
-        "--mock-route", "GET:/api:200:ok",
-        "--help"
+        "--mock-route",
+        "GET:/api:200:ok",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -150,9 +158,11 @@ fn test_mock_cors_option() {
 fn test_mock_latency_option() {
     let response = http(&[
         "--mock",
-        "--mock-latency", "50-100",
-        "--mock-route", "GET:/api:200:ok",
-        "--help"
+        "--mock-latency",
+        "50-100",
+        "--mock-route",
+        "GET:/api:200:ok",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -163,8 +173,9 @@ fn test_mock_log_option() {
     let response = http(&[
         "--mock",
         "--mock-log",
-        "--mock-route", "GET:/api:200:ok",
-        "--help"
+        "--mock-route",
+        "GET:/api:200:ok",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -174,10 +185,13 @@ fn test_mock_log_option() {
 fn test_mock_host_option() {
     let response = http(&[
         "--mock",
-        "--mock-host", "0.0.0.0",
-        "--mock-port", "0",
-        "--mock-route", "GET:/api:200:ok",
-        "--help"
+        "--mock-host",
+        "0.0.0.0",
+        "--mock-port",
+        "0",
+        "--mock-route",
+        "GET:/api:200:ok",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -187,9 +201,11 @@ fn test_mock_host_option() {
 fn test_mock_proxy_option() {
     let response = http(&[
         "--mock",
-        "--mock-proxy", "http://localhost:8080",
-        "--mock-route", "GET:/api:200:ok",
-        "--help"
+        "--mock-proxy",
+        "http://localhost:8080",
+        "--mock-route",
+        "GET:/api:200:ok",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -207,10 +223,7 @@ fn test_mock_invalid_config_file() {
     // Invalid YAML
     std::fs::write(&config_path, "invalid: yaml: config: [").unwrap();
 
-    let response = http_error(&[
-        "--mock",
-        "--mock-config", config_path.to_str().unwrap()
-    ]);
+    let response = http_error(&["--mock", "--mock-config", config_path.to_str().unwrap()]);
 
     // Should error on invalid config
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -218,10 +231,7 @@ fn test_mock_invalid_config_file() {
 
 #[test]
 fn test_mock_nonexistent_config_file() {
-    let response = http_error(&[
-        "--mock",
-        "--mock-config", "/nonexistent/path/config.yaml"
-    ]);
+    let response = http_error(&["--mock", "--mock-config", "/nonexistent/path/config.yaml"]);
 
     // Should error on missing file
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -231,8 +241,10 @@ fn test_mock_nonexistent_config_file() {
 fn test_mock_invalid_latency_format() {
     let response = http_error(&[
         "--mock",
-        "--mock-latency", "not-a-number",
-        "--mock-route", "GET:/api:200:ok"
+        "--mock-latency",
+        "not-a-number",
+        "--mock-route",
+        "GET:/api:200:ok",
     ]);
 
     // Should error on invalid latency format
@@ -246,11 +258,7 @@ fn test_mock_invalid_latency_format() {
 #[test]
 fn test_mock_serve_alias() {
     // --serve is an alias for --mock
-    let response = http(&[
-        "--serve",
-        "--mock-route", "GET:/test:200:hello",
-        "--help"
-    ]);
+    let response = http(&["--serve", "--mock-route", "GET:/test:200:hello", "--help"]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
 }
@@ -260,8 +268,9 @@ fn test_mock_route_with_json_body() {
     // Route with JSON body
     let response = http(&[
         "--mock",
-        "--mock-route", r#"GET:/api/users:200:{"users":[]}"#,
-        "--help"
+        "--mock-route",
+        r#"GET:/api/users:200:{"users":[]}"#,
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -272,14 +281,19 @@ fn test_mock_multiple_options_combined() {
     // Combine multiple mock options
     let response = http(&[
         "--mock",
-        "--mock-port", "0",
-        "--mock-host", "127.0.0.1",
+        "--mock-port",
+        "0",
+        "--mock-host",
+        "127.0.0.1",
         "--mock-cors",
         "--mock-log",
-        "--mock-latency", "10-50",
-        "--mock-route", "GET:/api/test:200:ok",
-        "--mock-route", "POST:/api/create:201:created",
-        "--help"
+        "--mock-latency",
+        "10-50",
+        "--mock-route",
+        "GET:/api/test:200:ok",
+        "--mock-route",
+        "POST:/api/create:201:created",
+        "--help",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);

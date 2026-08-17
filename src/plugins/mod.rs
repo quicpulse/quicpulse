@@ -8,12 +8,12 @@
 //! - Add custom output formatters
 //! - Provide custom commands
 
+pub mod bundled;
 pub mod config;
 pub mod hooks;
 pub mod loader;
 pub mod manager;
 pub mod registry;
-pub mod bundled;
 
 pub use config::PluginConfig;
 pub use hooks::{HookContext, HookResult, PluginHook};

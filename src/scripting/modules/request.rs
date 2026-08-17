@@ -111,12 +111,14 @@ fn http_request(method: &str, url: &str, body: &str) -> RuneString {
             let ok = response.status().is_success();
 
             // Collect headers
-            let headers: serde_json::Map<String, serde_json::Value> = response.headers()
+            let headers: serde_json::Map<String, serde_json::Value> = response
+                .headers()
                 .iter()
                 .map(|(k, v)| {
-                    (k.to_string(), serde_json::Value::String(
-                        v.to_str().unwrap_or("").to_string()
-                    ))
+                    (
+                        k.to_string(),
+                        serde_json::Value::String(v.to_str().unwrap_or("").to_string()),
+                    )
                 })
                 .collect();
 
@@ -124,8 +126,8 @@ fn http_request(method: &str, url: &str, body: &str) -> RuneString {
             let body = response.text().unwrap_or_default();
 
             // Try to parse body as JSON
-            let json_body: serde_json::Value = serde_json::from_str(&body)
-                .unwrap_or(serde_json::Value::String(body.clone()));
+            let json_body: serde_json::Value =
+                serde_json::from_str(&body).unwrap_or(serde_json::Value::String(body.clone()));
 
             let result = serde_json::json!({
                 "status": status,

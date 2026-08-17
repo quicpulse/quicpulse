@@ -2,29 +2,36 @@
 //!
 //! Provides base64, hex, and URL encoding/decoding functions.
 
-use rquickjs::{Ctx, Object, Function};
-use base64::Engine;
 use crate::errors::QuicpulseError;
+use base64::Engine;
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let encoding = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create encoding object: {}", e)))?;
 
-    encoding.set("base64_encode", Function::new(ctx.clone(), base64_encode)?)
+    encoding
+        .set("base64_encode", Function::new(ctx.clone(), base64_encode)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    encoding.set("base64_decode", Function::new(ctx.clone(), base64_decode)?)
+    encoding
+        .set("base64_decode", Function::new(ctx.clone(), base64_decode)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    encoding.set("hex_encode", Function::new(ctx.clone(), hex_encode)?)
+    encoding
+        .set("hex_encode", Function::new(ctx.clone(), hex_encode)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    encoding.set("hex_decode", Function::new(ctx.clone(), hex_decode)?)
+    encoding
+        .set("hex_decode", Function::new(ctx.clone(), hex_decode)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    encoding.set("url_encode", Function::new(ctx.clone(), url_encode)?)
+    encoding
+        .set("url_encode", Function::new(ctx.clone(), url_encode)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    encoding.set("url_decode", Function::new(ctx.clone(), url_decode)?)
+    encoding
+        .set("url_decode", Function::new(ctx.clone(), url_decode)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("encoding", encoding)
+    globals
+        .set("encoding", encoding)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set encoding global: {}", e)))?;
 
     Ok(())

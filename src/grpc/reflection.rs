@@ -3,9 +3,9 @@
 //! This module provides gRPC server reflection client functionality
 //! for discovering available services and methods.
 
-use tonic::transport::Channel;
-use serde::{Deserialize, Serialize};
 use crate::errors::QuicpulseError;
+use serde::{Deserialize, Serialize};
+use tonic::transport::Channel;
 
 /// Standard gRPC reflection service name
 pub const REFLECTION_SERVICE_V1: &str = "grpc.reflection.v1.ServerReflection";
@@ -36,9 +36,17 @@ impl ServiceDescriptor {
             output.push_str(&format!(
                 "  rpc {}({}{}) returns ({}{});\n",
                 method.name,
-                if method.client_streaming { "stream " } else { "" },
+                if method.client_streaming {
+                    "stream "
+                } else {
+                    ""
+                },
                 method.input_type,
-                if method.server_streaming { "stream " } else { "" },
+                if method.server_streaming {
+                    "stream "
+                } else {
+                    ""
+                },
                 method.output_type
             ));
 
@@ -81,10 +89,7 @@ impl MethodDescriptor {
 
         format!(
             "{}\n  Input: {}\n  Output: {}{}",
-            self.name,
-            self.input_type,
-            self.output_type,
-            stream_info
+            self.name, self.input_type, self.output_type, stream_info
         )
     }
 }
@@ -105,8 +110,8 @@ impl MessageDescriptor {
         for field in &self.fields {
             let value = match field.type_name.as_str() {
                 "string" | "bytes" => serde_json::json!(""),
-                "int32" | "int64" | "uint32" | "uint64" | "sint32" | "sint64" |
-                "fixed32" | "fixed64" | "sfixed32" | "sfixed64" => serde_json::json!(0),
+                "int32" | "int64" | "uint32" | "uint64" | "sint32" | "sint64" | "fixed32"
+                | "fixed64" | "sfixed32" | "sfixed64" => serde_json::json!(0),
                 "float" | "double" => serde_json::json!(0.0),
                 "bool" => serde_json::json!(false),
                 _ => {
@@ -120,11 +125,14 @@ impl MessageDescriptor {
                 }
             };
 
-            obj.insert(field.name.clone(), if field.is_repeated {
-                serde_json::json!([value])
-            } else {
-                value
-            });
+            obj.insert(
+                field.name.clone(),
+                if field.is_repeated {
+                    serde_json::json!([value])
+                } else {
+                    value
+                },
+            );
         }
 
         serde_json::Value::Object(obj)
@@ -155,8 +163,8 @@ impl ReflectionClient {
 
     /// List all available services using gRPC reflection
     pub async fn list_services(&self) -> Result<Vec<String>, QuicpulseError> {
-        use super::dynamic::{RawMessage, RawCodec, decode_to_json_schemaless};
         use super::codec::WireEncoder;
+        use super::dynamic::{decode_to_json_schemaless, RawCodec, RawMessage};
         use tonic::client::Grpc;
 
         // Try v1 first, then v1alpha
@@ -195,14 +203,15 @@ impl ReflectionClient {
 
         Err(QuicpulseError::Argument(
             "gRPC reflection not available. Server may not have reflection enabled. \
-             Try using a proto file with --proto instead.".to_string()
+             Try using a proto file with --proto instead."
+                .to_string(),
         ))
     }
 
     /// Get file descriptor containing a symbol
     pub async fn file_containing_symbol(&self, symbol: &str) -> Result<Vec<u8>, QuicpulseError> {
-        use super::dynamic::{RawMessage, RawCodec};
         use super::codec::WireEncoder;
+        use super::dynamic::{RawCodec, RawMessage};
         use tonic::client::Grpc;
 
         for service_name in &[REFLECTION_SERVICE_V1, REFLECTION_SERVICE_V1ALPHA] {
@@ -228,9 +237,10 @@ impl ReflectionClient {
             }
         }
 
-        Err(QuicpulseError::Argument(
-            format!("Could not get file descriptor for symbol '{}'", symbol)
-        ))
+        Err(QuicpulseError::Argument(format!(
+            "Could not get file descriptor for symbol '{}'",
+            symbol
+        )))
     }
 }
 
@@ -266,7 +276,7 @@ fn extract_service_list(json: &serde_json::Value) -> Result<Vec<String>, Quicpul
 
     if services.is_empty() {
         Err(QuicpulseError::Argument(
-            "No services found in reflection response".to_string()
+            "No services found in reflection response".to_string(),
         ))
     } else {
         Ok(services)
@@ -280,17 +290,20 @@ pub async fn discover_services(channel: Channel) -> Result<Vec<ServiceDescriptor
 
     // For now, return basic descriptors without methods
     // Full implementation would fetch file descriptors and parse them
-    Ok(service_names.into_iter().map(|name| {
-        let parts: Vec<&str> = name.rsplitn(2, '.').collect();
-        let short_name = parts.first().unwrap_or(&name.as_str()).to_string();
+    Ok(service_names
+        .into_iter()
+        .map(|name| {
+            let parts: Vec<&str> = name.rsplitn(2, '.').collect();
+            let short_name = parts.first().unwrap_or(&name.as_str()).to_string();
 
-        ServiceDescriptor {
-            name: short_name,
-            full_name: name,
-            methods: Vec::new(), // Would be populated from file descriptor
-            description: None,
-        }
-    }).collect())
+            ServiceDescriptor {
+                name: short_name,
+                full_name: name,
+                methods: Vec::new(), // Would be populated from file descriptor
+                description: None,
+            }
+        })
+        .collect())
 }
 
 /// List services from a reflection-enabled server
@@ -305,8 +318,8 @@ pub async fn fetch_schema_for_service(
     channel: Channel,
     service_name: &str,
 ) -> Result<super::dynamic::GrpcSchema, QuicpulseError> {
-    use super::dynamic::{RawMessage, RawCodec};
     use super::codec::WireEncoder;
+    use super::dynamic::{RawCodec, RawMessage};
     use tonic::client::Grpc;
 
     // Try both reflection API versions
@@ -388,7 +401,9 @@ fn parse_file_descriptor_response(response_bytes: &[u8]) -> Option<prost_types::
                 }
 
                 if !file_descriptors.is_empty() {
-                    return Some(prost_types::FileDescriptorSet { file: file_descriptors });
+                    return Some(prost_types::FileDescriptorSet {
+                        file: file_descriptors,
+                    });
                 }
             }
         } else {
@@ -413,7 +428,11 @@ pub async fn describe_service(
     // This would require protobuf descriptor parsing
     // For now, return a basic descriptor
     Ok(ServiceDescriptor {
-        name: service_name.rsplit('.').next().unwrap_or(service_name).to_string(),
+        name: service_name
+            .rsplit('.')
+            .next()
+            .unwrap_or(service_name)
+            .to_string(),
         full_name: service_name.to_string(),
         methods: Vec::new(),
         description: Some("Use --grpc-proto to see full method details".to_string()),
@@ -468,7 +487,8 @@ pub fn parse_proto_file(content: &str) -> Result<Vec<ServiceDescriptor>, Quicpul
 
         // Detect service definition
         if line.starts_with("service ") {
-            let name = line.strip_prefix("service ")
+            let name = line
+                .strip_prefix("service ")
                 .and_then(|s| s.split('{').next())
                 .map(|s| s.trim())
                 .unwrap_or("");
@@ -521,7 +541,14 @@ fn parse_rpc_line(line: &str, service_name: &str) -> Option<MethodDescriptor> {
     let input_end = line.find(')')?;
     let input_part = &line[input_start..input_end];
     let (client_streaming, input_type) = if input_part.trim().starts_with("stream ") {
-        (true, input_part.trim().strip_prefix("stream ")?.trim().to_string())
+        (
+            true,
+            input_part
+                .trim()
+                .strip_prefix("stream ")?
+                .trim()
+                .to_string(),
+        )
     } else {
         (false, input_part.trim().to_string())
     };
@@ -535,7 +562,14 @@ fn parse_rpc_line(line: &str, service_name: &str) -> Option<MethodDescriptor> {
     let out_end = after_returns.find(')')?;
     let output_part = &after_returns[out_start..out_end];
     let (server_streaming, output_type) = if output_part.trim().starts_with("stream ") {
-        (true, output_part.trim().strip_prefix("stream ")?.trim().to_string())
+        (
+            true,
+            output_part
+                .trim()
+                .strip_prefix("stream ")?
+                .trim()
+                .to_string(),
+        )
     } else {
         (false, output_part.trim().to_string())
     };
@@ -557,7 +591,10 @@ mod tests {
 
     #[test]
     fn test_parse_rpc_line_simple() {
-        let method = parse_rpc_line("rpc GetUser(GetUserRequest) returns (User);", "mypackage.UserService");
+        let method = parse_rpc_line(
+            "rpc GetUser(GetUserRequest) returns (User);",
+            "mypackage.UserService",
+        );
         let method = method.unwrap();
 
         assert_eq!(method.name, "GetUser");
@@ -569,7 +606,10 @@ mod tests {
 
     #[test]
     fn test_parse_rpc_line_streaming() {
-        let method = parse_rpc_line("rpc StreamData(stream Request) returns (stream Response);", "Test");
+        let method = parse_rpc_line(
+            "rpc StreamData(stream Request) returns (stream Response);",
+            "Test",
+        );
         let method = method.unwrap();
 
         assert!(method.client_streaming);
@@ -600,17 +640,15 @@ mod tests {
         let service = ServiceDescriptor {
             name: "UserService".to_string(),
             full_name: "mypackage.UserService".to_string(),
-            methods: vec![
-                MethodDescriptor {
-                    name: "GetUser".to_string(),
-                    full_name: "mypackage.UserService.GetUser".to_string(),
-                    input_type: "GetUserRequest".to_string(),
-                    output_type: "User".to_string(),
-                    client_streaming: false,
-                    server_streaming: false,
-                    description: None,
-                }
-            ],
+            methods: vec![MethodDescriptor {
+                name: "GetUser".to_string(),
+                full_name: "mypackage.UserService.GetUser".to_string(),
+                input_type: "GetUserRequest".to_string(),
+                output_type: "User".to_string(),
+                client_streaming: false,
+                server_streaming: false,
+                description: None,
+            }],
             description: None,
         };
 

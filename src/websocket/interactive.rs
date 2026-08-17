@@ -1,20 +1,20 @@
 //! WebSocket interactive REPL mode
 
-use std::io::{self, Write};
-use futures::StreamExt;
-use tokio_tungstenite::tungstenite::protocol::Message;
 use crossterm::{
     event::{self, Event, KeyCode, KeyModifiers},
     terminal::{self, disable_raw_mode, enable_raw_mode},
 };
+use futures::StreamExt;
+use std::io::{self, Write};
+use tokio_tungstenite::tungstenite::protocol::Message;
 
+use super::client::WsClient;
+use super::codec::{decode_binary, format_binary_message, format_text_message};
+use super::stream::print_message;
+use super::types::{BinaryMode, WsMessage, WsOptions};
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
 use crate::status::ExitStatus;
-use super::client::WsClient;
-use super::codec::{decode_binary, format_text_message, format_binary_message};
-use super::stream::print_message;
-use super::types::{BinaryMode, WsMessage, WsOptions};
 
 const PROMPT: &str = "ws> ";
 
@@ -193,7 +193,8 @@ async fn handle_command(
                 return Ok(false);
             }
 
-            let mode: BinaryMode = parts[1].parse()
+            let mode: BinaryMode = parts[1]
+                .parse()
                 .map_err(|e: String| QuicpulseError::Argument(e))?;
             let data = parts[2..].join(" ");
             let bytes = decode_binary(&data, mode)?;
@@ -219,7 +220,10 @@ async fn handle_command(
         }
 
         _ => {
-            eprintln!("Unknown command: {}. Type /help for available commands.", cmd);
+            eprintln!(
+                "Unknown command: {}. Type /help for available commands.",
+                cmd
+            );
             Ok(false)
         }
     }

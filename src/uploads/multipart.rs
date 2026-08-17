@@ -49,14 +49,17 @@ pub fn build_multipart_form(
 /// Uses streaming for large files to prevent memory exhaustion
 fn create_file_part(upload: &FileUpload) -> Result<Part, QuicpulseError> {
     // Get file metadata to check size
-    let metadata = std::fs::metadata(&upload.path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = std::fs::metadata(&upload.path).map_err(|e| QuicpulseError::Io(e))?;
     let file_size = metadata.len();
 
     // Determine filename
-    let filename = upload.filename.clone()
+    let filename = upload
+        .filename
+        .clone()
         .or_else(|| {
-            upload.path.file_name()
+            upload
+                .path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .map(|s| s.to_string())
         })
@@ -75,8 +78,7 @@ fn create_file_part(upload: &FileUpload) -> Result<Part, QuicpulseError> {
     // For large files, use streaming to prevent OOM
     let part = if file_size <= MAX_MEMORY_FILE_SIZE {
         // Small file: load into memory
-        let mut file = File::open(&upload.path)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        let mut file = File::open(&upload.path).map_err(|e| QuicpulseError::Io(e))?;
         let mut contents = Vec::with_capacity(file_size as usize);
         file.read_to_end(&mut contents)
             .map_err(|e| QuicpulseError::Io(e))?;
@@ -84,8 +86,7 @@ fn create_file_part(upload: &FileUpload) -> Result<Part, QuicpulseError> {
         Part::bytes(contents).file_name(filename)
     } else {
         // Large file: stream from disk
-        let file = std::fs::File::open(&upload.path)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        let file = std::fs::File::open(&upload.path).map_err(|e| QuicpulseError::Io(e))?;
         let async_file = tokio::fs::File::from_std(file);
         let stream = FramedRead::new(async_file, BytesCodec::new());
         let body = reqwest::Body::wrap_stream(stream);
@@ -94,7 +95,8 @@ fn create_file_part(upload: &FileUpload) -> Result<Part, QuicpulseError> {
     };
 
     // Set content type
-    let part = part.mime_str(&mime_type)
+    let part = part
+        .mime_str(&mime_type)
         .map_err(|e| QuicpulseError::Parse(format!("Invalid MIME type: {}", e)))?;
 
     Ok(part)

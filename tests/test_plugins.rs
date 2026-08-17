@@ -25,8 +25,14 @@ fn test_plugin_hook_names() {
 fn test_plugin_hook_from_str() {
     use quicpulse::plugins::PluginHook;
 
-    assert_eq!(PluginHook::from_str("pre_request"), Some(PluginHook::PreRequest));
-    assert_eq!(PluginHook::from_str("post_response"), Some(PluginHook::PostResponse));
+    assert_eq!(
+        PluginHook::from_str("pre_request"),
+        Some(PluginHook::PreRequest)
+    );
+    assert_eq!(
+        PluginHook::from_str("post_response"),
+        Some(PluginHook::PostResponse)
+    );
     assert_eq!(PluginHook::from_str("on_error"), Some(PluginHook::OnError));
     assert_eq!(PluginHook::from_str("invalid"), None);
 }
@@ -63,9 +69,7 @@ fn test_hook_context_new() {
 fn test_hook_context_pre_request() {
     use quicpulse::plugins::HookContext;
 
-    let headers = HashMap::from([
-        ("Content-Type".to_string(), "application/json".to_string()),
-    ]);
+    let headers = HashMap::from([("Content-Type".to_string(), "application/json".to_string())]);
 
     let ctx = HookContext::pre_request(
         "http://example.com/api",
@@ -77,7 +81,10 @@ fn test_hook_context_pre_request() {
     assert_eq!(ctx.hook, "pre_request");
     assert_eq!(ctx.url, Some("http://example.com/api".to_string()));
     assert_eq!(ctx.method, Some("POST".to_string()));
-    assert_eq!(ctx.request_headers.get("Content-Type"), Some(&"application/json".to_string()));
+    assert_eq!(
+        ctx.request_headers.get("Content-Type"),
+        Some(&"application/json".to_string())
+    );
     assert_eq!(ctx.request_body, Some("{\"key\": \"value\"}".to_string()));
 }
 
@@ -85,9 +92,7 @@ fn test_hook_context_pre_request() {
 fn test_hook_context_post_response() {
     use quicpulse::plugins::HookContext;
 
-    let headers = HashMap::from([
-        ("content-type".to_string(), "text/html".to_string()),
-    ]);
+    let headers = HashMap::from([("content-type".to_string(), "text/html".to_string())]);
 
     let ctx = HookContext::post_response(
         "http://example.com",
@@ -166,13 +171,14 @@ fn test_hook_result_with_url() {
 fn test_hook_result_with_headers() {
     use quicpulse::plugins::HookResult;
 
-    let headers = HashMap::from([
-        ("X-Custom-Header".to_string(), "custom-value".to_string()),
-    ]);
+    let headers = HashMap::from([("X-Custom-Header".to_string(), "custom-value".to_string())]);
 
     let result = HookResult::with_headers(headers);
     assert!(result.continue_processing);
-    assert_eq!(result.headers.get("X-Custom-Header"), Some(&"custom-value".to_string()));
+    assert_eq!(
+        result.headers.get("X-Custom-Header"),
+        Some(&"custom-value".to_string())
+    );
 }
 
 #[test]
@@ -274,7 +280,7 @@ fn test_plugins_config_default() {
 
 #[test]
 fn test_plugins_config_is_enabled() {
-    use quicpulse::plugins::config::{PluginsConfig, PluginConfig};
+    use quicpulse::plugins::config::{PluginConfig, PluginsConfig};
 
     let mut config = PluginsConfig::default();
 
@@ -282,17 +288,23 @@ fn test_plugins_config_is_enabled() {
     assert!(config.is_enabled("unknown-plugin"));
 
     // Explicitly disabled plugin
-    config.plugins.insert("disabled-plugin".to_string(), PluginConfig {
-        enabled: false,
-        ..Default::default()
-    });
+    config.plugins.insert(
+        "disabled-plugin".to_string(),
+        PluginConfig {
+            enabled: false,
+            ..Default::default()
+        },
+    );
     assert!(!config.is_enabled("disabled-plugin"));
 
     // Explicitly enabled plugin
-    config.plugins.insert("enabled-plugin".to_string(), PluginConfig {
-        enabled: true,
-        ..Default::default()
-    });
+    config.plugins.insert(
+        "enabled-plugin".to_string(),
+        PluginConfig {
+            enabled: true,
+            ..Default::default()
+        },
+    );
     assert!(config.is_enabled("enabled-plugin"));
 }
 
@@ -418,9 +430,9 @@ entry: nonexistent.rn
 
 #[test]
 fn test_loaded_plugin_handles_hook() {
-    use quicpulse::plugins::PluginHook;
-    use quicpulse::plugins::loader::LoadedPlugin;
     use quicpulse::plugins::config::{PluginManifest, PluginType};
+    use quicpulse::plugins::loader::LoadedPlugin;
+    use quicpulse::plugins::PluginHook;
 
     let plugin = LoadedPlugin {
         manifest: PluginManifest {
@@ -460,7 +472,7 @@ fn test_plugin_manager_new() {
 
 #[test]
 fn test_plugin_manager_has_hook_handlers() {
-    use quicpulse::plugins::{PluginManager, PluginHook};
+    use quicpulse::plugins::{PluginHook, PluginManager};
 
     let manager = PluginManager::new();
     // No plugins registered, so no hook handlers
@@ -478,7 +490,7 @@ fn test_plugin_manager_list_plugins() {
 
 #[tokio::test]
 async fn test_plugin_manager_execute_hook_no_plugins() {
-    use quicpulse::plugins::{PluginManager, PluginHook, HookContext};
+    use quicpulse::plugins::{HookContext, PluginHook, PluginManager};
 
     let manager = PluginManager::new();
     let context = HookContext::new(PluginHook::PreRequest);
@@ -504,7 +516,6 @@ fn test_plugin_registry_plugins_dir() {
 
 #[test]
 fn test_plugin_registry_ensure_plugins_dir() {
-    use quicpulse::plugins::PluginRegistry;
     use std::fs;
 
     // Use a temp directory to avoid creating real directories
@@ -520,17 +531,14 @@ fn test_plugin_registry_ensure_plugins_dir() {
 fn test_plugin_registry_default() {
     use quicpulse::plugins::PluginRegistry;
 
-    let registry = PluginRegistry::new();
-    // Should be able to create registry with default URL
-    assert!(true); // Registry created successfully
+    let _registry = PluginRegistry::new();
 }
 
 #[test]
 fn test_plugin_registry_custom_url() {
     use quicpulse::plugins::PluginRegistry;
 
-    let registry = PluginRegistry::with_url("https://custom-registry.example.com");
-    assert!(true); // Registry created with custom URL
+    let _registry = PluginRegistry::with_url("https://custom-registry.example.com");
 }
 
 // ============================================================================
@@ -539,13 +547,10 @@ fn test_plugin_registry_custom_url() {
 
 #[test]
 fn test_plugin_list_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
-    let args = Args::try_parse_from([
-        "quicpulse",
-        "--plugin-list",
-    ]);
+    let args = Args::try_parse_from(["quicpulse", "--plugin-list"]);
 
     assert!(args.is_ok());
     let args = args.unwrap();
@@ -554,13 +559,10 @@ fn test_plugin_list_arg() {
 
 #[test]
 fn test_plugins_alias_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
-    let args = Args::try_parse_from([
-        "quicpulse",
-        "--plugins",
-    ]);
+    let args = Args::try_parse_from(["quicpulse", "--plugins"]);
 
     assert!(args.is_ok());
     let args = args.unwrap();
@@ -569,13 +571,10 @@ fn test_plugins_alias_arg() {
 
 #[test]
 fn test_plugin_install_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
-    let args = Args::try_parse_from([
-        "quicpulse",
-        "--plugin-install", "auth-oauth",
-    ]);
+    let args = Args::try_parse_from(["quicpulse", "--plugin-install", "auth-oauth"]);
 
     assert!(args.is_ok());
     let args = args.unwrap();
@@ -584,13 +583,10 @@ fn test_plugin_install_arg() {
 
 #[test]
 fn test_plugin_uninstall_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
-    let args = Args::try_parse_from([
-        "quicpulse",
-        "--plugin-uninstall", "old-plugin",
-    ]);
+    let args = Args::try_parse_from(["quicpulse", "--plugin-uninstall", "old-plugin"]);
 
     assert!(args.is_ok());
     let args = args.unwrap();
@@ -599,13 +595,10 @@ fn test_plugin_uninstall_arg() {
 
 #[test]
 fn test_plugin_search_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
-    let args = Args::try_parse_from([
-        "quicpulse",
-        "--plugin-search", "oauth",
-    ]);
+    let args = Args::try_parse_from(["quicpulse", "--plugin-search", "oauth"]);
 
     assert!(args.is_ok());
     let args = args.unwrap();
@@ -614,13 +607,10 @@ fn test_plugin_search_arg() {
 
 #[test]
 fn test_plugin_update_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
-    let args = Args::try_parse_from([
-        "quicpulse",
-        "--plugin-update",
-    ]);
+    let args = Args::try_parse_from(["quicpulse", "--plugin-update"]);
 
     assert!(args.is_ok());
     let args = args.unwrap();
@@ -629,12 +619,13 @@ fn test_plugin_update_arg() {
 
 #[test]
 fn test_plugin_dir_arg() {
-    use quicpulse::cli::Args;
     use clap::Parser;
+    use quicpulse::cli::Args;
 
     let args = Args::try_parse_from([
         "quicpulse",
-        "--plugin-dir", "/custom/plugins",
+        "--plugin-dir",
+        "/custom/plugins",
         "--plugin-list",
     ]);
 

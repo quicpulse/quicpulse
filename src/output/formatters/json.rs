@@ -65,7 +65,10 @@ pub fn format_json(json_str: &str, options: &JsonFormatterOptions) -> Result<Str
 }
 
 /// Format a single JSON value
-fn format_single_value(value: &JsonValue, options: &JsonFormatterOptions) -> Result<String, String> {
+fn format_single_value(
+    value: &JsonValue,
+    options: &JsonFormatterOptions,
+) -> Result<String, String> {
     if options.sort_keys {
         // Sort keys recursively
         let sorted = sort_json_keys(value);
@@ -80,12 +83,11 @@ fn format_value(value: &JsonValue, indent: usize) -> Result<String, String> {
     let formatter = PrettyFormatter::with_indent(indent);
     let mut buf = Vec::new();
     let mut serializer = serde_json::Serializer::with_formatter(&mut buf, formatter);
-    
+
     serde::Serialize::serialize(value, &mut serializer)
         .map_err(|e| format!("JSON formatting error: {}", e))?;
-    
-    String::from_utf8(buf)
-        .map_err(|e| format!("UTF-8 error: {}", e))
+
+    String::from_utf8(buf).map_err(|e| format!("UTF-8 error: {}", e))
 }
 
 /// Maximum recursion depth for JSON key sorting to prevent stack overflow
@@ -115,9 +117,11 @@ fn sort_json_keys_with_depth(value: &JsonValue, depth: usize) -> JsonValue {
 
             JsonValue::Object(sorted_map)
         }
-        JsonValue::Array(arr) => {
-            JsonValue::Array(arr.iter().map(|v| sort_json_keys_with_depth(v, depth + 1)).collect())
-        }
+        JsonValue::Array(arr) => JsonValue::Array(
+            arr.iter()
+                .map(|v| sort_json_keys_with_depth(v, depth + 1))
+                .collect(),
+        ),
         _ => value.clone(),
     }
 }

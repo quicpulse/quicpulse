@@ -1,8 +1,8 @@
 //! Plugin registry for discovering and installing plugins
 
+use crate::errors::QuicpulseError;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use crate::errors::QuicpulseError;
 
 /// Registry entry for a plugin
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,9 +78,15 @@ impl PluginRegistry {
 
     /// Search for plugins
     pub async fn search(&self, query: &str) -> Result<Vec<PluginEntry>, QuicpulseError> {
-        let url = format!("{}/api/search?q={}", self.registry_url, urlencoding::encode(query));
+        let url = format!(
+            "{}/api/search?q={}",
+            self.registry_url,
+            urlencoding::encode(query)
+        );
 
-        let response = self.client.get(&url)
+        let response = self
+            .client
+            .get(&url)
             .send()
             .await
             .map_err(QuicpulseError::Request)?;
@@ -92,15 +98,20 @@ impl PluginRegistry {
             )));
         }
 
-        response.json().await
-            .map_err(QuicpulseError::Request)
+        response.json().await.map_err(QuicpulseError::Request)
     }
 
     /// Get plugin details
     pub async fn get(&self, name: &str) -> Result<PluginEntry, QuicpulseError> {
-        let url = format!("{}/api/plugins/{}", self.registry_url, urlencoding::encode(name));
+        let url = format!(
+            "{}/api/plugins/{}",
+            self.registry_url,
+            urlencoding::encode(name)
+        );
 
-        let response = self.client.get(&url)
+        let response = self
+            .client
+            .get(&url)
             .send()
             .await
             .map_err(QuicpulseError::Request)?;
@@ -112,8 +123,7 @@ impl PluginRegistry {
             )));
         }
 
-        response.json().await
-            .map_err(QuicpulseError::Request)
+        response.json().await.map_err(QuicpulseError::Request)
     }
 
     /// Install a plugin from the registry
@@ -128,7 +138,9 @@ impl PluginRegistry {
             .map_err(|e| QuicpulseError::Config(format!("Failed to clone plugin: {}", e)))?;
 
         if !status.success() {
-            return Err(QuicpulseError::Config("Failed to clone plugin repository".to_string()));
+            return Err(QuicpulseError::Config(
+                "Failed to clone plugin repository".to_string(),
+            ));
         }
 
         Ok(())
@@ -136,9 +148,14 @@ impl PluginRegistry {
 
     /// List popular plugins
     pub async fn list_popular(&self, limit: usize) -> Result<Vec<PluginEntry>, QuicpulseError> {
-        let url = format!("{}/api/plugins?sort=downloads&limit={}", self.registry_url, limit);
+        let url = format!(
+            "{}/api/plugins?sort=downloads&limit={}",
+            self.registry_url, limit
+        );
 
-        let response = self.client.get(&url)
+        let response = self
+            .client
+            .get(&url)
             .send()
             .await
             .map_err(QuicpulseError::Request)?;
@@ -150,8 +167,7 @@ impl PluginRegistry {
             )));
         }
 
-        response.json().await
-            .map_err(QuicpulseError::Request)
+        response.json().await.map_err(QuicpulseError::Request)
     }
 
     /// Get installed plugins directory
@@ -169,8 +185,7 @@ impl PluginRegistry {
     pub fn ensure_plugins_dir() -> Result<PathBuf, QuicpulseError> {
         let dir = Self::plugins_dir();
         if !dir.exists() {
-            std::fs::create_dir_all(&dir)
-                .map_err(QuicpulseError::Io)?;
+            std::fs::create_dir_all(&dir).map_err(QuicpulseError::Io)?;
         }
         Ok(dir)
     }
@@ -186,8 +201,7 @@ impl PluginRegistry {
             )));
         }
 
-        std::fs::remove_dir_all(&plugin_dir)
-            .map_err(QuicpulseError::Io)?;
+        std::fs::remove_dir_all(&plugin_dir).map_err(QuicpulseError::Io)?;
 
         Ok(())
     }

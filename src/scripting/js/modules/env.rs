@@ -2,14 +2,24 @@
 //!
 //! Provides safe access to environment variables.
 
-use rquickjs::{Ctx, Object, Function};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
 
 /// Allowed environment variables (security: limit exposure)
 const ALLOWED_ENV_VARS: &[&str] = &[
-    "HOME", "USER", "SHELL", "TERM", "LANG", "PATH",
-    "PWD", "OLDPWD", "HOSTNAME", "LOGNAME",
-    "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_CACHE_HOME",
+    "HOME",
+    "USER",
+    "SHELL",
+    "TERM",
+    "LANG",
+    "PATH",
+    "PWD",
+    "OLDPWD",
+    "HOSTNAME",
+    "LOGNAME",
+    "XDG_CONFIG_HOME",
+    "XDG_DATA_HOME",
+    "XDG_CACHE_HOME",
 ];
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
@@ -24,7 +34,8 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     env.set("has", Function::new(ctx.clone(), env_has)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("env", env)
+    globals
+        .set("env", env)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set env global: {}", e)))?;
 
     Ok(())

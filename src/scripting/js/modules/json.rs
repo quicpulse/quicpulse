@@ -2,8 +2,8 @@
 //!
 //! Provides JSON manipulation functions.
 
-use rquickjs::{Ctx, Object, Function};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
@@ -23,7 +23,8 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     json.set("type_of", Function::new(ctx.clone(), json_type_of)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("json", json)
+    globals
+        .set("json", json)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set json global: {}", e)))?;
 
     Ok(())

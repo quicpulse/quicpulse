@@ -2,9 +2,9 @@
 //!
 //! This module provides types for constructing GraphQL requests.
 
+use crate::errors::QuicpulseError;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
-use crate::errors::QuicpulseError;
 
 /// A GraphQL request structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -114,9 +114,9 @@ impl GraphQLRequestBuilder {
 
     /// Build the GraphQL request
     pub fn build(self) -> Result<GraphQLRequest, QuicpulseError> {
-        let query = self.query.ok_or_else(|| {
-            QuicpulseError::Argument("GraphQL query is required".to_string())
-        })?;
+        let query = self
+            .query
+            .ok_or_else(|| QuicpulseError::Argument("GraphQL query is required".to_string()))?;
 
         let variables = if self.variables.is_empty() {
             None
@@ -147,7 +147,8 @@ pub fn extract_operation_names(query: &str) -> Vec<String> {
                 let rest = rest.trim();
                 // Extract the operation name (word before '(' or '{')
                 if !rest.is_empty() && !rest.starts_with('(') && !rest.starts_with('{') {
-                    if let Some(name) = rest.split(|c| c == '(' || c == '{' || c == ' ')
+                    if let Some(name) = rest
+                        .split(|c| c == '(' || c == '{' || c == ' ')
                         .next()
                         .filter(|s| !s.is_empty())
                     {
@@ -166,7 +167,9 @@ pub fn validate_query(query: &str) -> Result<(), QuicpulseError> {
     let query = query.trim();
 
     if query.is_empty() {
-        return Err(QuicpulseError::Argument("Query cannot be empty".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Query cannot be empty".to_string(),
+        ));
     }
 
     // Check for balanced braces
@@ -178,17 +181,23 @@ pub fn validate_query(query: &str) -> Result<(), QuicpulseError> {
             _ => {}
         }
         if brace_count < 0 {
-            return Err(QuicpulseError::Argument("Unbalanced braces in query".to_string()));
+            return Err(QuicpulseError::Argument(
+                "Unbalanced braces in query".to_string(),
+            ));
         }
     }
 
     if brace_count != 0 {
-        return Err(QuicpulseError::Argument("Unbalanced braces in query".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Unbalanced braces in query".to_string(),
+        ));
     }
 
     // Must have at least one selection set
     if !query.contains('{') {
-        return Err(QuicpulseError::Argument("Query must contain a selection set".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Query must contain a selection set".to_string(),
+        ));
     }
 
     Ok(())
@@ -209,7 +218,8 @@ mod tests {
     #[test]
     fn test_graphql_request_with_variables() {
         let vars = json!({"id": 123});
-        let req = GraphQLRequest::with_variables("query($id: Int!) { user(id: $id) { name } }", vars);
+        let req =
+            GraphQLRequest::with_variables("query($id: Int!) { user(id: $id) { name } }", vars);
 
         assert!(req.variables.is_some());
         assert_eq!(req.variables.as_ref().unwrap()["id"], 123);

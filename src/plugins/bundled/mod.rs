@@ -6,7 +6,7 @@
 #[cfg(feature = "javascript")]
 pub mod javascript;
 
-use crate::plugins::config::{PluginManifest, PluginConfig, PluginType};
+use crate::plugins::config::{PluginConfig, PluginManifest, PluginType};
 use std::collections::HashMap;
 
 /// Information about a bundled plugin

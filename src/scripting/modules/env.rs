@@ -3,8 +3,8 @@
 //! Provides access to environment variables and system information
 //! in a controlled manner.
 
-use rune::{ContextError, Module};
 use rune::alloc::String as RuneString;
+use rune::{ContextError, Module};
 
 /// Create the env module
 pub fn module() -> Result<Module, ContextError> {

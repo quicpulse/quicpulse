@@ -3,11 +3,11 @@
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use tokio::sync::RwLock;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::RwLock;
 
 use super::config::MockServerConfig;
-use super::routes::{Route, ResponseConfig, RequestInfo};
+use super::routes::{RequestInfo, ResponseConfig, Route};
 use crate::errors::QuicpulseError;
 
 /// Mock HTTP server
@@ -22,7 +22,9 @@ impl MockServer {
     pub fn new(config: MockServerConfig) -> Result<Self, QuicpulseError> {
         config.validate()?;
 
-        let mut routes: Vec<Route> = config.routes.iter()
+        let mut routes: Vec<Route> = config
+            .routes
+            .iter()
             .map(|rc| Route::new(rc.clone()))
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| QuicpulseError::Config(format!("Invalid route: {}", e)))?;
@@ -39,10 +41,14 @@ impl MockServer {
 
     /// Start the server
     pub async fn run(&self) -> Result<(), QuicpulseError> {
-        let addr: SocketAddr = self.config.address().parse()
+        let addr: SocketAddr = self
+            .config
+            .address()
+            .parse()
             .map_err(|e| QuicpulseError::Config(format!("Invalid address: {}", e)))?;
 
-        let listener = tokio::net::TcpListener::bind(&addr).await
+        let listener = tokio::net::TcpListener::bind(&addr)
+            .await
             .map_err(|e| QuicpulseError::Io(e))?;
 
         eprintln!("Mock server listening on http://{}", addr);
@@ -53,11 +59,9 @@ impl MockServer {
             eprintln!("Configured routes:");
             for route in &self.routes {
                 let name = route.config.name.as_deref().unwrap_or("");
-                eprintln!("  {:?} {} -> {} {}",
-                    route.config.method,
-                    route.config.path,
-                    route.config.response.status,
-                    name
+                eprintln!(
+                    "  {:?} {} -> {} {}",
+                    route.config.method, route.config.path, route.config.response.status, name
                 );
             }
         }
@@ -70,7 +74,9 @@ impl MockServer {
                     let log = Arc::clone(&self.request_log);
 
                     tokio::spawn(async move {
-                        if let Err(e) = handle_connection(stream, peer_addr, &routes, &config, log).await {
+                        if let Err(e) =
+                            handle_connection(stream, peer_addr, &routes, &config, log).await
+                        {
                             eprintln!("Connection error from {}: {}", peer_addr, e);
                         }
                     });
@@ -146,11 +152,16 @@ async fn handle_connection(
             peer_addr.ip().to_string(),
         );
 
-        eprintln!("[{}] {} {} {} from {}",
+        eprintln!(
+            "[{}] {} {} {} from {}",
             info.timestamp,
             request.method,
             request.path,
-            if request.query.is_empty() { String::new() } else { format!("?{}", query_string(&request.query)) },
+            if request.query.is_empty() {
+                String::new()
+            } else {
+                format!("?{}", query_string(&request.query))
+            },
             peer_addr
         );
 
@@ -181,7 +192,10 @@ async fn handle_connection(
     // Add CORS headers if enabled
     if config.cors {
         response_headers.insert("Access-Control-Allow-Origin".to_string(), "*".to_string());
-        response_headers.insert("Access-Control-Allow-Methods".to_string(), "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string());
+        response_headers.insert(
+            "Access-Control-Allow-Methods".to_string(),
+            "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string(),
+        );
         response_headers.insert("Access-Control-Allow-Headers".to_string(), "*".to_string());
     }
 
@@ -205,7 +219,10 @@ async fn handle_connection(
     response_str.push_str("\r\n");
 
     // Send response
-    stream.write_all(response_str.as_bytes()).await.map_err(QuicpulseError::Io)?;
+    stream
+        .write_all(response_str.as_bytes())
+        .await
+        .map_err(QuicpulseError::Io)?;
     stream.write_all(&body).await.map_err(QuicpulseError::Io)?;
     stream.flush().await.map_err(QuicpulseError::Io)?;
 
@@ -226,7 +243,8 @@ fn parse_request(data: &str) -> Result<ParsedRequest, QuicpulseError> {
     let mut lines = data.lines();
 
     // Parse request line
-    let request_line = lines.next()
+    let request_line = lines
+        .next()
         .ok_or_else(|| QuicpulseError::Argument("Empty request".to_string()))?;
 
     let parts: Vec<&str> = request_line.split_whitespace().collect();
@@ -252,10 +270,7 @@ fn parse_request(data: &str) -> Result<ParsedRequest, QuicpulseError> {
         } else if line.is_empty() {
             body_start = true;
         } else if let Some((name, value)) = line.split_once(':') {
-            headers.insert(
-                name.trim().to_lowercase(),
-                value.trim().to_string()
-            );
+            headers.insert(name.trim().to_lowercase(), value.trim().to_string());
         }
     }
 
@@ -278,8 +293,12 @@ fn parse_query_string(query: &str) -> HashMap<String, String> {
     for pair in query.split('&') {
         if let Some((key, value)) = pair.split_once('=') {
             map.insert(
-                urlencoding::decode(key).unwrap_or_else(|_| key.into()).to_string(),
-                urlencoding::decode(value).unwrap_or_else(|_| value.into()).to_string()
+                urlencoding::decode(key)
+                    .unwrap_or_else(|_| key.into())
+                    .to_string(),
+                urlencoding::decode(value)
+                    .unwrap_or_else(|_| value.into())
+                    .to_string(),
             );
         }
     }
@@ -288,7 +307,8 @@ fn parse_query_string(query: &str) -> HashMap<String, String> {
 
 /// Convert query map back to string
 fn query_string(query: &HashMap<String, String>) -> String {
-    query.iter()
+    query
+        .iter()
         .map(|(k, v)| format!("{}={}", k, v))
         .collect::<Vec<_>>()
         .join("&")
@@ -308,15 +328,20 @@ fn find_route(
     }
 
     // Return default or 404
-    let default_response = config.default_response.clone().unwrap_or_else(|| {
-        ResponseConfig::error(404, "Not Found")
-    });
+    let default_response = config
+        .default_response
+        .clone()
+        .unwrap_or_else(|| ResponseConfig::error(404, "Not Found"));
 
     (default_response, HashMap::new())
 }
 
 /// Apply template substitution to response body
-fn apply_template(body: &[u8], request: &ParsedRequest, params: &HashMap<String, String>) -> Vec<u8> {
+fn apply_template(
+    body: &[u8],
+    request: &ParsedRequest,
+    params: &HashMap<String, String>,
+) -> Vec<u8> {
     let body_str = String::from_utf8_lossy(body);
     let mut result = body_str.to_string();
 
@@ -397,9 +422,10 @@ pub async fn run_mock_server(
     for route_arg in routes_args {
         let parts: Vec<&str> = route_arg.splitn(3, ':').collect();
         if parts.len() < 2 {
-            return Err(QuicpulseError::Argument(
-                format!("Invalid route format '{}'. Expected METHOD:PATH or METHOD:PATH:BODY", route_arg)
-            ));
+            return Err(QuicpulseError::Argument(format!(
+                "Invalid route format '{}'. Expected METHOD:PATH or METHOD:PATH:BODY",
+                route_arg
+            )));
         }
 
         let method = match parts[0].to_uppercase().as_str() {
@@ -409,7 +435,12 @@ pub async fn run_mock_server(
             "DELETE" => super::routes::HttpMethod::Delete,
             "PATCH" => super::routes::HttpMethod::Patch,
             "*" => super::routes::HttpMethod::Any,
-            _ => return Err(QuicpulseError::Argument(format!("Unknown HTTP method: {}", parts[0]))),
+            _ => {
+                return Err(QuicpulseError::Argument(format!(
+                    "Unknown HTTP method: {}",
+                    parts[0]
+                )))
+            }
         };
 
         let path = parts[1].to_string();
@@ -474,9 +505,14 @@ mod tests {
             headers: HashMap::new(),
             body: String::new(),
         };
-        let params: HashMap<String, String> = [("name".to_string(), "World".to_string())].into_iter().collect();
+        let params: HashMap<String, String> = [("name".to_string(), "World".to_string())]
+            .into_iter()
+            .collect();
 
         let result = apply_template(body, &request, &params);
-        assert_eq!(String::from_utf8_lossy(&result), "Hello World, you requested /test");
+        assert_eq!(
+            String::from_utf8_lossy(&result),
+            "Hello World, you requested /test"
+        );
     }
 }

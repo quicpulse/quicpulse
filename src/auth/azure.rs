@@ -40,9 +40,12 @@ pub async fn get_azure_access_token(resource: Option<&str>) -> Result<String, Qu
             "tsv",
         ])
         .output()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to run az CLI. Is Azure CLI installed and in PATH? Error: {}", e
-        )))?;
+        .map_err(|e| {
+            QuicpulseError::Auth(format!(
+                "Failed to run az CLI. Is Azure CLI installed and in PATH? Error: {}",
+                e
+            ))
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -56,7 +59,7 @@ pub async fn get_azure_access_token(resource: Option<&str>) -> Result<String, Qu
 
     if token.is_empty() {
         return Err(QuicpulseError::Auth(
-            "az CLI returned empty token. Run 'az login' to authenticate.".to_string()
+            "az CLI returned empty token. Run 'az login' to authenticate.".to_string(),
         ));
     }
 
@@ -67,22 +70,13 @@ pub async fn get_azure_access_token(resource: Option<&str>) -> Result<String, Qu
 #[allow(dead_code)]
 pub fn get_current_subscription() -> Result<String, QuicpulseError> {
     let output = Command::new("az")
-        .args([
-            "account",
-            "show",
-            "--query",
-            "id",
-            "--output",
-            "tsv",
-        ])
+        .args(["account", "show", "--query", "id", "--output", "tsv"])
         .output()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to get Azure subscription: {}", e
-        )))?;
+        .map_err(|e| QuicpulseError::Auth(format!("Failed to get Azure subscription: {}", e)))?;
 
     if !output.status.success() {
         return Err(QuicpulseError::Auth(
-            "No Azure subscription configured. Run 'az login' to authenticate.".to_string()
+            "No Azure subscription configured. Run 'az login' to authenticate.".to_string(),
         ));
     }
 
@@ -90,7 +84,7 @@ pub fn get_current_subscription() -> Result<String, QuicpulseError> {
 
     if subscription.is_empty() {
         return Err(QuicpulseError::Auth(
-            "No Azure subscription configured. Run 'az login' to authenticate.".to_string()
+            "No Azure subscription configured. Run 'az login' to authenticate.".to_string(),
         ));
     }
 
@@ -101,22 +95,13 @@ pub fn get_current_subscription() -> Result<String, QuicpulseError> {
 #[allow(dead_code)]
 pub fn get_current_tenant() -> Result<String, QuicpulseError> {
     let output = Command::new("az")
-        .args([
-            "account",
-            "show",
-            "--query",
-            "tenantId",
-            "--output",
-            "tsv",
-        ])
+        .args(["account", "show", "--query", "tenantId", "--output", "tsv"])
         .output()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to get Azure tenant: {}", e
-        )))?;
+        .map_err(|e| QuicpulseError::Auth(format!("Failed to get Azure tenant: {}", e)))?;
 
     if !output.status.success() {
         return Err(QuicpulseError::Auth(
-            "No Azure tenant configured. Run 'az login' to authenticate.".to_string()
+            "No Azure tenant configured. Run 'az login' to authenticate.".to_string(),
         ));
     }
 
@@ -124,7 +109,7 @@ pub fn get_current_tenant() -> Result<String, QuicpulseError> {
 
     if tenant.is_empty() {
         return Err(QuicpulseError::Auth(
-            "No Azure tenant configured. Run 'az login' to authenticate.".to_string()
+            "No Azure tenant configured. Run 'az login' to authenticate.".to_string(),
         ));
     }
 

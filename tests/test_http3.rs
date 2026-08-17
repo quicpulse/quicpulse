@@ -23,7 +23,12 @@ fn test_http3_flag_accepted() {
 #[test]
 fn test_http3_with_http_version_flag() {
     // Test --http-version=3 flag
-    let r = http(&["--http-version=3", "--offline", "--print=H", "https://example.org"]);
+    let r = http(&[
+        "--http-version=3",
+        "--offline",
+        "--print=H",
+        "https://example.org",
+    ]);
     assert_eq!(r.exit_code, 0, "--http-version=3 should be accepted");
 }
 
@@ -33,7 +38,10 @@ fn test_http3_plaintext_warning() {
     let r = http(&["--http3", "--offline", "--print=H", "http://example.org"]);
 
     // Should still work (falls back) but may have warning in stderr
-    assert_eq!(r.exit_code, 0, "Should accept --http3 with http:// (with fallback)");
+    assert_eq!(
+        r.exit_code, 0,
+        "Should accept --http3 with http:// (with fallback)"
+    );
 }
 
 #[test]
@@ -56,13 +64,17 @@ fn test_http3_cloudflare() {
     // https://blog.cloudflare.com/http3-the-past-present-and-future/
     let r = http(&[
         "--http3",
-        "--timeout", "10",
+        "--timeout",
+        "10",
         "--print=hH",
-        "https://cloudflare-quic.com/"
+        "https://cloudflare-quic.com/",
     ]);
 
     // Should successfully connect via HTTP/3
-    assert_eq!(r.exit_code, 0, "HTTP/3 connection to Cloudflare should succeed");
+    assert_eq!(
+        r.exit_code, 0,
+        "HTTP/3 connection to Cloudflare should succeed"
+    );
 
     // Response should contain HTTP headers
     assert!(r.stdout.contains("HTTP/"), "Should receive HTTP response");
@@ -74,9 +86,10 @@ fn test_http3_google() {
     // Google supports HTTP/3
     let r = http(&[
         "--http3",
-        "--timeout", "10",
+        "--timeout",
+        "10",
         "--print=hH",
-        "https://www.google.com/"
+        "https://www.google.com/",
     ]);
 
     // Should successfully connect
@@ -89,10 +102,11 @@ fn test_http3_with_headers() {
     // Test HTTP/3 with custom headers
     let r = http(&[
         "--http3",
-        "--timeout", "10",
+        "--timeout",
+        "10",
         "--print=hH",
         "https://cloudflare-quic.com/",
-        "X-Custom-Header:test-value"
+        "X-Custom-Header:test-value",
     ]);
 
     assert_eq!(r.exit_code, 0, "HTTP/3 with custom headers should work");
@@ -104,17 +118,20 @@ fn test_http3_post_request() {
     // Test HTTP/3 POST request
     let r = http(&[
         "--http3",
-        "--timeout", "10",
+        "--timeout",
+        "10",
         "--print=hH",
         "POST",
         "https://httpbin.org/post",
-        "message=hello"
+        "message=hello",
     ]);
 
     // httpbin might not support HTTP/3, so this tests fallback behavior
     // or succeeds if it does support it
-    assert!(r.exit_code == 0 || r.stderr.contains("error"),
-        "POST should either succeed or fail gracefully");
+    assert!(
+        r.exit_code == 0 || r.stderr.contains("error"),
+        "POST should either succeed or fail gracefully"
+    );
 }
 
 #[test]
@@ -123,15 +140,18 @@ fn test_http3_json_response() {
     // Test HTTP/3 with JSON response
     let r = http(&[
         "--http3",
-        "--timeout", "10",
+        "--timeout",
+        "10",
         "--json",
         "https://cloudflare-quic.com/",
-        "test=value"
+        "test=value",
     ]);
 
     // Should work with JSON content type
-    assert!(r.exit_code == 0 || r.stderr.contains("error"),
-        "JSON request should either succeed or fail gracefully");
+    assert!(
+        r.exit_code == 0 || r.stderr.contains("error"),
+        "JSON request should either succeed or fail gracefully"
+    );
 }
 
 // ============================================================================
@@ -141,7 +161,13 @@ fn test_http3_json_response() {
 #[test]
 fn test_http3_with_follow_redirects() {
     // Test --http3 combined with --follow
-    let r = http(&["--http3", "--follow", "--offline", "--print=H", "https://example.org"]);
+    let r = http(&[
+        "--http3",
+        "--follow",
+        "--offline",
+        "--print=H",
+        "https://example.org",
+    ]);
     assert_eq!(r.exit_code, 0, "--http3 with --follow should be accepted");
 }
 
@@ -154,7 +180,7 @@ fn test_http3_with_auth() {
         "--auth=user:pass",
         "--offline",
         "--print=H",
-        "https://example.org"
+        "https://example.org",
     ]);
     assert_eq!(r.exit_code, 0, "--http3 with --auth should be accepted");
 }
@@ -166,7 +192,7 @@ fn test_http_version_3_with_port() {
         "--http-version=3",
         "--offline",
         "--print=H",
-        "https://example.org:443"
+        "https://example.org:443",
     ]);
     assert_eq!(r.exit_code, 0, "--http-version=3 with port should work");
 }
@@ -180,10 +206,13 @@ fn test_http3_combined_with_http2() {
         "--http-version=2",
         "--offline",
         "--print=H",
-        "https://example.org"
+        "https://example.org",
     ]);
     // Should still work - implementation decides precedence
-    assert_eq!(r.exit_code, 0, "Conflicting HTTP version flags should still work");
+    assert_eq!(
+        r.exit_code, 0,
+        "Conflicting HTTP version flags should still work"
+    );
 }
 
 // ============================================================================
@@ -195,11 +224,7 @@ fn test_http3_combined_with_http2() {
 fn test_http3_connection_refused() {
     // Test HTTP/3 to a server that doesn't support it
     // localhost:1 should refuse connection
-    let r = http_error(&[
-        "--http3",
-        "--timeout=2",
-        "https://localhost:1/"
-    ]);
+    let r = http_error(&["--http3", "--timeout=2", "https://localhost:1/"]);
 
     // Should fail with connection error
     assert_ne!(r.exit_code, 0, "Connection to localhost:1 should fail");
@@ -213,9 +238,12 @@ fn test_http3_timeout() {
     let r = http_error(&[
         "--http3",
         "--timeout=1",
-        "https://10.255.255.1/"  // Non-routable IP, should timeout
+        "https://10.255.255.1/", // Non-routable IP, should timeout
     ]);
 
     // Should fail with timeout or connection error
-    assert_ne!(r.exit_code, 0, "Request to non-routable IP should timeout/fail");
+    assert_ne!(
+        r.exit_code, 0,
+        "Request to non-routable IP should timeout/fail"
+    );
 }

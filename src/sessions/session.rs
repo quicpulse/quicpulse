@@ -20,15 +20,15 @@ pub struct Session {
     /// Metadata about the session
     #[serde(rename = "session_info")]
     pub meta: SessionMeta,
-    
+
     /// Persisted headers
     #[serde(default)]
     pub headers: Vec<SessionHeader>,
-    
+
     /// Persisted cookies
     #[serde(default)]
     pub cookies: Vec<SessionCookie>,
-    
+
     /// Persisted authentication
     #[serde(default)]
     pub auth: Option<SessionAuth>,
@@ -125,7 +125,7 @@ impl Session {
     pub fn load(path: &Path) -> Result<Self, QuicpulseError> {
         let content = fs::read_to_string(path)
             .map_err(|e| QuicpulseError::Session(format!("Failed to read session: {}", e)))?;
-        
+
         serde_json::from_str(&content)
             .map_err(|e| QuicpulseError::Session(format!("Failed to parse session: {}", e)))
     }
@@ -133,7 +133,7 @@ impl Session {
     /// Load a named session for a host
     pub fn load_named(name: &str, host: &str, config: &Config) -> Result<Self, QuicpulseError> {
         let path = Self::session_path(name, host, config);
-        
+
         if path.exists() {
             Self::load(&path)
         } else {
@@ -147,8 +147,9 @@ impl Session {
     pub fn save(&self, path: &Path) -> Result<(), QuicpulseError> {
         // Ensure parent directory exists
         let parent = path.parent().unwrap_or(Path::new("."));
-        fs::create_dir_all(parent)
-            .map_err(|e| QuicpulseError::Session(format!("Failed to create session directory: {}", e)))?;
+        fs::create_dir_all(parent).map_err(|e| {
+            QuicpulseError::Session(format!("Failed to create session directory: {}", e))
+        })?;
 
         let content = serde_json::to_string_pretty(self)
             .map_err(|e| QuicpulseError::Session(format!("Failed to serialize session: {}", e)))?;
@@ -177,14 +178,20 @@ impl Session {
     }
 
     /// Save a named session for a host
-    pub fn save_named(&self, name: &str, host: &str, config: &Config) -> Result<(), QuicpulseError> {
+    pub fn save_named(
+        &self,
+        name: &str,
+        host: &str,
+        config: &Config,
+    ) -> Result<(), QuicpulseError> {
         let path = Self::session_path(name, host, config);
         self.save(&path)
     }
 
     /// Get the path for a named session
     fn session_path(name: &str, host: &str, config: &Config) -> PathBuf {
-        config.sessions_dir()
+        config
+            .sessions_dir()
             .join(host)
             .join(format!("{}.json", name))
     }
@@ -197,7 +204,11 @@ impl Session {
         }
 
         // Update existing or add new
-        if let Some(header) = self.headers.iter_mut().find(|h| h.name.eq_ignore_ascii_case(name)) {
+        if let Some(header) = self
+            .headers
+            .iter_mut()
+            .find(|h| h.name.eq_ignore_ascii_case(name))
+        {
             header.value = value.to_string();
         } else {
             self.headers.push(SessionHeader {
@@ -224,9 +235,11 @@ impl Session {
         self.remove_expired_cookies();
 
         // Update existing or add new
-        if let Some(existing) = self.cookies.iter_mut().find(|c| {
-            c.name == cookie.name && c.domain == cookie.domain && c.path == cookie.path
-        }) {
+        if let Some(existing) = self
+            .cookies
+            .iter_mut()
+            .find(|c| c.name == cookie.name && c.domain == cookie.domain && c.path == cookie.path)
+        {
             *existing = cookie;
         } else {
             self.cookies.push(cookie);
@@ -236,9 +249,7 @@ impl Session {
     /// Remove a cookie
     pub fn remove_cookie(&mut self, name: &str, domain: Option<&str>, path: Option<&str>) {
         self.cookies.retain(|c| {
-            !(c.name == name 
-                && c.domain.as_deref() == domain 
-                && c.path.as_deref() == path)
+            !(c.name == name && c.domain.as_deref() == domain && c.path.as_deref() == path)
         });
     }
 
@@ -249,36 +260,44 @@ impl Session {
             .map(|d| d.as_secs() as i64)
             .unwrap_or(0);
 
-        self.cookies.retain(|c| {
-            c.expires.map(|exp| exp > now).unwrap_or(true)
-        });
+        self.cookies
+            .retain(|c| c.expires.map(|exp| exp > now).unwrap_or(true));
     }
 
     /// Get cookies that apply to a given URL
-    pub fn get_cookies_for_url(&self, domain: &str, path: &str, is_secure: bool) -> Vec<&SessionCookie> {
-        self.cookies.iter()
+    pub fn get_cookies_for_url(
+        &self,
+        domain: &str,
+        path: &str,
+        is_secure: bool,
+    ) -> Vec<&SessionCookie> {
+        self.cookies
+            .iter()
             .filter(|c| {
                 // Check domain
-                let domain_match = c.domain.as_ref()
+                let domain_match = c
+                    .domain
+                    .as_ref()
                     .map(|d| domain_matches(domain, d))
                     .unwrap_or(true);
 
                 // Check path
-                let path_match = c.path.as_ref()
-                    .map(|p| path.starts_with(p))
-                    .unwrap_or(true);
+                let path_match = c.path.as_ref().map(|p| path.starts_with(p)).unwrap_or(true);
 
                 // Check secure
                 let secure_match = !c.secure || is_secure || is_localhost(domain);
 
                 // Check expiration
-                let not_expired = c.expires.map(|exp| {
-                    let now = SystemTime::now()
-                        .duration_since(UNIX_EPOCH)
-                        .map(|d| d.as_secs() as i64)
-                        .unwrap_or(0);
-                    exp > now
-                }).unwrap_or(true);
+                let not_expired = c
+                    .expires
+                    .map(|exp| {
+                        let now = SystemTime::now()
+                            .duration_since(UNIX_EPOCH)
+                            .map(|d| d.as_secs() as i64)
+                            .unwrap_or(0);
+                        exp > now
+                    })
+                    .unwrap_or(true);
 
                 domain_match && path_match && secure_match && not_expired
             })
@@ -301,12 +320,13 @@ impl Session {
     /// Get the Cookie header value for a request
     pub fn get_cookie_header(&self, domain: &str, path: &str, is_secure: bool) -> Option<String> {
         let cookies = self.get_cookies_for_url(domain, path, is_secure);
-        
+
         if cookies.is_empty() {
             return None;
         }
 
-        let cookie_str = cookies.iter()
+        let cookie_str = cookies
+            .iter()
             .map(|c| format!("{}={}", c.name, c.value))
             .collect::<Vec<_>>()
             .join("; ");
@@ -317,7 +337,7 @@ impl Session {
     /// Parse and add cookies from a Set-Cookie header
     pub fn parse_set_cookie(&mut self, set_cookie: &str, default_domain: &str) {
         let parts: Vec<&str> = set_cookie.split(';').map(|s| s.trim()).collect();
-        
+
         if parts.is_empty() {
             return;
         }
@@ -341,7 +361,8 @@ impl Session {
 
         // Parse attributes
         for attr in &parts[1..] {
-            let (key, val) = attr.split_once('=')
+            let (key, val) = attr
+                .split_once('=')
                 .map(|(k, v)| (k.to_lowercase(), Some(v)))
                 .unwrap_or_else(|| (attr.to_lowercase(), None));
 
@@ -431,15 +452,15 @@ mod tests {
     #[test]
     fn test_header_persistence() {
         let mut session = Session::new();
-        
+
         // Regular headers should be persisted
         session.update_header("X-Custom", "value");
         assert_eq!(session.headers.len(), 1);
-        
+
         // Content-* headers should be ignored
         session.update_header("Content-Type", "application/json");
         assert_eq!(session.headers.len(), 1);
-        
+
         // If-* headers should be ignored
         session.update_header("If-None-Match", "abc123");
         assert_eq!(session.headers.len(), 1);

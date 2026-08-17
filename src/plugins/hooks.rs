@@ -137,7 +137,12 @@ impl HookContext {
     }
 
     /// Create context for pre-request hook
-    pub fn pre_request(url: &str, method: &str, headers: HashMap<String, String>, body: Option<String>) -> Self {
+    pub fn pre_request(
+        url: &str,
+        method: &str,
+        headers: HashMap<String, String>,
+        body: Option<String>,
+    ) -> Self {
         Self {
             hook: PluginHook::PreRequest.as_str().to_string(),
             url: Some(url.to_string()),
@@ -277,17 +282,15 @@ mod tests {
     #[test]
     fn test_hook_names() {
         assert_eq!(PluginHook::PreRequest.as_str(), "pre_request");
-        assert_eq!(PluginHook::from_str("post_response"), Some(PluginHook::PostResponse));
+        assert_eq!(
+            PluginHook::from_str("post_response"),
+            Some(PluginHook::PostResponse)
+        );
     }
 
     #[test]
     fn test_hook_context() {
-        let ctx = HookContext::pre_request(
-            "http://example.com",
-            "GET",
-            HashMap::new(),
-            None,
-        );
+        let ctx = HookContext::pre_request("http://example.com", "GET", HashMap::new(), None);
         assert_eq!(ctx.url, Some("http://example.com".to_string()));
         assert_eq!(ctx.method, Some("GET".to_string()));
     }

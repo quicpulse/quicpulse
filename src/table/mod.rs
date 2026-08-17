@@ -2,15 +2,16 @@
 //!
 //! This module provides ASCII table and CSV output for JSON arrays.
 
-use comfy_table::{Table, ContentArrangement, Cell, Attribute};
+use crate::errors::QuicpulseError;
+use comfy_table::{Attribute, Cell, ContentArrangement, Table};
 use serde_json::Value as JsonValue;
 use std::io::Write;
-use crate::errors::QuicpulseError;
 
 /// Format JSON array as ASCII table
 pub fn format_as_table(json: &JsonValue) -> Result<String, QuicpulseError> {
-    let array = json.as_array()
-        .ok_or_else(|| QuicpulseError::Argument("Expected JSON array for table output".to_string()))?;
+    let array = json.as_array().ok_or_else(|| {
+        QuicpulseError::Argument("Expected JSON array for table output".to_string())
+    })?;
 
     if array.is_empty() {
         return Ok("(empty)".to_string());
@@ -19,7 +20,9 @@ pub fn format_as_table(json: &JsonValue) -> Result<String, QuicpulseError> {
     // Collect all unique keys from objects
     let columns = collect_columns(array);
     if columns.is_empty() {
-        return Err(QuicpulseError::Argument("Array contains no objects".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Array contains no objects".to_string(),
+        ));
     }
 
     // Create table
@@ -27,7 +30,8 @@ pub fn format_as_table(json: &JsonValue) -> Result<String, QuicpulseError> {
     table.set_content_arrangement(ContentArrangement::Dynamic);
 
     // Add header row
-    let header: Vec<Cell> = columns.iter()
+    let header: Vec<Cell> = columns
+        .iter()
         .map(|col| Cell::new(col).add_attribute(Attribute::Bold))
         .collect();
     table.set_header(header);
@@ -35,9 +39,11 @@ pub fn format_as_table(json: &JsonValue) -> Result<String, QuicpulseError> {
     // Add data rows
     for item in array {
         if let Some(obj) = item.as_object() {
-            let row: Vec<Cell> = columns.iter()
+            let row: Vec<Cell> = columns
+                .iter()
                 .map(|col| {
-                    let value = obj.get(col)
+                    let value = obj
+                        .get(col)
                         .map(|v| format_cell_value(v))
                         .unwrap_or_else(|| "".to_string());
                     Cell::new(value)
@@ -52,8 +58,9 @@ pub fn format_as_table(json: &JsonValue) -> Result<String, QuicpulseError> {
 
 /// Format JSON array as CSV
 pub fn format_as_csv(json: &JsonValue) -> Result<String, QuicpulseError> {
-    let array = json.as_array()
-        .ok_or_else(|| QuicpulseError::Argument("Expected JSON array for CSV output".to_string()))?;
+    let array = json.as_array().ok_or_else(|| {
+        QuicpulseError::Argument("Expected JSON array for CSV output".to_string())
+    })?;
 
     if array.is_empty() {
         return Ok(String::new());
@@ -62,7 +69,9 @@ pub fn format_as_csv(json: &JsonValue) -> Result<String, QuicpulseError> {
     // Collect all unique keys from objects
     let columns = collect_columns(array);
     if columns.is_empty() {
-        return Err(QuicpulseError::Argument("Array contains no objects".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Array contains no objects".to_string(),
+        ));
     }
 
     let mut output = Vec::new();
@@ -70,36 +79,40 @@ pub fn format_as_csv(json: &JsonValue) -> Result<String, QuicpulseError> {
         let mut writer = csv::Writer::from_writer(&mut output);
 
         // Write header
-        writer.write_record(&columns)
+        writer
+            .write_record(&columns)
             .map_err(|e| QuicpulseError::Argument(format!("CSV write error: {}", e)))?;
 
         // Write data rows
         for item in array {
             if let Some(obj) = item.as_object() {
-                let row: Vec<String> = columns.iter()
+                let row: Vec<String> = columns
+                    .iter()
                     .map(|col| {
                         obj.get(col)
                             .map(|v| format_csv_value(v))
                             .unwrap_or_default()
                     })
                     .collect();
-                writer.write_record(&row)
+                writer
+                    .write_record(&row)
                     .map_err(|e| QuicpulseError::Argument(format!("CSV write error: {}", e)))?;
             }
         }
 
-        writer.flush()
+        writer
+            .flush()
             .map_err(|e| QuicpulseError::Argument(format!("CSV flush error: {}", e)))?;
     }
 
-    String::from_utf8(output)
-        .map_err(|e| QuicpulseError::Argument(format!("UTF-8 error: {}", e)))
+    String::from_utf8(output).map_err(|e| QuicpulseError::Argument(format!("UTF-8 error: {}", e)))
 }
 
 /// Write CSV directly to a writer
 pub fn write_csv<W: Write>(json: &JsonValue, writer: W) -> Result<(), QuicpulseError> {
-    let array = json.as_array()
-        .ok_or_else(|| QuicpulseError::Argument("Expected JSON array for CSV output".to_string()))?;
+    let array = json.as_array().ok_or_else(|| {
+        QuicpulseError::Argument("Expected JSON array for CSV output".to_string())
+    })?;
 
     if array.is_empty() {
         return Ok(());
@@ -107,31 +120,37 @@ pub fn write_csv<W: Write>(json: &JsonValue, writer: W) -> Result<(), QuicpulseE
 
     let columns = collect_columns(array);
     if columns.is_empty() {
-        return Err(QuicpulseError::Argument("Array contains no objects".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Array contains no objects".to_string(),
+        ));
     }
 
     let mut csv_writer = csv::Writer::from_writer(writer);
 
     // Write header
-    csv_writer.write_record(&columns)
+    csv_writer
+        .write_record(&columns)
         .map_err(|e| QuicpulseError::Argument(format!("CSV write error: {}", e)))?;
 
     // Write data rows
     for item in array {
         if let Some(obj) = item.as_object() {
-            let row: Vec<String> = columns.iter()
+            let row: Vec<String> = columns
+                .iter()
                 .map(|col| {
                     obj.get(col)
                         .map(|v| format_csv_value(v))
                         .unwrap_or_default()
                 })
                 .collect();
-            csv_writer.write_record(&row)
+            csv_writer
+                .write_record(&row)
                 .map_err(|e| QuicpulseError::Argument(format!("CSV write error: {}", e)))?;
         }
     }
 
-    csv_writer.flush()
+    csv_writer
+        .flush()
         .map_err(|e| QuicpulseError::Argument(format!("CSV flush error: {}", e)))?;
 
     Ok(())
@@ -164,20 +183,26 @@ fn format_cell_value(value: &JsonValue) -> String {
         JsonValue::String(s) => s.clone(),
         JsonValue::Array(arr) => {
             if arr.len() <= 3 {
-                format!("[{}]", arr.iter()
-                    .map(|v| format_cell_value(v))
-                    .collect::<Vec<_>>()
-                    .join(", "))
+                format!(
+                    "[{}]",
+                    arr.iter()
+                        .map(|v| format_cell_value(v))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             } else {
                 format!("[{} items]", arr.len())
             }
         }
         JsonValue::Object(obj) => {
             if obj.len() <= 2 {
-                format!("{{{}}}", obj.iter()
-                    .map(|(k, v)| format!("{}: {}", k, format_cell_value(v)))
-                    .collect::<Vec<_>>()
-                    .join(", "))
+                format!(
+                    "{{{}}}",
+                    obj.iter()
+                        .map(|(k, v)| format!("{}: {}", k, format_cell_value(v)))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
             } else {
                 format!("{{...{} keys}}", obj.len())
             }

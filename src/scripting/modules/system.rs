@@ -128,9 +128,7 @@ fn process_id() -> i64 {
 fn process_args() -> RuneString {
     // Only return the program name (first argument) to prevent credential leakage
     // CLI arguments like --auth="SECRET_TOKEN" should not be exposed to scripts
-    let program_name = std::env::args()
-        .next()
-        .unwrap_or_default();
+    let program_name = std::env::args().next().unwrap_or_default();
     RuneString::try_from(program_name).unwrap_or_default()
 }
 

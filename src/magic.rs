@@ -15,9 +15,9 @@
 //! - `{random_bytes:LEN}` - Random base64-encoded bytes
 //! - `{env:VAR_NAME}` - Environment variable value
 
-use chrono::{Utc, Local};
+use chrono::{Local, Utc};
 use once_cell::sync::Lazy;
-use rand::Rng;
+use rand::{Rng, RngExt};
 use regex::Regex;
 use std::cell::Cell;
 use std::collections::HashMap;
@@ -30,12 +30,10 @@ thread_local! {
 }
 
 // Cached regex patterns to avoid recompilation in hot paths
-static MAGIC_VALUE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{([a-z_][a-z0-9_]*)(?::([^}]*))?\}").unwrap()
-});
-static HAS_MAGIC_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"\{[a-z_][a-z0-9_]*(?::[^}]*)?\}").unwrap()
-});
+static MAGIC_VALUE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{([a-z_][a-z0-9_]*)(?::([^}]*))?\}").unwrap());
+static HAS_MAGIC_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"\{[a-z_][a-z0-9_]*(?::[^}]*)?\}").unwrap());
 
 /// Reset the sequence counter (call between workflows for reproducible tests)
 pub fn reset_seq_counter() {
@@ -76,7 +74,8 @@ pub fn expand_magic_values(input: &str) -> ExpansionResult {
         let mut found_match = false;
 
         // Find all matches and replace them
-        let replacements: Vec<_> = re.captures_iter(&result)
+        let replacements: Vec<_> = re
+            .captures_iter(&result)
             .map(|cap| {
                 let full_match = cap.get(0).unwrap().as_str().to_string();
                 let name = cap.get(1).unwrap().as_str();
@@ -158,7 +157,9 @@ fn generate_magic_value(name: &str, args: Option<&str>) -> Option<String> {
                     }
                     2 => {
                         // min:max
-                        if let (Ok(min), Ok(max)) = (parts[0].parse::<i64>(), parts[1].parse::<i64>()) {
+                        if let (Ok(min), Ok(max)) =
+                            (parts[0].parse::<i64>(), parts[1].parse::<i64>())
+                        {
                             Some(rng.random_range(min..=max).to_string())
                         } else {
                             None
@@ -185,7 +186,9 @@ fn generate_magic_value(name: &str, args: Option<&str>) -> Option<String> {
                         }
                     }
                     2 => {
-                        if let (Ok(min), Ok(max)) = (parts[0].parse::<f64>(), parts[1].parse::<f64>()) {
+                        if let (Ok(min), Ok(max)) =
+                            (parts[0].parse::<f64>(), parts[1].parse::<f64>())
+                        {
                             Some(format!("{:.6}", rng.random_range(min..=max)))
                         } else {
                             None
@@ -217,9 +220,7 @@ fn generate_magic_value(name: &str, args: Option<&str>) -> Option<String> {
         }
 
         // Environment variable
-        "env" => {
-            args.and_then(|var_name| std::env::var(var_name).ok())
-        }
+        "env" => args.and_then(|var_name| std::env::var(var_name).ok()),
 
         // Boolean
         "random_bool" | "bool" => {
@@ -228,18 +229,16 @@ fn generate_magic_value(name: &str, args: Option<&str>) -> Option<String> {
         }
 
         // Pick from list
-        "pick" => {
-            args.and_then(|options| {
-                let items: Vec<&str> = options.split(',').collect();
-                if items.is_empty() {
-                    None
-                } else {
-                    let mut rng = rand::rng();
-                    let idx = rng.random_range(0..items.len());
-                    Some(items[idx].trim().to_string())
-                }
-            })
-        }
+        "pick" => args.and_then(|options| {
+            let items: Vec<&str> = options.split(',').collect();
+            if items.is_empty() {
+                None
+            } else {
+                let mut rng = rand::rng();
+                let idx = rng.random_range(0..items.len());
+                Some(items[idx].trim().to_string())
+            }
+        }),
 
         // Sequence/counter (useful in loops)
         "seq" => {
@@ -300,7 +299,7 @@ fn generate_random_hex(len: usize) -> String {
 
 /// Generate random bytes as base64
 fn generate_random_bytes_base64(len: usize) -> String {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     let mut rng = rand::rng();
     let bytes: Vec<u8> = (0..len).map(|_| rng.random::<u8>()).collect();
     STANDARD.encode(&bytes)
@@ -309,14 +308,68 @@ fn generate_random_bytes_base64(len: usize) -> String {
 /// Generate lorem ipsum text
 fn generate_lorem(words: usize) -> String {
     const LOREM_WORDS: &[&str] = &[
-        "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing", "elit",
-        "sed", "do", "eiusmod", "tempor", "incididunt", "ut", "labore", "et", "dolore",
-        "magna", "aliqua", "enim", "ad", "minim", "veniam", "quis", "nostrud",
-        "exercitation", "ullamco", "laboris", "nisi", "aliquip", "ex", "ea", "commodo",
-        "consequat", "duis", "aute", "irure", "in", "reprehenderit", "voluptate",
-        "velit", "esse", "cillum", "fugiat", "nulla", "pariatur", "excepteur", "sint",
-        "occaecat", "cupidatat", "non", "proident", "sunt", "culpa", "qui", "officia",
-        "deserunt", "mollit", "anim", "id", "est", "laborum",
+        "lorem",
+        "ipsum",
+        "dolor",
+        "sit",
+        "amet",
+        "consectetur",
+        "adipiscing",
+        "elit",
+        "sed",
+        "do",
+        "eiusmod",
+        "tempor",
+        "incididunt",
+        "ut",
+        "labore",
+        "et",
+        "dolore",
+        "magna",
+        "aliqua",
+        "enim",
+        "ad",
+        "minim",
+        "veniam",
+        "quis",
+        "nostrud",
+        "exercitation",
+        "ullamco",
+        "laboris",
+        "nisi",
+        "aliquip",
+        "ex",
+        "ea",
+        "commodo",
+        "consequat",
+        "duis",
+        "aute",
+        "irure",
+        "in",
+        "reprehenderit",
+        "voluptate",
+        "velit",
+        "esse",
+        "cillum",
+        "fugiat",
+        "nulla",
+        "pariatur",
+        "excepteur",
+        "sint",
+        "occaecat",
+        "cupidatat",
+        "non",
+        "proident",
+        "sunt",
+        "culpa",
+        "qui",
+        "officia",
+        "deserunt",
+        "mollit",
+        "anim",
+        "id",
+        "est",
+        "laborum",
     ];
 
     let mut rng = rand::rng();
@@ -329,10 +382,36 @@ fn generate_lorem(words: usize) -> String {
 /// Random first name
 fn random_first_name() -> String {
     const NAMES: &[&str] = &[
-        "James", "Mary", "John", "Patricia", "Robert", "Jennifer", "Michael", "Linda",
-        "William", "Elizabeth", "David", "Barbara", "Richard", "Susan", "Joseph", "Jessica",
-        "Thomas", "Sarah", "Charles", "Karen", "Emma", "Olivia", "Ava", "Isabella",
-        "Sophia", "Mia", "Charlotte", "Amelia", "Harper", "Evelyn",
+        "James",
+        "Mary",
+        "John",
+        "Patricia",
+        "Robert",
+        "Jennifer",
+        "Michael",
+        "Linda",
+        "William",
+        "Elizabeth",
+        "David",
+        "Barbara",
+        "Richard",
+        "Susan",
+        "Joseph",
+        "Jessica",
+        "Thomas",
+        "Sarah",
+        "Charles",
+        "Karen",
+        "Emma",
+        "Olivia",
+        "Ava",
+        "Isabella",
+        "Sophia",
+        "Mia",
+        "Charlotte",
+        "Amelia",
+        "Harper",
+        "Evelyn",
     ];
     let mut rng = rand::rng();
     NAMES[rng.random_range(0..NAMES.len())].to_string()
@@ -341,10 +420,36 @@ fn random_first_name() -> String {
 /// Random last name
 fn random_last_name() -> String {
     const NAMES: &[&str] = &[
-        "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
-        "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
-        "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson",
-        "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+        "Smith",
+        "Johnson",
+        "Williams",
+        "Brown",
+        "Jones",
+        "Garcia",
+        "Miller",
+        "Davis",
+        "Rodriguez",
+        "Martinez",
+        "Hernandez",
+        "Lopez",
+        "Gonzalez",
+        "Wilson",
+        "Anderson",
+        "Thomas",
+        "Taylor",
+        "Moore",
+        "Jackson",
+        "Martin",
+        "Lee",
+        "Perez",
+        "Thompson",
+        "White",
+        "Harris",
+        "Sanchez",
+        "Clark",
+        "Ramirez",
+        "Lewis",
+        "Robinson",
     ];
     let mut rng = rand::rng();
     NAMES[rng.random_range(0..NAMES.len())].to_string()

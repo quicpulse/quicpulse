@@ -22,8 +22,10 @@ impl EncodedStream {
     pub fn new(data: &[u8], encoding_override: Option<&str>) -> Self {
         // Warn and truncate if data is too large to prevent OOM
         let data = if data.len() > MAX_DATA_SIZE {
-            eprintln!("Warning: Response body truncated to {} MB to prevent memory exhaustion",
-                     MAX_DATA_SIZE / 1024 / 1024);
+            eprintln!(
+                "Warning: Response body truncated to {} MB to prevent memory exhaustion",
+                MAX_DATA_SIZE / 1024 / 1024
+            );
             &data[..MAX_DATA_SIZE]
         } else {
             data
@@ -31,10 +33,7 @@ impl EncodedStream {
 
         let (text, _) = decode_with_encoding(data, encoding_override);
 
-        Self {
-            text,
-            position: 0,
-        }
+        Self { text, position: 0 }
     }
 
     /// Check if content contains binary data (NUL bytes)
@@ -86,7 +85,7 @@ fn decode_with_encoding(data: &[u8], encoding_name: Option<&str>) -> (String, &'
         .unwrap_or(UTF_8);
 
     let (text, _, had_errors) = encoding.decode(data);
-    
+
     if had_errors {
         // Replace errors with replacement character
         (text.into_owned(), encoding)
@@ -98,14 +97,12 @@ fn decode_with_encoding(data: &[u8], encoding_name: Option<&str>) -> (String, &'
 /// Detect encoding from Content-Type header
 pub fn encoding_from_content_type(content_type: &str) -> Option<&str> {
     // Look for charset=...
-    content_type
-        .split(';')
-        .find_map(|part| {
-            let part = part.trim();
-            if part.to_lowercase().starts_with("charset=") {
-                Some(part[8..].trim_matches('"').trim())
-            } else {
-                None
-            }
-        })
+    content_type.split(';').find_map(|part| {
+        let part = part.trim();
+        if part.to_lowercase().starts_with("charset=") {
+            Some(part[8..].trim_matches('"').trim())
+        } else {
+            None
+        }
+    })
 }

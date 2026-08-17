@@ -187,7 +187,10 @@ impl DigestAuth {
         if let Some(ref qop) = challenge.qop {
             // Use first qop option (typically "auth")
             let qop_value = qop.split(',').next().unwrap_or("auth").trim();
-            auth_value.push_str(&format!(", qop={}, nc={}, cnonce=\"{}\"", qop_value, nc_str, cnonce));
+            auth_value.push_str(&format!(
+                ", qop={}, nc={}, cnonce=\"{}\"",
+                qop_value, nc_str, cnonce
+            ));
         }
 
         // Add opaque if present
@@ -258,10 +261,8 @@ fn hash(algorithm: DigestAlgorithm, data: &str) -> String {
 
     match algorithm {
         DigestAlgorithm::MD5 => {
-            // Use md5_digest (md-5 crate) which implements the Digest trait
-            let mut hasher = md5_digest::Md5::new();
-            hasher.update(data.as_bytes());
-            hex::encode(hasher.finalize())
+            let digest = md5::compute(data.as_bytes());
+            hex::encode(digest.0)
         }
         DigestAlgorithm::SHA256 => {
             let mut hasher = sha2::Sha256::new();
@@ -278,7 +279,7 @@ fn hash(algorithm: DigestAlgorithm, data: &str) -> String {
 
 /// Generate a random client nonce
 fn generate_cnonce() -> String {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     let bytes: [u8; 16] = rng.random();
     hex::encode(bytes)
@@ -335,7 +336,8 @@ mod tests {
 
     #[test]
     fn test_parse_digest_challenge() {
-        let header = r#"Digest realm="test@example.com", nonce="abc123", qop="auth", algorithm=MD5"#;
+        let header =
+            r#"Digest realm="test@example.com", nonce="abc123", qop="auth", algorithm=MD5"#;
         let challenge = DigestChallenge::parse(header).unwrap();
 
         assert_eq!(challenge.realm, "test@example.com");
@@ -387,7 +389,10 @@ mod tests {
     #[test]
     fn test_sha256_hash() {
         let result = hash(DigestAlgorithm::SHA256, "test");
-        assert_eq!(result, "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+        assert_eq!(
+            result,
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+        );
     }
 
     #[test]

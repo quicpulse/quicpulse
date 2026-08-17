@@ -3,10 +3,10 @@
 //! Provides a unified interface for executing scripts in different languages
 //! (Rune, JavaScript) while maintaining a consistent API.
 
-use crate::errors::QuicpulseError;
 use super::context::ScriptContext;
-use super::runtime::{ScriptEngine, ScriptResult};
 use super::detection::ScriptType;
+use super::runtime::{ScriptEngine, ScriptResult};
+use crate::errors::QuicpulseError;
 
 #[cfg(feature = "javascript")]
 use super::js::JsScriptEngine;
@@ -74,9 +74,7 @@ impl MultiScriptEngine {
         script_type: ScriptType,
     ) -> Result<ScriptResult, QuicpulseError> {
         match script_type {
-            ScriptType::Rune => {
-                self.rune_engine.execute(source, ctx).await
-            }
+            ScriptType::Rune => self.rune_engine.execute(source, ctx).await,
             ScriptType::JavaScript => {
                 #[cfg(feature = "javascript")]
                 {
@@ -110,14 +108,14 @@ impl MultiScriptEngine {
                     match &self.js_engine {
                         Some(engine) => engine.compile(source),
                         None => Err(QuicpulseError::Config(
-                            "JavaScript scripting is not enabled.".to_string()
+                            "JavaScript scripting is not enabled.".to_string(),
                         )),
                     }
                 }
                 #[cfg(not(feature = "javascript"))]
                 {
                     Err(QuicpulseError::Config(
-                        "JavaScript support is not compiled into this build.".to_string()
+                        "JavaScript support is not compiled into this build.".to_string(),
                     ))
                 }
             }
@@ -151,11 +149,9 @@ mod tests {
         let engine = MultiScriptEngine::rune_only().unwrap();
         let mut ctx = ScriptContext::new();
 
-        let result = engine.execute(
-            "pub fn main() { 1 + 1 }",
-            &mut ctx,
-            ScriptType::Rune
-        ).await;
+        let result = engine
+            .execute("pub fn main() { 1 + 1 }", &mut ctx, ScriptType::Rune)
+            .await;
 
         assert!(result.is_ok());
     }
@@ -173,11 +169,9 @@ mod tests {
         assert!(engine.is_js_enabled());
 
         let mut ctx = ScriptContext::new();
-        let result = engine.execute(
-            "1 + 1",
-            &mut ctx,
-            ScriptType::JavaScript
-        ).await;
+        let result = engine
+            .execute("1 + 1", &mut ctx, ScriptType::JavaScript)
+            .await;
 
         assert!(result.is_ok());
     }

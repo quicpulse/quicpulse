@@ -2,26 +2,30 @@
 //!
 //! This module provides the core HTTP client functionality using reqwest.
 
-use reqwest::header::{HeaderMap, HeaderName, HeaderValue, ACCEPT, CONTENT_LENGTH, CONTENT_TYPE, COOKIE};
+use reqwest::header::{
+    HeaderMap, HeaderName, HeaderValue, ACCEPT, CONTENT_LENGTH, CONTENT_TYPE, COOKIE,
+};
 use reqwest::{Client, Method, Response};
 use serde_json::{json, Value as JsonValue};
 use std::collections::HashMap;
 use std::time::Duration;
 use url::Url;
 
-use crate::auth::{AwsSigV4Config, OAuth2Config, get_token, sign_request as aws_sign_request, sha256_hex};
+use crate::auth::{
+    get_token, sha256_hex, sign_request as aws_sign_request, AwsSigV4Config, OAuth2Config,
+};
 use crate::cli::args::{Args, AuthType};
 use crate::cli::parser::ProcessedArgs;
-use crate::input::InputItem;
-use crate::models::types::RequestType;
 use crate::client::ssl::SslConfig;
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
 use crate::graphql;
+use crate::input::InputItem;
 use crate::middleware::auth::{Auth, DigestAuth, DigestChallenge};
+use crate::models::types::RequestType;
 use crate::sessions::Session;
 use crate::status::ExitStatus;
-use tracing::{info, debug, trace, instrument};
+use tracing::{debug, info, instrument, trace};
 
 pub const USER_AGENT_STRING: &str = concat!("QuicPulse/", env!("CARGO_PKG_VERSION"));
 
@@ -109,7 +113,9 @@ pub async fn send_request_with_session(
     let client = build_client(args, &processed.url)?;
 
     // Parse the method
-    let method: Method = processed.method.parse()
+    let method: Method = processed
+        .method
+        .parse()
         .map_err(|_| QuicpulseError::Parse(format!("Invalid HTTP method: {}", processed.method)))?;
 
     // Parse the URL
@@ -133,27 +139,27 @@ pub async fn send_request_with_session(
         Some(AuthType::OAuth2) => {
             // Client Credentials flow
             if let Some(ref auth_str) = args.auth {
-                let token_url = args.oauth_token_url.clone().unwrap_or_else(|| {
-                    std::env::var("OAUTH_TOKEN_URL").unwrap_or_default()
-                });
+                let token_url = args
+                    .oauth_token_url
+                    .clone()
+                    .unwrap_or_else(|| std::env::var("OAUTH_TOKEN_URL").unwrap_or_default());
 
                 if token_url.is_empty() {
                     return Err(QuicpulseError::Auth(
-                        "OAuth2 requires --oauth-token-url or OAUTH_TOKEN_URL environment variable".to_string()
+                        "OAuth2 requires --oauth-token-url or OAUTH_TOKEN_URL environment variable"
+                            .to_string(),
                     ));
                 }
 
-                let config = OAuth2Config::from_credentials(
-                    auth_str,
-                    token_url,
-                    args.oauth_scopes.clone(),
-                )?;
+                let config =
+                    OAuth2Config::from_credentials(auth_str, token_url, args.oauth_scopes.clone())?;
 
                 Some(get_token(&config).await?)
             } else {
-                let token_url = args.oauth_token_url.clone().unwrap_or_else(|| {
-                    std::env::var("OAUTH_TOKEN_URL").unwrap_or_default()
-                });
+                let token_url = args
+                    .oauth_token_url
+                    .clone()
+                    .unwrap_or_else(|| std::env::var("OAUTH_TOKEN_URL").unwrap_or_default());
 
                 if token_url.is_empty() {
                     return Err(QuicpulseError::Auth(
@@ -167,19 +173,27 @@ pub async fn send_request_with_session(
         }
         Some(AuthType::OAuth2AuthCode) => {
             // Authorization Code flow (with optional PKCE)
-            use crate::auth::oauth2_flows::{AuthCodeConfig, authorization_code_flow};
+            use crate::auth::oauth2_flows::{authorization_code_flow, AuthCodeConfig};
 
-            let auth_url = args.oauth_auth_url.clone()
+            let auth_url = args
+                .oauth_auth_url
+                .clone()
                 .or_else(|| std::env::var("OAUTH_AUTH_URL").ok())
-                .ok_or_else(|| QuicpulseError::Auth(
-                    "Authorization Code flow requires --oauth-auth-url".to_string()
-                ))?;
+                .ok_or_else(|| {
+                    QuicpulseError::Auth(
+                        "Authorization Code flow requires --oauth-auth-url".to_string(),
+                    )
+                })?;
 
-            let token_url = args.oauth_token_url.clone()
+            let token_url = args
+                .oauth_token_url
+                .clone()
                 .or_else(|| std::env::var("OAUTH_TOKEN_URL").ok())
-                .ok_or_else(|| QuicpulseError::Auth(
-                    "Authorization Code flow requires --oauth-token-url".to_string()
-                ))?;
+                .ok_or_else(|| {
+                    QuicpulseError::Auth(
+                        "Authorization Code flow requires --oauth-token-url".to_string(),
+                    )
+                })?;
 
             let client_id = if let Some(ref auth_str) = args.auth {
                 auth_str.split(':').next().unwrap_or(auth_str).to_string()
@@ -211,26 +225,32 @@ pub async fn send_request_with_session(
         }
         Some(AuthType::OAuth2Device) => {
             // Device Authorization flow
-            use crate::auth::oauth2_flows::{DeviceFlowConfig, device_flow};
+            use crate::auth::oauth2_flows::{device_flow, DeviceFlowConfig};
 
-            let device_auth_url = args.oauth_device_url.clone()
+            let device_auth_url = args
+                .oauth_device_url
+                .clone()
                 .or_else(|| std::env::var("OAUTH_DEVICE_URL").ok())
-                .ok_or_else(|| QuicpulseError::Auth(
-                    "Device flow requires --oauth-device-url".to_string()
-                ))?;
+                .ok_or_else(|| {
+                    QuicpulseError::Auth("Device flow requires --oauth-device-url".to_string())
+                })?;
 
-            let token_url = args.oauth_token_url.clone()
+            let token_url = args
+                .oauth_token_url
+                .clone()
                 .or_else(|| std::env::var("OAUTH_TOKEN_URL").ok())
-                .ok_or_else(|| QuicpulseError::Auth(
-                    "Device flow requires --oauth-token-url".to_string()
-                ))?;
+                .ok_or_else(|| {
+                    QuicpulseError::Auth("Device flow requires --oauth-token-url".to_string())
+                })?;
 
             let client_id = if let Some(ref auth_str) = args.auth {
                 auth_str.split(':').next().unwrap_or(auth_str).to_string()
             } else {
-                std::env::var("OAUTH_CLIENT_ID").map_err(|_| QuicpulseError::Auth(
-                    "Device flow requires --auth client_id or OAUTH_CLIENT_ID".to_string()
-                ))?
+                std::env::var("OAUTH_CLIENT_ID").map_err(|_| {
+                    QuicpulseError::Auth(
+                        "Device flow requires --auth client_id or OAUTH_CLIENT_ID".to_string(),
+                    )
+                })?
             };
 
             let config = DeviceFlowConfig {
@@ -275,11 +295,9 @@ pub async fn send_request_with_session(
     // - Reading files for header values
     let args_clone = args.clone();
     let processed_clone = processed.clone();
-    let body = tokio::task::spawn_blocking(move || {
-        build_body(&args_clone, &processed_clone)
-    })
-    .await
-    .map_err(|e| QuicpulseError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
+    let body = tokio::task::spawn_blocking(move || build_body(&args_clone, &processed_clone))
+        .await
+        .map_err(|e| QuicpulseError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
 
     let is_multipart = matches!(body.as_ref(), Some(RequestBody::Multipart(_)));
     let use_aws_sigv4 = matches!(args.auth_type, Some(AuthType::AwsSigv4));
@@ -290,7 +308,9 @@ pub async fn send_request_with_session(
     } else if let Some(ref b) = body {
         let raw_bytes = match b {
             RequestBody::Json(j) => json_to_deterministic_format(j).into_bytes(),
-            RequestBody::Form(f) => serde_urlencoded::to_string(f).unwrap_or_default().into_bytes(),
+            RequestBody::Form(f) => serde_urlencoded::to_string(f)
+                .unwrap_or_default()
+                .into_bytes(),
             RequestBody::Raw(r) => r.as_bytes().to_vec(),
             RequestBody::Multipart(_) => unreachable!(),
         };
@@ -358,9 +378,13 @@ pub async fn send_request_with_session(
     // Handle AWS SigV4 signing - must be done on FINAL body bytes (after compression)
     let aws_sig_headers = if let Some(ref config) = aws_config {
         // Collect current headers for signing (include Content-Encoding if compressed)
-        let mut current_headers: Vec<(String, String)> = headers.iter()
+        let mut current_headers: Vec<(String, String)> = headers
+            .iter()
             .filter_map(|(name, value)| {
-                value.to_str().ok().map(|v| (name.to_string(), v.to_string()))
+                value
+                    .to_str()
+                    .ok()
+                    .map(|v| (name.to_string(), v.to_string()))
             })
             .collect();
 
@@ -443,7 +467,8 @@ pub async fn send_request_with_session(
                             .body(bytes);
                     } else if args.chunked {
                         if !has_content_type {
-                            request_builder = request_builder.header(CONTENT_TYPE, "application/json");
+                            request_builder =
+                                request_builder.header(CONTENT_TYPE, "application/json");
                         }
                         request_builder = request_builder
                             .header("Transfer-Encoding", "chunked")
@@ -502,7 +527,9 @@ pub async fn send_request_with_session(
 
     // Send the request
     debug!(method = %method, url = %url, "Sending HTTP request");
-    let mut response = request_builder.send().await
+    let mut response = request_builder
+        .send()
+        .await
         .map_err(QuicpulseError::Request)?;
 
     // Log response details
@@ -544,28 +571,34 @@ pub async fn send_request_with_session(
                                 };
 
                                 // Generate Authorization header
-                                let auth_header = digest_auth.respond_to_challenge(
-                                    &challenge,
-                                    &method.to_string(),
-                                    &uri_with_query,
-                                ).map_err(|e| QuicpulseError::Auth(e.to_string()))?;
+                                let auth_header = digest_auth
+                                    .respond_to_challenge(
+                                        &challenge,
+                                        &method.to_string(),
+                                        &uri_with_query,
+                                    )
+                                    .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
 
                                 // Rebuild headers with Authorization
-                                let mut retry_headers = build_headers_with_session(args, processed, &url, session)?;
+                                let mut retry_headers =
+                                    build_headers_with_session(args, processed, &url, session)?;
                                 retry_headers.insert(
                                     reqwest::header::AUTHORIZATION,
-                                    HeaderValue::try_from(auth_header)
-                                        .map_err(|e| QuicpulseError::Parse(format!("Invalid auth header: {}", e)))?,
+                                    HeaderValue::try_from(auth_header).map_err(|e| {
+                                        QuicpulseError::Parse(format!("Invalid auth header: {}", e))
+                                    })?,
                                 );
 
                                 // Rebuild request with auth header
-                                let mut retry_builder = client.request(method.clone(), url.clone())
+                                let mut retry_builder = client
+                                    .request(method.clone(), url.clone())
                                     .headers(retry_headers);
 
                                 // Set HTTP version if specified
                                 if args.http3 || args.http_version.as_deref() == Some("3") {
                                     if !processed.url.starts_with("http://") {
-                                        retry_builder = retry_builder.version(http::Version::HTTP_3);
+                                        retry_builder =
+                                            retry_builder.version(http::Version::HTTP_3);
                                     }
                                 }
 
@@ -587,12 +620,15 @@ pub async fn send_request_with_session(
                                     }
                                     // Restore Content-Type
                                     if let Some(ref ct) = original_content_type {
-                                        retry_builder = retry_builder.header(CONTENT_TYPE, ct.clone());
+                                        retry_builder =
+                                            retry_builder.header(CONTENT_TYPE, ct.clone());
                                     }
                                 }
 
                                 // Send retry request
-                                response = retry_builder.send().await
+                                response = retry_builder
+                                    .send()
+                                    .await
                                     .map_err(QuicpulseError::Request)?;
                             }
                         }
@@ -607,7 +643,7 @@ pub async fn send_request_with_session(
     // 2. Using AWS SigV4 (must re-sign for each redirect URL)
     let mut intermediate_responses = Vec::new();
     let handle_redirects_manually = (args.all && args.follow) || (use_aws_sigv4 && args.follow);
-    
+
     if handle_redirects_manually {
         let mut redirect_count = 0;
         let mut current_url = url.clone();
@@ -635,8 +671,9 @@ pub async fn send_request_with_session(
             }
 
             // Resolve relative URL against current URL
-            let next_url = current_url.join(&location)
-                .map_err(|e| QuicpulseError::Parse(format!("Invalid redirect URL '{}': {}", location, e)))?;
+            let next_url = current_url.join(&location).map_err(|e| {
+                QuicpulseError::Parse(format!("Invalid redirect URL '{}': {}", location, e))
+            })?;
 
             // HTTP spec: POST -> GET on 301/302/303 redirects (except 307/308 which preserve method)
             let next_method = match response.status().as_u16() {
@@ -651,24 +688,26 @@ pub async fn send_request_with_session(
             };
 
             // Build new request for redirect
-            let mut redirect_request = client.request(next_method.clone(), next_url.clone())
+            let mut redirect_request = client
+                .request(next_method.clone(), next_url.clone())
                 .header(reqwest::header::USER_AGENT, USER_AGENT_STRING);
 
             let status_code = response.status().as_u16();
-            
+
             // For 307/308, preserve body
-            let redirect_body_bytes = if (status_code == 307 || status_code == 308) && final_body_bytes.is_some() {
-                if let Some(ref body_bytes) = final_body_bytes {
-                    redirect_request = redirect_request.body(body_bytes.clone());
-                    if let Some(ref ct) = original_content_type {
-                        redirect_request = redirect_request.header(CONTENT_TYPE, ct.clone());
+            let redirect_body_bytes =
+                if (status_code == 307 || status_code == 308) && final_body_bytes.is_some() {
+                    if let Some(ref body_bytes) = final_body_bytes {
+                        redirect_request = redirect_request.body(body_bytes.clone());
+                        if let Some(ref ct) = original_content_type {
+                            redirect_request = redirect_request.header(CONTENT_TYPE, ct.clone());
+                        }
                     }
-                }
-                final_body_bytes.as_deref()
-            } else {
-                // No body for GET after 301/302/303
-                None
-            };
+                    final_body_bytes.as_deref()
+                } else {
+                    // No body for GET after 301/302/303
+                    None
+                };
 
             // AWS SigV4: Re-sign the request for the new URL
             // The signature is calculated for a specific URL, so we MUST re-sign after redirect
@@ -706,15 +745,19 @@ pub async fn send_request_with_session(
                 let domain = next_url.host_str().unwrap_or("");
                 let path = next_url.path();
                 let is_secure = next_url.scheme() == "https";
-                if let Some(cookie_header) = session_ref.get_cookie_header(domain, path, is_secure) {
+                if let Some(cookie_header) = session_ref.get_cookie_header(domain, path, is_secure)
+                {
                     if !cookie_header.is_empty() {
-                        redirect_request = redirect_request.header(reqwest::header::COOKIE, cookie_header);
+                        redirect_request =
+                            redirect_request.header(reqwest::header::COOKIE, cookie_header);
                     }
                 }
             }
 
             // Send redirect request
-            response = redirect_request.send().await
+            response = redirect_request
+                .send()
+                .await
                 .map_err(QuicpulseError::Request)?;
 
             current_url = next_url;
@@ -742,26 +785,29 @@ fn infer_aws_service(url: &Url) -> Option<String> {
         if !parts.is_empty() {
             let service = parts[0];
             // Handle some common service names
-            return Some(match service {
-                "s3" | "s3-accelerate" => "s3",
-                "execute-api" => "execute-api",
-                "lambda" => "lambda",
-                "dynamodb" => "dynamodb",
-                "sqs" => "sqs",
-                "sns" => "sns",
-                "sts" => "sts",
-                "iam" => "iam",
-                "ec2" => "ec2",
-                "rds" => "rds",
-                "secretsmanager" => "secretsmanager",
-                "ssm" => "ssm",
-                "kinesis" => "kinesis",
-                "firehose" => "firehose",
-                "logs" => "logs",
-                "events" => "events",
-                "apigateway" => "apigateway",
-                _ => service,
-            }.to_string());
+            return Some(
+                match service {
+                    "s3" | "s3-accelerate" => "s3",
+                    "execute-api" => "execute-api",
+                    "lambda" => "lambda",
+                    "dynamodb" => "dynamodb",
+                    "sqs" => "sqs",
+                    "sns" => "sns",
+                    "sts" => "sts",
+                    "iam" => "iam",
+                    "ec2" => "ec2",
+                    "rds" => "rds",
+                    "secretsmanager" => "secretsmanager",
+                    "ssm" => "ssm",
+                    "kinesis" => "kinesis",
+                    "firehose" => "firehose",
+                    "logs" => "logs",
+                    "events" => "events",
+                    "apigateway" => "apigateway",
+                    _ => service,
+                }
+                .to_string(),
+            );
         }
     }
 
@@ -777,8 +823,7 @@ fn infer_aws_service(url: &Url) -> Option<String> {
 #[instrument(skip(args))]
 fn build_client(args: &Args, url: &str) -> Result<Client, QuicpulseError> {
     debug!("Configuring HTTP client");
-    let mut builder = Client::builder()
-        .user_agent(USER_AGENT_STRING);
+    let mut builder = Client::builder().user_agent(USER_AGENT_STRING);
 
     // Set timeout
     if let Some(timeout) = args.timeout {
@@ -807,7 +852,9 @@ fn build_client(args: &Args, url: &str) -> Result<Client, QuicpulseError> {
         // Always disable auto-redirects when --all is specified so we can capture intermediates
         builder = builder.redirect(reqwest::redirect::Policy::none());
     } else if args.follow {
-        builder = builder.redirect(reqwest::redirect::Policy::limited(args.max_redirects as usize));
+        builder = builder.redirect(reqwest::redirect::Policy::limited(
+            args.max_redirects as usize,
+        ));
     } else {
         builder = builder.redirect(reqwest::redirect::Policy::none());
     }
@@ -862,7 +909,11 @@ fn build_client(args: &Args, url: &str) -> Result<Client, QuicpulseError> {
                 "all" => reqwest::Proxy::all(&url),
                 "socks4" | "socks4a" | "socks5" | "socks5h" => {
                     // Build SOCKS URL: socks5://host:port
-                    let socks_url = format!("{}://{}", protocol.to_lowercase(), url.trim_start_matches("//"));
+                    let socks_url = format!(
+                        "{}://{}",
+                        protocol.to_lowercase(),
+                        url.trim_start_matches("//")
+                    );
                     reqwest::Proxy::all(&socks_url)
                 }
                 _ => continue,
@@ -916,7 +967,11 @@ fn build_client(args: &Args, url: &str) -> Result<Client, QuicpulseError> {
 }
 
 /// Configure HTTP version based on args
-fn configure_http_version(mut builder: reqwest::ClientBuilder, args: &Args, url: &str) -> reqwest::ClientBuilder {
+fn configure_http_version(
+    mut builder: reqwest::ClientBuilder,
+    args: &Args,
+    url: &str,
+) -> reqwest::ClientBuilder {
     // Check URL scheme - http2_prior_knowledge() only works with http://, not https://
     // For https://, HTTP/2 is negotiated via ALPN during TLS handshake
     let is_plain_http = url.starts_with("http://");
@@ -976,7 +1031,12 @@ fn configure_http_version(mut builder: reqwest::ClientBuilder, args: &Args, url:
 
 /// Build headers for the request (without session)
 fn build_headers(args: &Args, processed: &ProcessedArgs) -> Result<HeaderMap, QuicpulseError> {
-    build_headers_with_session(args, processed, &Url::parse("http://localhost").unwrap(), None)
+    build_headers_with_session(
+        args,
+        processed,
+        &Url::parse("http://localhost").unwrap(),
+        None,
+    )
 }
 
 /// Build headers for the request with optional session support
@@ -1025,7 +1085,10 @@ fn build_headers_with_session(
 
     // 3. Set default Accept header for JSON mode
     if processed.has_data && !args.form && !args.multipart {
-        headers.insert(ACCEPT, HeaderValue::from_static("application/json, */*;q=0.5"));
+        headers.insert(
+            ACCEPT,
+            HeaderValue::from_static("application/json, */*;q=0.5"),
+        );
     }
 
     // 4. Set Content-Type based on mode
@@ -1035,7 +1098,10 @@ fn build_headers_with_session(
                 headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
             }
             RequestType::Form => {
-                headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/x-www-form-urlencoded; charset=utf-8"));
+                headers.insert(
+                    CONTENT_TYPE,
+                    HeaderValue::from_static("application/x-www-form-urlencoded; charset=utf-8"),
+                );
             }
             RequestType::Multipart => {
                 // Content-Type is set automatically by reqwest for multipart
@@ -1055,24 +1121,27 @@ fn build_headers_with_session(
     for item in &processed.items {
         match item {
             InputItem::Header { name, value } => {
-                let header_name = HeaderName::try_from(name.as_str())
-                    .map_err(|e| QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e)))?;
-                let header_value = HeaderValue::try_from(value.as_str())
-                    .map_err(|e| QuicpulseError::Parse(format!("Invalid header value '{}': {}", value, e)))?;
+                let header_name = HeaderName::try_from(name.as_str()).map_err(|e| {
+                    QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e))
+                })?;
+                let header_value = HeaderValue::try_from(value.as_str()).map_err(|e| {
+                    QuicpulseError::Parse(format!("Invalid header value '{}': {}", value, e))
+                })?;
                 // Bug #3 fix: Use append instead of insert to allow multiple headers with same name
                 // HTTP allows multiple headers with the same name (e.g., Set-Cookie, Cache-Control)
                 headers.append(header_name, header_value);
             }
             InputItem::EmptyHeader { name } => {
-                let header_name = HeaderName::try_from(name.as_str())
-                    .map_err(|e| QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e)))?;
+                let header_name = HeaderName::try_from(name.as_str()).map_err(|e| {
+                    QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e))
+                })?;
                 headers.append(header_name, HeaderValue::from_static(""));
             }
             InputItem::HeaderFile { name, path } => {
-                let content = std::fs::read_to_string(path)
-                    .map_err(|e| QuicpulseError::Io(e))?;
-                let header_name = HeaderName::try_from(name.as_str())
-                    .map_err(|e| QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e)))?;
+                let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+                let header_name = HeaderName::try_from(name.as_str()).map_err(|e| {
+                    QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e))
+                })?;
                 let header_value = HeaderValue::try_from(content.trim())
                     .map_err(|e| QuicpulseError::Parse(format!("Invalid header value: {}", e)))?;
                 headers.append(header_name, header_value);
@@ -1094,7 +1163,15 @@ fn apply_auth(
     let auth_type = auth_type.cloned().unwrap_or(AuthType::Basic);
 
     // AWS SigV4, GCP, Azure, and OAuth2 flows are handled separately in send_request_with_session
-    if matches!(auth_type, AuthType::AwsSigv4 | AuthType::Gcp | AuthType::Azure | AuthType::OAuth2 | AuthType::OAuth2AuthCode | AuthType::OAuth2Device) {
+    if matches!(
+        auth_type,
+        AuthType::AwsSigv4
+            | AuthType::Gcp
+            | AuthType::Azure
+            | AuthType::OAuth2
+            | AuthType::OAuth2AuthCode
+            | AuthType::OAuth2Device
+    ) {
         return Ok(());
     }
 
@@ -1108,9 +1185,7 @@ fn apply_auth(
             let (username, password) = parse_auth_credentials(auth_str);
             Auth::digest(username, password.unwrap_or_default())
         }
-        AuthType::Bearer => {
-            Auth::bearer(auth_str)
-        }
+        AuthType::Bearer => Auth::bearer(auth_str),
         AuthType::Ntlm => {
             let (username, password) = parse_auth_credentials(auth_str);
             Auth::ntlm(username, password.unwrap_or_default())
@@ -1123,11 +1198,17 @@ fn apply_auth(
             let (username, password) = parse_auth_credentials(auth_str);
             Auth::kerberos(username, password.unwrap_or_default())
         }
-        AuthType::AwsSigv4 | AuthType::Gcp | AuthType::Azure | AuthType::OAuth2 | AuthType::OAuth2AuthCode | AuthType::OAuth2Device => unreachable!(),
+        AuthType::AwsSigv4
+        | AuthType::Gcp
+        | AuthType::Azure
+        | AuthType::OAuth2
+        | AuthType::OAuth2AuthCode
+        | AuthType::OAuth2Device => unreachable!(),
     };
 
     // Apply authentication to headers
-    auth.apply(headers).map_err(|e| QuicpulseError::Auth(e.to_string()))
+    auth.apply(headers)
+        .map_err(|e| QuicpulseError::Auth(e.to_string()))
 }
 
 /// Apply session authentication to headers
@@ -1137,9 +1218,7 @@ fn apply_session_auth(headers: &mut HeaderMap, session_auth: &crate::sessions::S
             let (username, password) = parse_auth_credentials(&session_auth.credentials);
             Auth::basic(username, password.unwrap_or_default())
         }
-        "bearer" => {
-            Auth::bearer(&session_auth.credentials)
-        }
+        "bearer" => Auth::bearer(&session_auth.credentials),
         "ntlm" => {
             let (username, password) = parse_auth_credentials(&session_auth.credentials);
             Auth::ntlm(username, password.unwrap_or_default())
@@ -1242,7 +1321,10 @@ impl std::fmt::Debug for RequestBody {
 }
 
 /// Build the request body
-fn build_body(args: &Args, processed: &ProcessedArgs) -> Result<Option<RequestBody>, QuicpulseError> {
+fn build_body(
+    args: &Args,
+    processed: &ProcessedArgs,
+) -> Result<Option<RequestBody>, QuicpulseError> {
     use reqwest::multipart::{Form, Part};
     use std::io::Read;
 
@@ -1252,12 +1334,24 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Result<Option<RequestBo
     }
 
     // Collect data items (excluding file uploads)
-    let data_items: Vec<_> = processed.items.iter()
-        .filter(|item| matches!(item, InputItem::DataField { .. } | InputItem::DataFieldFile { .. } | InputItem::JsonField { .. } | InputItem::JsonFieldFile { .. }))
+    let data_items: Vec<_> = processed
+        .items
+        .iter()
+        .filter(|item| {
+            matches!(
+                item,
+                InputItem::DataField { .. }
+                    | InputItem::DataFieldFile { .. }
+                    | InputItem::JsonField { .. }
+                    | InputItem::JsonFieldFile { .. }
+            )
+        })
         .collect();
 
     // Collect file uploads
-    let file_items: Vec<_> = processed.items.iter()
+    let file_items: Vec<_> = processed
+        .items
+        .iter()
         .filter(|item| matches!(item, InputItem::FileUpload { .. }))
         .collect();
 
@@ -1293,16 +1387,22 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Result<Option<RequestBo
 
         // Add file uploads
         for item in &file_items {
-            if let InputItem::FileUpload { field, path, mime_type, filename: fname } = item {
+            if let InputItem::FileUpload {
+                field,
+                path,
+                mime_type,
+                filename: fname,
+            } = item
+            {
                 // Read file contents
-                let mut file = std::fs::File::open(path)
-                    .map_err(|e| QuicpulseError::Io(e))?;
+                let mut file = std::fs::File::open(path).map_err(|e| QuicpulseError::Io(e))?;
                 let mut contents = Vec::new();
                 file.read_to_end(&mut contents)
                     .map_err(|e| QuicpulseError::Io(e))?;
 
                 // Determine filename
-                let filename = fname.clone()
+                let filename = fname
+                    .clone()
                     .or_else(|| {
                         path.file_name()
                             .and_then(|n| n.to_str())
@@ -1315,11 +1415,13 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Result<Option<RequestBo
 
                 // Set content type if specified or guess from extension
                 if let Some(ref content_type) = mime_type {
-                    part = part.mime_str(content_type)
+                    part = part
+                        .mime_str(content_type)
                         .map_err(|e| QuicpulseError::Parse(format!("Invalid MIME type: {}", e)))?;
                 } else if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
                     let mime = guess_mime_type(ext);
-                    part = part.mime_str(mime)
+                    part = part
+                        .mime_str(mime)
                         .map_err(|e| QuicpulseError::Parse(format!("Invalid MIME type: {}", e)))?;
                 }
 
@@ -1339,16 +1441,14 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Result<Option<RequestBo
                             (key.clone(), JsonValue::String(value.clone()))
                         }
                         InputItem::DataFieldFile { key, path } => {
-                            let content = std::fs::read_to_string(path)
-                                .map_err(|e| QuicpulseError::Io(e))?;
+                            let content =
+                                std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
                             (key.clone(), JsonValue::String(content.trim().to_string()))
                         }
-                        InputItem::JsonField { key, value } => {
-                            (key.clone(), value.clone())
-                        }
+                        InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                         InputItem::JsonFieldFile { key, path } => {
-                            let content = std::fs::read_to_string(path)
-                                .map_err(|e| QuicpulseError::Io(e))?;
+                            let content =
+                                std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
                             let json_val = serde_json::from_str(&content)
                                 .map_err(|e| QuicpulseError::Json(e))?;
                             (key.clone(), json_val)
@@ -1420,20 +1520,14 @@ fn guess_mime_type(ext: &str) -> &'static str {
 /// Get the key and data value from an InputItem, reading from file if needed
 fn get_data_key_value(item: &InputItem) -> Result<(String, String), QuicpulseError> {
     match item {
-        InputItem::DataField { key, value } => {
-            Ok((key.clone(), value.clone()))
-        }
+        InputItem::DataField { key, value } => Ok((key.clone(), value.clone())),
         InputItem::DataFieldFile { key, path } => {
-            let content = std::fs::read_to_string(path)
-                .map_err(|e| QuicpulseError::Io(e))?;
+            let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
             Ok((key.clone(), content.trim().to_string()))
         }
-        InputItem::JsonField { key, value } => {
-            Ok((key.clone(), value.to_string()))
-        }
+        InputItem::JsonField { key, value } => Ok((key.clone(), value.to_string())),
         InputItem::JsonFieldFile { key, path } => {
-            let content = std::fs::read_to_string(path)
-                .map_err(|e| QuicpulseError::Io(e))?;
+            let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
             Ok((key.clone(), content.trim().to_string()))
         }
         _ => Err(QuicpulseError::Parse("Not a data item".to_string())),
@@ -1441,7 +1535,11 @@ fn get_data_key_value(item: &InputItem) -> Result<(String, String), QuicpulseErr
 }
 
 /// Set a nested value in a JSON object (handles keys like "user[name]")
-fn set_nested_value(obj: &mut JsonValue, key: &str, value: JsonValue) -> Result<(), QuicpulseError> {
+fn set_nested_value(
+    obj: &mut JsonValue,
+    key: &str,
+    value: JsonValue,
+) -> Result<(), QuicpulseError> {
     // Simple case: no nested path
     if !key.contains('[') {
         if let Some(map) = obj.as_object_mut() {
@@ -1451,7 +1549,8 @@ fn set_nested_value(obj: &mut JsonValue, key: &str, value: JsonValue) -> Result<
     }
 
     // Parse nested path: user[name] -> ["user", "name"]
-    let parts: Vec<&str> = key.split(|c| c == '[' || c == ']')
+    let parts: Vec<&str> = key
+        .split(|c| c == '[' || c == ']')
         .filter(|s| !s.is_empty())
         .collect();
 
@@ -1462,7 +1561,7 @@ fn set_nested_value(obj: &mut JsonValue, key: &str, value: JsonValue) -> Result<
     // For nested keys, we need to build the structure
     // e.g., user[name]=John -> {"user": {"name": "John"}}
     let first = parts[0];
-    
+
     if parts.len() == 1 {
         // Just a regular key
         if let Some(map) = obj.as_object_mut() {
@@ -1511,7 +1610,6 @@ fn merge_json(base: &mut JsonValue, overlay: JsonValue) {
         }
     }
 }
-
 
 /// Check HTTP status and return appropriate exit status
 ///

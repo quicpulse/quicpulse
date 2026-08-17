@@ -19,11 +19,14 @@ pub fn get_filename_from_content_disposition(header: &str) -> Option<String> {
 /// Replaces invalid characters and Windows reserved names.
 pub fn sanitize_filename(name: &str) -> String {
     // Use windows mode to also handle reserved names like CON, NUL, etc.
-    sanitize_filename::sanitize_with_options(name, SanitizeOptions {
-        replacement: "_",
-        windows: true,
-        truncate: true,
-    })
+    sanitize_filename::sanitize_with_options(
+        name,
+        SanitizeOptions {
+            replacement: "_",
+            windows: true,
+            truncate: true,
+        },
+    )
 }
 
 #[cfg(test)]
@@ -47,6 +50,9 @@ mod tests {
     #[test]
     fn test_content_disposition() {
         let header = "attachment; filename=\"report.pdf\"";
-        assert_eq!(get_filename_from_content_disposition(header), Some("report.pdf".to_string()));
+        assert_eq!(
+            get_filename_from_content_disposition(header),
+            Some("report.pdf".to_string())
+        );
     }
 }

@@ -113,6 +113,7 @@ impl OutputFlags {
     }
 
     /// Convert to CLI print string format
+    #[allow(clippy::wrong_self_convention)]
     pub fn to_print_str(&self) -> String {
         let mut s = String::with_capacity(5);
         if self.contains(Self::REQUEST_HEADERS) {
@@ -191,10 +192,7 @@ mod tests {
             OutputFlags::from_print_str("hb"),
             OutputFlags::RESPONSE_HEADERS | OutputFlags::RESPONSE_BODY
         );
-        assert_eq!(
-            OutputFlags::from_print_str("HBhb"),
-            OutputFlags::VERBOSE
-        );
+        assert_eq!(OutputFlags::from_print_str("HBhb"), OutputFlags::VERBOSE);
         assert_eq!(OutputFlags::from_print_str("b"), OutputFlags::RESPONSE_BODY);
         assert_eq!(OutputFlags::from_print_str(""), OutputFlags::empty());
     }
@@ -208,7 +206,8 @@ mod tests {
 
     #[test]
     fn test_roundtrip() {
-        let flags = OutputFlags::REQUEST_HEADERS | OutputFlags::RESPONSE_BODY | OutputFlags::METADATA;
+        let flags =
+            OutputFlags::REQUEST_HEADERS | OutputFlags::RESPONSE_BODY | OutputFlags::METADATA;
         let s = flags.to_print_str();
         assert_eq!(OutputFlags::from_print_str(&s), flags);
     }

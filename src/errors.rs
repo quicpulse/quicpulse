@@ -21,10 +21,7 @@ pub enum QuicpulseError {
     Parse(String),
 
     #[error("Nested JSON syntax error at position {position}: {message}")]
-    NestedJsonSyntax {
-        position: usize,
-        message: String,
-    },
+    NestedJsonSyntax { position: usize, message: String },
 
     #[error("Session error: {0}")]
     Session(String),

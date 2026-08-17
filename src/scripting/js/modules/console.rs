@@ -2,30 +2,38 @@
 //!
 //! Provides logging functions that output to stderr.
 
-use rquickjs::{Ctx, Object, Function};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let console = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create console object: {}", e)))?;
 
-    console.set("log", Function::new(ctx.clone(), log)?)
+    console
+        .set("log", Function::new(ctx.clone(), log)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    console.set("info", Function::new(ctx.clone(), info)?)
+    console
+        .set("info", Function::new(ctx.clone(), info)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    console.set("warn", Function::new(ctx.clone(), warn)?)
+    console
+        .set("warn", Function::new(ctx.clone(), warn)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    console.set("error", Function::new(ctx.clone(), error)?)
+    console
+        .set("error", Function::new(ctx.clone(), error)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    console.set("debug", Function::new(ctx.clone(), debug)?)
+    console
+        .set("debug", Function::new(ctx.clone(), debug)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    console.set("trace", Function::new(ctx.clone(), trace)?)
+    console
+        .set("trace", Function::new(ctx.clone(), trace)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    console.set("success", Function::new(ctx.clone(), success)?)
+    console
+        .set("success", Function::new(ctx.clone(), success)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("console", console)
+    globals
+        .set("console", console)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set console global: {}", e)))?;
 
     Ok(())

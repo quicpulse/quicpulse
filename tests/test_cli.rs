@@ -1,11 +1,11 @@
 //! CLI argument parsing tests
 mod common;
 
-use wiremock::{Mock, MockServer, ResponseTemplate};
 use wiremock::matchers::{method, path, query_param};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// Test utilities
-use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK, CRLF};
+use common::{http, http_error, http_with_env, MockEnvironment, CRLF, HTTP_OK};
 
 // ============================================================================
 // Query String Tests
@@ -14,21 +14,21 @@ use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK, CRLF};
 #[test]
 fn test_query_string_params_in_url() {
     let r = http(&["--offline", "example.org/get?a=1&b=2"]);
-    
+
     assert!(r.contains("GET") && r.contains("/get?a=1&b=2"));
 }
 
 #[test]
 fn test_query_string_params_items() {
     let r = http(&["--offline", "example.org/get", "a==1"]);
-    
+
     assert!(r.contains("GET") && r.contains("/get?a=1"));
 }
 
 #[test]
 fn test_query_string_duplicate_params() {
     let r = http(&["--offline", "example.org/get?a=1", "a==2", "b==3"]);
-    
+
     // URL should contain query params
     assert!(r.contains("a=1") && r.contains("a=2") && r.contains("b=3"));
 }
@@ -102,16 +102,16 @@ fn test_explicit_method_overrides_default() {
 #[tokio::test]
 async fn test_no_verbose_disables_verbose() {
     let server = MockServer::start().await;
-    
+
     Mock::given(method("GET"))
         .and(path("/get"))
         .respond_with(ResponseTemplate::new(200).set_body_string("OK"))
         .mount(&server)
         .await;
-    
+
     let url = format!("{}/get", server.uri());
     let r = http(&["--verbose", "--no-verbose", "GET", &url]);
-    
+
     // With --no-verbose, we should NOT see the request headers
     assert!(!r.contains("GET /get HTTP/1.1"));
 }
@@ -119,7 +119,7 @@ async fn test_no_verbose_disables_verbose() {
 #[test]
 fn test_invalid_no_option() {
     let r = http_error(&["--no-war", "GET", "example.org"]);
-    
+
     assert!(r.exit_code != 0);
     assert!(r.stderr.contains("unrecognized") || r.stderr.contains("error"));
 }
@@ -131,20 +131,19 @@ fn test_invalid_no_option() {
 #[tokio::test]
 async fn test_ignore_stdin() {
     let server = MockServer::start().await;
-    
+
     Mock::given(method("GET"))
         .and(path("/get"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(serde_json::json!({"status": "ok"})))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({"status": "ok"})))
         .mount(&server)
         .await;
-    
+
     let mut env = MockEnvironment::new();
     env.set_stdin(b"some stdin data".to_vec());
-    
+
     let url = format!("{}/get", server.uri());
     let r = http_with_env(&["--ignore-stdin", "--verbose", &url], &env);
-    
+
     assert!(r.contains(HTTP_OK));
     assert!(r.contains("GET") && r.contains("/get")); // Should be GET, not POST
     assert!(!r.contains("some stdin data")); // Stdin should not be sent
@@ -165,7 +164,12 @@ fn test_url_colon_slash_slash_inherits_scheme_from_program_name() {
 
 #[test]
 fn test_default_scheme_option() {
-    let r = http(&["--offline", "--print=H", "--default-scheme=https", "example.org"]);
+    let r = http(&[
+        "--offline",
+        "--print=H",
+        "--default-scheme=https",
+        "example.org",
+    ]);
     // In offline mode we can't verify the scheme directly, but the URL is parsed
     assert!(r.contains("Host: example.org"));
 }
@@ -176,7 +180,12 @@ fn test_default_scheme_option() {
 
 #[test]
 fn test_header_item() {
-    let r = http(&["--offline", "--print=H", "example.org", "X-Custom:test-value"]);
+    let r = http(&[
+        "--offline",
+        "--print=H",
+        "example.org",
+        "X-Custom:test-value",
+    ]);
     assert!(r.contains("X-Custom: test-value"));
 }
 
@@ -196,21 +205,37 @@ fn test_empty_header_item() {
 
 #[test]
 fn test_json_data_item() {
-    let r = http(&["--offline", "--print=B", "example.org", "name=value", "count:=42"]);
+    let r = http(&[
+        "--offline",
+        "--print=B",
+        "example.org",
+        "name=value",
+        "count:=42",
+    ]);
     assert!(r.contains(r#""name":"value""#));
     assert!(r.contains(r#""count":42"#));
 }
 
 #[test]
 fn test_json_array_item() {
-    let r = http(&["--offline", "--print=B", "example.org", r#"items:=["a", "b", "c"]"#]);
+    let r = http(&[
+        "--offline",
+        "--print=B",
+        "example.org",
+        r#"items:=["a", "b", "c"]"#,
+    ]);
     assert!(r.contains(r#""items""#));
     assert!(r.contains(r#"["a", "b", "c"]"#) || r.contains(r#""a""#));
 }
 
 #[test]
 fn test_json_object_item() {
-    let r = http(&["--offline", "--print=B", "example.org", r#"nested:={"key": "val"}"#]);
+    let r = http(&[
+        "--offline",
+        "--print=B",
+        "example.org",
+        r#"nested:={"key": "val"}"#,
+    ]);
     assert!(r.contains(r#""nested""#));
     assert!(r.contains(r#""key""#));
 }
@@ -229,7 +254,14 @@ fn test_escaped_separator_in_key() {
 
 #[test]
 fn test_form_data() {
-    let r = http(&["--offline", "--print=HB", "--form", "example.org", "foo=bar", "baz=qux"]);
+    let r = http(&[
+        "--offline",
+        "--print=HB",
+        "--form",
+        "example.org",
+        "foo=bar",
+        "baz=qux",
+    ]);
     assert!(r.contains("Content-Type: application/x-www-form-urlencoded"));
     assert!(r.contains("foo=bar"));
     assert!(r.contains("baz=qux"));
@@ -237,7 +269,13 @@ fn test_form_data() {
 
 #[test]
 fn test_multipart_form() {
-    let r = http(&["--offline", "--print=HB", "--multipart", "example.org", "foo=bar"]);
+    let r = http(&[
+        "--offline",
+        "--print=HB",
+        "--multipart",
+        "example.org",
+        "foo=bar",
+    ]);
     assert!(r.contains("Content-Type: multipart/form-data"));
     assert!(r.contains("foo"));
     assert!(r.contains("bar"));
@@ -282,7 +320,10 @@ fn test_ipv6_not_expanded_as_shorthand() {
     let r = http(&["--offline", "--print=H", "::1"]);
     // The key assertion: it should NOT contain "localhost" (which would mean :1 was
     // expanded as localhost shorthand). An error about invalid URL is acceptable.
-    assert!(!r.contains("localhost"), "IPv6 '::1' should not be expanded as localhost shorthand");
+    assert!(
+        !r.contains("localhost"),
+        "IPv6 '::1' should not be expanded as localhost shorthand"
+    );
 }
 
 #[test]

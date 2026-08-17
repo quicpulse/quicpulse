@@ -55,10 +55,9 @@ impl K8sUrl {
 /// ```
 pub fn parse_k8s_url(url: &str) -> Result<K8sUrl, QuicpulseError> {
     // Must start with k8s://
-    let url = url.strip_prefix("k8s://")
-        .ok_or_else(|| QuicpulseError::Argument(
-            "K8s URL must start with k8s://".to_string()
-        ))?;
+    let url = url
+        .strip_prefix("k8s://")
+        .ok_or_else(|| QuicpulseError::Argument("K8s URL must start with k8s://".to_string()))?;
 
     // Split path and query from host
     let (host_port, path_query) = match url.find('/') {
@@ -76,10 +75,9 @@ pub fn parse_k8s_url(url: &str) -> Result<K8sUrl, QuicpulseError> {
     let (host, port) = match host_port.rfind(':') {
         Some(idx) => {
             let port_str = &host_port[idx + 1..];
-            let port: u16 = port_str.parse()
-                .map_err(|_| QuicpulseError::Argument(format!(
-                    "Invalid port in k8s URL: {}", port_str
-                )))?;
+            let port: u16 = port_str.parse().map_err(|_| {
+                QuicpulseError::Argument(format!("Invalid port in k8s URL: {}", port_str))
+            })?;
             (&host_port[..idx], port)
         }
         None => (host_port, 80),
@@ -99,13 +97,13 @@ pub fn parse_k8s_url(url: &str) -> Result<K8sUrl, QuicpulseError> {
     // Validate components
     if service.is_empty() {
         return Err(QuicpulseError::Argument(
-            "Service name cannot be empty in k8s URL".to_string()
+            "Service name cannot be empty in k8s URL".to_string(),
         ));
     }
 
     if namespace.is_empty() {
         return Err(QuicpulseError::Argument(
-            "Namespace cannot be empty in k8s URL".to_string()
+            "Namespace cannot be empty in k8s URL".to_string(),
         ));
     }
 
@@ -132,26 +130,40 @@ fn validate_k8s_name(name: &str, kind: &str) -> Result<(), QuicpulseError> {
 
     if name.len() > 63 {
         return Err(QuicpulseError::Argument(format!(
-            "K8s {} name too long (max 63 chars): {}", kind, name
+            "K8s {} name too long (max 63 chars): {}",
+            kind, name
         )));
     }
 
-    if !name.chars().next().map(|c| c.is_ascii_lowercase()).unwrap_or(false) {
+    if !name
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_lowercase())
+        .unwrap_or(false)
+    {
         return Err(QuicpulseError::Argument(format!(
-            "K8s {} name must start with a lowercase letter: {}", kind, name
+            "K8s {} name must start with a lowercase letter: {}",
+            kind, name
         )));
     }
 
-    if !name.chars().last().map(|c| c.is_ascii_alphanumeric()).unwrap_or(false) {
+    if !name
+        .chars()
+        .last()
+        .map(|c| c.is_ascii_alphanumeric())
+        .unwrap_or(false)
+    {
         return Err(QuicpulseError::Argument(format!(
-            "K8s {} name must end with alphanumeric character: {}", kind, name
+            "K8s {} name must end with alphanumeric character: {}",
+            kind, name
         )));
     }
 
     for c in name.chars() {
         if !c.is_ascii_lowercase() && !c.is_ascii_digit() && c != '-' {
             return Err(QuicpulseError::Argument(format!(
-                "K8s {} name contains invalid character '{}': {}", kind, c, name
+                "K8s {} name contains invalid character '{}': {}",
+                kind, c, name
             )));
         }
     }
@@ -202,7 +214,10 @@ mod tests {
     #[test]
     fn test_to_local_url() {
         let url = parse_k8s_url("k8s://api.prod:8080/health?verbose=true").unwrap();
-        assert_eq!(url.to_local_url(12345), "http://localhost:12345/health?verbose=true");
+        assert_eq!(
+            url.to_local_url(12345),
+            "http://localhost:12345/health?verbose=true"
+        );
     }
 
     #[test]

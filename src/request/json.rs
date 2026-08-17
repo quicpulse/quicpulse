@@ -3,12 +3,12 @@
 //! Provides utilities for setting values at nested paths in JSON objects,
 //! supporting bracket notation like "user[name]", "items[0]", and "items[]".
 
+use crate::errors::QuicpulseError;
 use serde_json::{json, Value as JsonValue};
-use winnow::prelude::*;
 use winnow::combinator::{alt, repeat};
+use winnow::prelude::*;
 use winnow::token::take_while;
 use winnow::ModalResult;
-use crate::errors::QuicpulseError;
 
 /// Maximum array index to prevent DoS via massive allocations
 const MAX_ARRAY_INDEX: usize = 10000;
@@ -20,7 +20,11 @@ const MAX_ARRAY_INDEX: usize = 10000;
 /// - Nested keys: "user[name]" -> {"user": {"name": value}}
 /// - Array indices: "items[0]" -> {"items": [value]}
 /// - Array append: "items[]" -> appends to array
-pub fn set_nested_value(obj: &mut JsonValue, key: &str, value: JsonValue) -> Result<(), QuicpulseError> {
+pub fn set_nested_value(
+    obj: &mut JsonValue,
+    key: &str,
+    value: JsonValue,
+) -> Result<(), QuicpulseError> {
     // Simple case: no brackets
     if !key.contains('[') {
         if let Some(map) = obj.as_object_mut() {
@@ -63,9 +67,16 @@ pub fn set_nested_value(obj: &mut JsonValue, key: &str, value: JsonValue) -> Res
     if let Some(PathToken::Key(first_key)) = tokens.first() {
         if let Some(map) = obj.as_object_mut() {
             if let Some(existing) = map.get_mut(first_key) {
-                merge_deep(existing, nested.get(first_key).cloned().unwrap_or(json!(null)), has_append);
+                merge_deep(
+                    existing,
+                    nested.get(first_key).cloned().unwrap_or(json!(null)),
+                    has_append,
+                );
             } else {
-                map.insert(first_key.clone(), nested.get(first_key).cloned().unwrap_or(json!(null)));
+                map.insert(
+                    first_key.clone(),
+                    nested.get(first_key).cloned().unwrap_or(json!(null)),
+                );
             }
         }
     }
@@ -73,7 +84,12 @@ pub fn set_nested_value(obj: &mut JsonValue, key: &str, value: JsonValue) -> Res
     Ok(())
 }
 
-fn handle_root_array_index(obj: &mut JsonValue, tokens: &[PathToken], idx: usize, value: JsonValue) -> Result<(), QuicpulseError> {
+fn handle_root_array_index(
+    obj: &mut JsonValue,
+    tokens: &[PathToken],
+    idx: usize,
+    value: JsonValue,
+) -> Result<(), QuicpulseError> {
     if obj.is_object() && obj.as_object().map(|m| m.is_empty()).unwrap_or(true) {
         *obj = json!([]);
     }
@@ -90,7 +106,11 @@ fn handle_root_array_index(obj: &mut JsonValue, tokens: &[PathToken], idx: usize
     Ok(())
 }
 
-fn handle_root_array_append(obj: &mut JsonValue, tokens: &[PathToken], value: JsonValue) -> Result<(), QuicpulseError> {
+fn handle_root_array_append(
+    obj: &mut JsonValue,
+    tokens: &[PathToken],
+    value: JsonValue,
+) -> Result<(), QuicpulseError> {
     if obj.is_object() && obj.as_object().map(|m| m.is_empty()).unwrap_or(true) {
         *obj = json!([]);
     }
@@ -104,7 +124,11 @@ fn handle_root_array_append(obj: &mut JsonValue, tokens: &[PathToken], value: Js
     Ok(())
 }
 
-fn handle_simple_array_append(obj: &mut JsonValue, key: &str, value: JsonValue) -> Result<(), QuicpulseError> {
+fn handle_simple_array_append(
+    obj: &mut JsonValue,
+    key: &str,
+    value: JsonValue,
+) -> Result<(), QuicpulseError> {
     if let Some(map) = obj.as_object_mut() {
         if let Some(existing) = map.get_mut(key) {
             if let Some(arr) = existing.as_array_mut() {
@@ -150,8 +174,7 @@ fn parse_bracketed_token(input: &mut &str) -> ModalResult<PathToken> {
 
 /// Parse a bare key (not in brackets)
 fn parse_bare_key(input: &mut &str) -> ModalResult<PathToken> {
-    let key: &str = take_while(1.., |c: char| c != '[' && c != ']')
-        .parse_next(input)?;
+    let key: &str = take_while(1.., |c: char| c != '[' && c != ']').parse_next(input)?;
     Ok(PathToken::Key(key.to_string()))
 }
 

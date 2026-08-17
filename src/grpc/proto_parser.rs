@@ -6,13 +6,13 @@
 //! Uses prost-reflect and protox for proper protobuf compilation when possible,
 //! with fallback to regex-based parsing for simple cases.
 
-use std::collections::HashMap;
-use std::path::Path;
-use std::fs;
+use super::dynamic::GrpcSchema;
+use crate::errors::QuicpulseError;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use crate::errors::QuicpulseError;
-use super::dynamic::GrpcSchema;
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 // SIMD-optimized cached regexes for proto parsing
 // These are compiled once and reused for all parsing operations
@@ -28,14 +28,12 @@ static IMPORT_RE: Lazy<Regex> = Lazy::new(|| {
 });
 
 /// Enum definition regex
-static ENUM_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"enum\s+(\w+)\s*\{([^}]*)\}").expect("Invalid enum regex")
-});
+static ENUM_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"enum\s+(\w+)\s*\{([^}]*)\}").expect("Invalid enum regex"));
 
 /// Enum value regex
-static ENUM_VALUE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(\w+)\s*=\s*(-?\d+)").expect("Invalid enum value regex")
-});
+static ENUM_VALUE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(\w+)\s*=\s*(-?\d+)").expect("Invalid enum value regex"));
 
 /// Field definition regex
 static FIELD_RE: Lazy<Regex> = Lazy::new(|| {
@@ -45,15 +43,15 @@ static FIELD_RE: Lazy<Regex> = Lazy::new(|| {
 });
 
 /// Service definition regex
-static SERVICE_RE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"service\s+(\w+)\s*\{([^}]*)\}").expect("Invalid service regex")
-});
+static SERVICE_RE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"service\s+(\w+)\s*\{([^}]*)\}").expect("Invalid service regex"));
 
 /// RPC method regex
 static RPC_RE: Lazy<Regex> = Lazy::new(|| {
     Regex::new(
-        r"rpc\s+(\w+)\s*\(\s*(stream\s+)?([^)]+)\s*\)\s+returns\s*\(\s*(stream\s+)?([^)]+)\s*\)"
-    ).expect("Invalid rpc regex")
+        r"rpc\s+(\w+)\s*\(\s*(stream\s+)?([^)]+)\s*\)\s+returns\s*\(\s*(stream\s+)?([^)]+)\s*\)",
+    )
+    .expect("Invalid rpc regex")
 });
 
 /// A parsed proto schema containing all message and service definitions
@@ -150,8 +148,7 @@ impl ProtoSchema {
     /// Parse a proto file from a path
     /// Tries prost-reflect/protox first for proper compilation, falls back to regex parsing
     pub fn from_file(path: &Path) -> Result<Self, QuicpulseError> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
 
         // Try to compile with protox first (proper protobuf parsing)
         let grpc_schema = GrpcSchema::from_proto_file(path).ok();
@@ -220,25 +217,34 @@ impl ProtoSchema {
     pub fn get_field_numbers(&self, message_name: &str) -> Option<HashMap<String, u32>> {
         // Try exact match first
         if let Some(msg) = self.messages.get(message_name) {
-            return Some(msg.fields.iter()
-                .map(|(name, field)| (name.clone(), field.number))
-                .collect());
+            return Some(
+                msg.fields
+                    .iter()
+                    .map(|(name, field)| (name.clone(), field.number))
+                    .collect(),
+            );
         }
 
         // Try with package prefix
         let full_name = format!("{}.{}", self.package, message_name);
         if let Some(msg) = self.messages.get(&full_name) {
-            return Some(msg.fields.iter()
-                .map(|(name, field)| (name.clone(), field.number))
-                .collect());
+            return Some(
+                msg.fields
+                    .iter()
+                    .map(|(name, field)| (name.clone(), field.number))
+                    .collect(),
+            );
         }
 
         // Try partial match
         for (key, msg) in &self.messages {
             if key.ends_with(&format!(".{}", message_name)) || key == message_name {
-                return Some(msg.fields.iter()
-                    .map(|(name, field)| (name.clone(), field.number))
-                    .collect());
+                return Some(
+                    msg.fields
+                        .iter()
+                        .map(|(name, field)| (name.clone(), field.number))
+                        .collect(),
+                );
             }
         }
 
@@ -327,14 +333,16 @@ fn remove_comments(content: &str) -> String {
 
 /// Parse package declaration (uses cached SIMD-optimized regex)
 fn parse_package(content: &str) -> Option<String> {
-    PACKAGE_RE.captures(content)
+    PACKAGE_RE
+        .captures(content)
         .and_then(|cap| cap.get(1))
         .map(|m| m.as_str().to_string())
 }
 
 /// Parse import statements (uses cached SIMD-optimized regex)
 fn parse_imports(content: &str) -> Vec<String> {
-    IMPORT_RE.captures_iter(content)
+    IMPORT_RE
+        .captures_iter(content)
         .filter_map(|cap| cap.get(1).map(|m| m.as_str().to_string()))
         .collect()
 }
@@ -360,11 +368,14 @@ fn parse_enums(content: &str, package: &str) -> HashMap<String, ProtoEnum> {
             format!("{}.{}", package, name)
         };
 
-        enums.insert(full_name.clone(), ProtoEnum {
-            name,
-            full_name,
-            values,
-        });
+        enums.insert(
+            full_name.clone(),
+            ProtoEnum {
+                name,
+                full_name,
+                values,
+            },
+        );
     }
 
     enums
@@ -479,25 +490,34 @@ fn parse_fields(body: &str) -> HashMap<String, ProtoField> {
         let repeated = modifier == Some("repeated");
         let optional = modifier == Some("optional");
 
-        let (field_type, map, map_key_type, map_value_type) = if let Some(map_key) = cap.name("map_key") {
-            let key = map_key.as_str().to_string();
-            let value = cap.name("map_value").unwrap().as_str().to_string();
-            (format!("map<{},{}>", key, value), true, Some(key), Some(value))
-        } else {
-            let typ = cap.name("type").unwrap().as_str().to_string();
-            (typ, false, None, None)
-        };
+        let (field_type, map, map_key_type, map_value_type) =
+            if let Some(map_key) = cap.name("map_key") {
+                let key = map_key.as_str().to_string();
+                let value = cap.name("map_value").unwrap().as_str().to_string();
+                (
+                    format!("map<{},{}>", key, value),
+                    true,
+                    Some(key),
+                    Some(value),
+                )
+            } else {
+                let typ = cap.name("type").unwrap().as_str().to_string();
+                (typ, false, None, None)
+            };
 
-        fields.insert(name.clone(), ProtoField {
-            name,
-            number,
-            field_type,
-            repeated,
-            map,
-            map_key_type,
-            map_value_type,
-            optional,
-        });
+        fields.insert(
+            name.clone(),
+            ProtoField {
+                name,
+                number,
+                field_type,
+                repeated,
+                map,
+                map_key_type,
+                map_value_type,
+                optional,
+            },
+        );
     }
 
     fields

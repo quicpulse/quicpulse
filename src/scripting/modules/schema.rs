@@ -12,7 +12,9 @@ pub fn module() -> Result<Module, ContextError> {
 
     // Validation
     module.function("validate", validate_schema).build()?;
-    module.function("is_valid", is_valid_against_schema).build()?;
+    module
+        .function("is_valid", is_valid_against_schema)
+        .build()?;
     module.function("errors", get_validation_errors).build()?;
 
     // Schema helpers
@@ -143,7 +145,8 @@ fn get_validation_errors(json_str: &str, schema_str: &str) -> RuneString {
                         })
                     })
                     .collect();
-                RuneString::try_from(serde_json::to_string(&error_list).unwrap_or("[]".to_string())).unwrap_or_default()
+                RuneString::try_from(serde_json::to_string(&error_list).unwrap_or("[]".to_string()))
+                    .unwrap_or_default()
             }
         }
         Err(e) => {

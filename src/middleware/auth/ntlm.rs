@@ -10,9 +10,9 @@
 //!
 //! This implementation supports NTLMv2 which is the modern, secure variant.
 
+use super::AuthError;
 use base64::Engine;
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, WWW_AUTHENTICATE};
-use super::AuthError;
 
 // NTLM Flag constants
 const NTLM_NEGOTIATE_UNICODE: u32 = 0x00000001;
@@ -125,8 +125,7 @@ impl NtlmAuth {
         let type3_msg = self.generate_type3_message(type2)?;
         let encoded = base64::engine::general_purpose::STANDARD.encode(&type3_msg);
         let header_value = format!("NTLM {}", encoded);
-        HeaderValue::from_str(&header_value)
-            .map_err(|e| AuthError::InvalidHeader(e.to_string()))
+        HeaderValue::from_str(&header_value).map_err(|e| AuthError::InvalidHeader(e.to_string()))
     }
 
     /// Generate NTLM Type 1 (Negotiate) message
@@ -166,7 +165,7 @@ impl NtlmAuth {
 
     /// Generate NTLM Type 3 (Authenticate) message
     fn generate_type3_message(&self, type2: &Type2Message) -> Result<Vec<u8>, AuthError> {
-        use rand::RngCore;
+        use rand::Rng;
 
         let domain = self.domain.as_deref().unwrap_or("");
         let workstation = self.workstation.as_deref().unwrap_or("");
@@ -253,9 +252,7 @@ impl NtlmAuth {
         client_challenge: &[u8; 8],
         target_info: Option<&[u8]>,
     ) -> Result<(Vec<u8>, Vec<u8>), AuthError> {
-        use hmac::{Hmac, Mac};
-        use md4::{Md4, Digest as Md4Digest};
-        use md5_digest::Md5;
+        use md4::{Digest as Md4Digest, Md4};
 
         // Step 1: Compute NT hash = MD4(UTF16LE(password))
         let password_utf16 = Self::to_utf16le(&self.password);
@@ -267,12 +264,7 @@ impl NtlmAuth {
         let domain = self.domain.as_deref().unwrap_or("");
         let user_domain = format!("{}{}", self.username.to_uppercase(), domain);
         let user_domain_utf16 = Self::to_utf16le(&user_domain);
-
-        type HmacMd5 = Hmac<Md5>;
-        let mut hmac = HmacMd5::new_from_slice(&nt_hash)
-            .map_err(|e| AuthError::InvalidCredentials(format!("HMAC error: {}", e)))?;
-        hmac.update(&user_domain_utf16);
-        let ntlmv2_hash = hmac.finalize().into_bytes();
+        let ntlmv2_hash = hmac_md5(&nt_hash, &user_domain_utf16);
 
         // Step 3: Build NTLMv2 blob
         let timestamp = Self::get_filetime();
@@ -291,11 +283,10 @@ impl NtlmAuth {
         blob.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]); // Terminator
 
         // Step 4: Compute NT response = HMAC-MD5(NTLMv2 hash, server_challenge + blob)
-        let mut hmac = HmacMd5::new_from_slice(&ntlmv2_hash)
-            .map_err(|e| AuthError::InvalidCredentials(format!("HMAC error: {}", e)))?;
-        hmac.update(server_challenge);
-        hmac.update(&blob);
-        let nt_proof = hmac.finalize().into_bytes();
+        let mut nt_data = Vec::with_capacity(server_challenge.len() + blob.len());
+        nt_data.extend_from_slice(server_challenge);
+        nt_data.extend_from_slice(&blob);
+        let nt_proof = hmac_md5(&ntlmv2_hash, &nt_data);
 
         // NT response = NT proof + blob
         let mut nt_response = Vec::with_capacity(16 + blob.len());
@@ -303,11 +294,10 @@ impl NtlmAuth {
         nt_response.extend_from_slice(&blob);
 
         // Step 5: Compute LMv2 response = HMAC-MD5(NTLMv2 hash, server_challenge + client_challenge)
-        let mut hmac = HmacMd5::new_from_slice(&ntlmv2_hash)
-            .map_err(|e| AuthError::InvalidCredentials(format!("HMAC error: {}", e)))?;
-        hmac.update(server_challenge);
-        hmac.update(client_challenge);
-        let lm_proof = hmac.finalize().into_bytes();
+        let mut lm_data = Vec::with_capacity(server_challenge.len() + client_challenge.len());
+        lm_data.extend_from_slice(server_challenge);
+        lm_data.extend_from_slice(client_challenge);
+        let lm_proof = hmac_md5(&ntlmv2_hash, &lm_data);
 
         // LM response = LM proof + client challenge
         let mut lm_response = Vec::with_capacity(24);
@@ -319,9 +309,7 @@ impl NtlmAuth {
 
     /// Convert string to UTF-16LE bytes
     fn to_utf16le(s: &str) -> Vec<u8> {
-        s.encode_utf16()
-            .flat_map(|c| c.to_le_bytes())
-            .collect()
+        s.encode_utf16().flat_map(|c| c.to_le_bytes()).collect()
     }
 
     /// Get current time as Windows FILETIME (100ns intervals since 1601)
@@ -352,15 +340,49 @@ impl NtlmAuth {
     }
 }
 
+/// Compute HMAC-MD5(key, data) per RFC 2104
+fn hmac_md5(key: &[u8], data: &[u8]) -> [u8; 16] {
+    let mut k = [0u8; 64];
+    if key.len() > 64 {
+        let hash = md5::compute(key);
+        k[..16].copy_from_slice(&hash.0);
+    } else {
+        k[..key.len()].copy_from_slice(key);
+    }
+
+    let mut ipad = [0u8; 64];
+    let mut opad = [0u8; 64];
+    for i in 0..64 {
+        ipad[i] = k[i] ^ 0x36;
+        opad[i] = k[i] ^ 0x5c;
+    }
+
+    let mut inner_data = Vec::with_capacity(64 + data.len());
+    inner_data.extend_from_slice(&ipad);
+    inner_data.extend_from_slice(data);
+    let inner_hash = md5::compute(&inner_data);
+
+    let mut outer_data = Vec::with_capacity(64 + 16);
+    outer_data.extend_from_slice(&opad);
+    outer_data.extend_from_slice(&inner_hash.0);
+    let outer_hash = md5::compute(&outer_data);
+
+    outer_hash.0
+}
+
 /// Parse a Type 2 (Challenge) message from the server
 pub fn parse_type2_message(data: &[u8]) -> Result<Type2Message, AuthError> {
     if data.len() < 32 {
-        return Err(AuthError::InvalidChallenge("Type 2 message too short".to_string()));
+        return Err(AuthError::InvalidChallenge(
+            "Type 2 message too short".to_string(),
+        ));
     }
 
     // Verify signature
     if &data[0..8] != b"NTLMSSP\0" {
-        return Err(AuthError::InvalidChallenge("Invalid NTLM signature".to_string()));
+        return Err(AuthError::InvalidChallenge(
+            "Invalid NTLM signature".to_string(),
+        ));
     }
 
     // Verify message type
@@ -386,9 +408,10 @@ pub fn parse_type2_message(data: &[u8]) -> Result<Type2Message, AuthError> {
         if len > 0 && offset + len <= data.len() {
             let target_bytes = &data[offset..offset + len];
             Some(String::from_utf16_lossy(
-                &target_bytes.chunks(2)
+                &target_bytes
+                    .chunks(2)
                     .map(|c| u16::from_le_bytes([c[0], c.get(1).copied().unwrap_or(0)]))
-                    .collect::<Vec<_>>()
+                    .collect::<Vec<_>>(),
             ))
         } else {
             None
@@ -433,7 +456,7 @@ pub fn extract_type2_from_header(headers: &HeaderMap) -> Result<Type2Message, Au
         rest.trim()
     } else {
         return Err(AuthError::InvalidChallenge(
-            "WWW-Authenticate header is not NTLM or Negotiate".to_string()
+            "WWW-Authenticate header is not NTLM or Negotiate".to_string(),
         ));
     };
 
@@ -478,8 +501,7 @@ impl NegotiateAuth {
         let type3_msg = self.inner.generate_type3_message(type2)?;
         let encoded = base64::engine::general_purpose::STANDARD.encode(&type3_msg);
         let header_value = format!("Negotiate {}", encoded);
-        HeaderValue::from_str(&header_value)
-            .map_err(|e| AuthError::InvalidHeader(e.to_string()))
+        HeaderValue::from_str(&header_value).map_err(|e| AuthError::InvalidHeader(e.to_string()))
     }
 }
 
@@ -550,7 +572,9 @@ mod tests {
 
         // Decode and verify signature
         let encoded = &value[5..];
-        let decoded = base64::engine::general_purpose::STANDARD.decode(encoded).unwrap();
+        let decoded = base64::engine::general_purpose::STANDARD
+            .decode(encoded)
+            .unwrap();
         assert_eq!(&decoded[0..8], b"NTLMSSP\0");
 
         // Verify type 1
@@ -574,9 +598,10 @@ mod tests {
         let mut type2 = vec![0u8; 56];
         type2[0..8].copy_from_slice(b"NTLMSSP\0"); // Signature
         type2[8..12].copy_from_slice(&2u32.to_le_bytes()); // Type 2
-        // Target name buffer (empty)
-        // Flags
-        type2[20..24].copy_from_slice(&(NTLM_NEGOTIATE_UNICODE | NTLM_NEGOTIATE_NTLM).to_le_bytes());
+                                                           // Target name buffer (empty)
+                                                           // Flags
+        type2[20..24]
+            .copy_from_slice(&(NTLM_NEGOTIATE_UNICODE | NTLM_NEGOTIATE_NTLM).to_le_bytes());
         // Server challenge
         type2[24..32].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
 
@@ -587,7 +612,10 @@ mod tests {
     #[test]
     fn test_utf16le_encoding() {
         let encoded = NtlmAuth::to_utf16le("test");
-        assert_eq!(encoded, vec![0x74, 0x00, 0x65, 0x00, 0x73, 0x00, 0x74, 0x00]);
+        assert_eq!(
+            encoded,
+            vec![0x74, 0x00, 0x65, 0x00, 0x73, 0x00, 0x74, 0x00]
+        );
     }
 
     #[test]

@@ -2,7 +2,7 @@
 //!
 //! This module defines all command-line arguments for QuicPulse.
 
-use clap::{Parser, ValueEnum, ArgAction};
+use clap::{ArgAction, Parser, ValueEnum};
 use std::fmt;
 use std::path::PathBuf;
 
@@ -139,7 +139,7 @@ impl std::ops::Deref for SensitiveUrl {
 /// QuicPulse - A user-friendly HTTP client for the command line
 #[derive(Parser, Debug, Clone)]
 #[command(name = "http", version, about, long_about = None)]
-#[command(disable_help_flag = true)]  // We use -h for --headers
+#[command(disable_help_flag = true)] // We use -h for --headers
 pub struct Args {
     // Custom help flag (since we disabled the auto one)
     /// Print help information
@@ -148,7 +148,6 @@ pub struct Args {
     // =========================================================================
     // POSITIONAL ARGUMENTS
     // =========================================================================
-    
     /// HTTP method (GET, POST, PUT, DELETE, etc.)
     /// Defaults to GET, or POST if data is present
     #[arg(value_name = "METHOD")]
@@ -166,7 +165,6 @@ pub struct Args {
     // =========================================================================
     // PREDEFINED CONTENT TYPES
     // =========================================================================
-    
     /// (default) Serialize data as JSON object
     #[arg(short = 'j', long = "json", action = ArgAction::SetTrue)]
     pub json: bool,
@@ -190,7 +188,6 @@ pub struct Args {
     // =========================================================================
     // CONTENT PROCESSING
     // =========================================================================
-    
     /// Compress request body with deflate. Use -xx to force compression
     #[arg(short = 'x', long = "compress", action = ArgAction::Count)]
     pub compress: u8,
@@ -202,7 +199,6 @@ pub struct Args {
     // =========================================================================
     // OUTPUT PROCESSING
     // =========================================================================
-    
     /// Output formatting: all, colors, format, none
     #[arg(long = "pretty", value_name = "STYLE", value_enum)]
     pub pretty: Option<PrettyOption>,
@@ -248,7 +244,6 @@ pub struct Args {
     // =========================================================================
     // OUTPUT OPTIONS
     // =========================================================================
-    
     /// What to print: H(eaders), B(ody), h(response headers), b(response body), m(eta)
     #[arg(short = 'p', long = "print", value_name = "WHAT")]
     pub print: Option<String>,
@@ -296,7 +291,6 @@ pub struct Args {
     // =========================================================================
     // SESSIONS
     // =========================================================================
-    
     /// Named session to create or update
     #[arg(long = "session", value_name = "NAME")]
     pub session: Option<String>,
@@ -308,7 +302,6 @@ pub struct Args {
     // =========================================================================
     // AUTHENTICATION
     // =========================================================================
-    
     /// Authentication credentials (user:password or token)
     /// Uses SecretString to redact value in debug output
     #[arg(short = 'a', long = "auth", value_name = "CREDENTIALS")]
@@ -347,7 +340,11 @@ pub struct Args {
     pub oauth_device_url: Option<String>,
 
     /// OAuth 2.0 redirect port for authorization code flow (default: 8080)
-    #[arg(long = "oauth-redirect-port", value_name = "PORT", default_value = "8080")]
+    #[arg(
+        long = "oauth-redirect-port",
+        value_name = "PORT",
+        default_value = "8080"
+    )]
     pub oauth_redirect_port: u16,
 
     /// Use PKCE (Proof Key for Code Exchange) with authorization code flow
@@ -361,7 +358,6 @@ pub struct Args {
     // =========================================================================
     // PROTOCOL OPTIONS
     // =========================================================================
-
     /// Use HTTP/3 (QUIC) protocol
     #[arg(long = "http3", action = ArgAction::SetTrue)]
     pub http3: bool,
@@ -373,7 +369,6 @@ pub struct Args {
     // =========================================================================
     // GRAPHQL
     // =========================================================================
-
     /// GraphQL mode: wrap request as GraphQL query
     #[arg(short = 'G', long = "graphql", action = ArgAction::SetTrue)]
     pub graphql: bool,
@@ -393,7 +388,6 @@ pub struct Args {
     // =========================================================================
     // GRPC
     // =========================================================================
-
     /// gRPC mode: send gRPC request
     #[arg(long = "grpc", action = ArgAction::SetTrue)]
     pub grpc: bool,
@@ -421,7 +415,6 @@ pub struct Args {
     // =========================================================================
     // WEBSOCKET
     // =========================================================================
-
     /// WebSocket mode (auto-detected for ws:// URLs)
     #[arg(long = "ws", action = ArgAction::SetTrue)]
     pub ws: bool,
@@ -461,7 +454,6 @@ pub struct Args {
     // =========================================================================
     // NETWORK
     // =========================================================================
-
     /// Build request but don't send it
     #[arg(long = "offline", action = ArgAction::SetTrue)]
     pub offline: bool,
@@ -483,7 +475,6 @@ pub struct Args {
     // =========================================================================
     // LOW-LEVEL NETWORK CONTROLS
     // =========================================================================
-
     /// Custom DNS resolution (HOST:PORT:ADDRESS)
     /// Example: --resolve example.com:443:127.0.0.1
     #[arg(long = "resolve", value_name = "HOST:PORT:ADDRESS")]
@@ -535,7 +526,6 @@ pub struct Args {
     // =========================================================================
     // SSL
     // =========================================================================
-    
     /// SSL certificate verification: yes/no/path-to-CA-bundle
     #[arg(long = "verify", value_name = "VERIFY", default_value = "yes")]
     pub verify: String,
@@ -563,7 +553,6 @@ pub struct Args {
     // =========================================================================
     // CI/CD & AUTOMATION
     // =========================================================================
-
     /// Force disable colors in output
     #[arg(long = "no-color", action = ArgAction::SetTrue)]
     pub no_color: bool,
@@ -579,7 +568,6 @@ pub struct Args {
     // =========================================================================
     // TROUBLESHOOTING
     // =========================================================================
-
     /// Don't read stdin (useful for scripting)
     #[arg(short = 'I', long = "ignore-stdin", action = ArgAction::SetTrue)]
     pub ignore_stdin: bool,
@@ -603,7 +591,6 @@ pub struct Args {
     // =========================================================================
     // SELF-UPDATE
     // =========================================================================
-
     /// Update quicpulse to the latest version
     #[arg(long = "update", action = ArgAction::SetTrue)]
     pub update: bool,
@@ -611,7 +598,6 @@ pub struct Args {
     // =========================================================================
     // BENCHMARKING (Phase 11)
     // =========================================================================
-
     /// Enable benchmarking mode: send multiple concurrent requests
     #[arg(long = "bench", action = ArgAction::SetTrue)]
     pub bench: bool,
@@ -627,7 +613,6 @@ pub struct Args {
     // =========================================================================
     // DATA FILTERING & FORMATTING (Phase 11)
     // =========================================================================
-
     /// JQ filter expression to apply to JSON response
     #[arg(long = "filter", short = 'J', value_name = "EXPR")]
     pub filter: Option<String>,
@@ -643,7 +628,6 @@ pub struct Args {
     // =========================================================================
     // ASSERTIONS (Phase 12)
     // =========================================================================
-
     /// Assert response status code (e.g., 200, 2xx, 200-299)
     #[arg(long = "assert-status", value_name = "CODE")]
     pub assert_status: Option<String>,
@@ -666,7 +650,6 @@ pub struct Args {
     // =========================================================================
     // WORKFLOW PIPELINES (Phase 12)
     // =========================================================================
-
     /// Run a workflow file (YAML/TOML)
     #[arg(long = "run", value_name = "FILE")]
     pub run_workflow: Option<PathBuf>,
@@ -731,7 +714,6 @@ pub struct Args {
     // =========================================================================
     // WORKFLOW SHARING & COLLABORATION
     // =========================================================================
-
     /// List available workflows (local and remote)
     #[arg(long = "workflow-list", action = ArgAction::SetTrue)]
     pub workflow_list: bool,
@@ -767,7 +749,6 @@ pub struct Args {
     // =========================================================================
     // SECURITY FUZZING (Phase 13)
     // =========================================================================
-
     /// Enable fuzzing mode: send mutated payloads to test for vulnerabilities
     #[arg(long = "fuzz", action = ArgAction::SetTrue)]
     pub fuzz: bool,
@@ -807,7 +788,6 @@ pub struct Args {
     // =========================================================================
     // HAR REPLAY (Phase 15)
     // =========================================================================
-
     /// Import and replay requests from a HAR file (from browser DevTools)
     #[arg(long = "import-har", value_name = "FILE")]
     pub import_har: Option<PathBuf>,
@@ -835,7 +815,6 @@ pub struct Args {
     // =========================================================================
     // OPENAPI IMPORT (Phase 18)
     // =========================================================================
-
     /// Import OpenAPI/Swagger specification and generate workflow
     #[arg(long = "import-openapi", value_name = "FILE")]
     pub import_openapi: Option<PathBuf>,
@@ -871,7 +850,6 @@ pub struct Args {
     // =========================================================================
     // DEVELOPER EXPERIENCE (Phase 16)
     // =========================================================================
-
     /// Print equivalent curl command instead of sending request
     #[arg(long = "curl", action = ArgAction::SetTrue)]
     pub curl: bool,
@@ -907,7 +885,6 @@ pub struct Args {
     // =========================================================================
     // MOCK SERVER
     // =========================================================================
-
     /// Start a mock HTTP server
     #[arg(long = "mock", alias = "serve", action = ArgAction::SetTrue)]
     pub mock_server: bool,
@@ -959,7 +936,6 @@ pub struct Args {
     // =========================================================================
     // PLUGIN ECOSYSTEM
     // =========================================================================
-
     /// List installed plugins
     #[arg(long = "plugin-list", alias = "plugins", action = ArgAction::SetTrue)]
     pub plugin_list: bool,
@@ -991,9 +967,13 @@ pub struct Args {
     // =========================================================================
     // GENERATION (hidden)
     // =========================================================================
-
     /// Generate shell completions for the specified shell
-    #[arg(long = "generate-completions", value_name = "SHELL", value_enum, hide = true)]
+    #[arg(
+        long = "generate-completions",
+        value_name = "SHELL",
+        value_enum,
+        hide = true
+    )]
     pub generate_completions: Option<Shell>,
 
     /// Generate man page to stdout
@@ -1003,6 +983,7 @@ pub struct Args {
 
 /// Shell types for completion generation
 #[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[allow(clippy::enum_variant_names)]
 pub enum Shell {
     Bash,
     Zsh,

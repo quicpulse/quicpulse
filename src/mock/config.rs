@@ -1,9 +1,9 @@
 //! Mock server configuration
 
+use super::routes::RouteConfig;
+use crate::errors::QuicpulseError;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use crate::errors::QuicpulseError;
-use super::routes::RouteConfig;
 
 /// Mock server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -107,27 +107,21 @@ impl MockServerConfig {
 
     /// Load config from a file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, QuicpulseError> {
-        let content = std::fs::read_to_string(path.as_ref())
-            .map_err(QuicpulseError::Io)?;
+        let content = std::fs::read_to_string(path.as_ref()).map_err(QuicpulseError::Io)?;
 
-        let ext = path.as_ref()
+        let ext = path
+            .as_ref()
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("json");
 
         match ext {
-            "yaml" | "yml" => {
-                serde_yaml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse YAML config: {}", e)))
-            }
-            "toml" => {
-                toml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse TOML config: {}", e)))
-            }
-            _ => {
-                serde_json::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse JSON config: {}", e)))
-            }
+            "yaml" | "yml" => serde_yaml::from_str(&content)
+                .map_err(|e| QuicpulseError::Config(format!("Failed to parse YAML config: {}", e))),
+            "toml" => toml::from_str(&content)
+                .map_err(|e| QuicpulseError::Config(format!("Failed to parse TOML config: {}", e))),
+            _ => serde_json::from_str(&content)
+                .map_err(|e| QuicpulseError::Config(format!("Failed to parse JSON config: {}", e))),
         }
     }
 
@@ -146,17 +140,24 @@ impl MockServerConfig {
     pub fn validate(&self) -> Result<(), QuicpulseError> {
         // Check routes compile
         for route in &self.routes {
-            super::routes::Route::new(route.clone())
-                .map_err(|e| QuicpulseError::Config(format!("Invalid route '{}': {}", route.path, e)))?;
+            super::routes::Route::new(route.clone()).map_err(|e| {
+                QuicpulseError::Config(format!("Invalid route '{}': {}", route.path, e))
+            })?;
         }
 
         // Check TLS files exist
         if let Some(ref tls) = self.tls {
             if !Path::new(&tls.cert).exists() {
-                return Err(QuicpulseError::Config(format!("TLS cert file not found: {}", tls.cert)));
+                return Err(QuicpulseError::Config(format!(
+                    "TLS cert file not found: {}",
+                    tls.cert
+                )));
             }
             if !Path::new(&tls.key).exists() {
-                return Err(QuicpulseError::Config(format!("TLS key file not found: {}", tls.key)));
+                return Err(QuicpulseError::Config(format!(
+                    "TLS key file not found: {}",
+                    tls.key
+                )));
             }
         }
 

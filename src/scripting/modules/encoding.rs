@@ -3,9 +3,9 @@
 //! Provides base64, URL encoding, hex encoding, and other
 //! encoding/decoding utilities for scripts.
 
-use rune::{ContextError, Module};
-use rune::alloc::String as RuneString;
 use base64::Engine;
+use rune::alloc::String as RuneString;
+use rune::{ContextError, Module};
 
 /// Create the encoding module
 pub fn module() -> Result<Module, ContextError> {

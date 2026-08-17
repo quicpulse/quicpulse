@@ -67,7 +67,7 @@ fn test_should_page_short_content() {
 
 #[test]
 fn test_write_with_pager_disabled() {
-    use quicpulse::output::pager::{PagerConfig, write_with_pager};
+    use quicpulse::output::pager::{write_with_pager, PagerConfig};
 
     let config = PagerConfig {
         enabled: false,
@@ -87,7 +87,7 @@ fn test_write_with_pager_disabled() {
 
 #[test]
 fn test_write_with_pager_not_tty() {
-    use quicpulse::output::pager::{PagerConfig, write_with_pager};
+    use quicpulse::output::pager::{write_with_pager, PagerConfig};
 
     let config = PagerConfig {
         enabled: true,

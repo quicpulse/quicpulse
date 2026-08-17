@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{http, http_error, fixtures, ExitStatus};
+use common::{fixtures, http, http_error, ExitStatus};
 use std::path::PathBuf;
 
 fn fixture_path(name: &str) -> PathBuf {
@@ -16,25 +16,39 @@ fn fixture_path(name: &str) -> PathBuf {
 #[test]
 fn test_openapi_parse_v3_yaml() {
     let openapi_path = fixture_path("petstore-v3.yaml");
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should list endpoints from the spec
-    assert!(output.contains("pets") || output.contains("GET") || output.contains("POST"),
-        "Should list OpenAPI endpoints. output: {}", output);
+    assert!(
+        output.contains("pets") || output.contains("GET") || output.contains("POST"),
+        "Should list OpenAPI endpoints. output: {}",
+        output
+    );
 }
 
 #[test]
 fn test_openapi_v3_shows_info() {
     let openapi_path = fixture_path("petstore-v3.yaml");
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should show API title or version
-    assert!(output.contains("Petstore") || output.contains("1.0") || output.contains("API"),
-        "Should show API info. output: {}", output);
+    assert!(
+        output.contains("Petstore") || output.contains("1.0") || output.contains("API"),
+        "Should show API info. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -44,13 +58,20 @@ fn test_openapi_v3_shows_info() {
 #[test]
 fn test_openapi_parse_v2_json() {
     let openapi_path = fixture_path("petstore-v2.json");
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should list endpoints from Swagger 2.0 spec
-    assert!(output.contains("pets") || output.contains("users") || output.contains("GET"),
-        "Should list Swagger endpoints. output: {}", output);
+    assert!(
+        output.contains("pets") || output.contains("users") || output.contains("GET"),
+        "Should list Swagger endpoints. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -58,8 +79,16 @@ fn test_openapi_v2_vs_v3_compatibility() {
     let v2_path = fixture_path("petstore-v2.json");
     let v3_path = fixture_path("petstore-v3.yaml");
 
-    let v2_response = http(&["--import-openapi", v2_path.to_str().unwrap(), "--openapi-list"]);
-    let v3_response = http(&["--import-openapi", v3_path.to_str().unwrap(), "--openapi-list"]);
+    let v2_response = http(&[
+        "--import-openapi",
+        v2_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
+    let v3_response = http(&[
+        "--import-openapi",
+        v3_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     // Both should succeed
     assert_eq!(v2_response.exit_status, ExitStatus::Success);
@@ -73,32 +102,39 @@ fn test_openapi_v2_vs_v3_compatibility() {
 #[test]
 fn test_openapi_list_endpoints() {
     let openapi_path = fixture_path("petstore-v3.yaml");
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // The petstore spec has /pets, /pets/{petId}, /users, /store/inventory
     // Check for at least some of them
-    let has_endpoints = output.contains("/pets") ||
-                        output.contains("listPets") ||
-                        output.contains("GET") ||
-                        output.contains("POST");
+    let has_endpoints = output.contains("/pets")
+        || output.contains("listPets")
+        || output.contains("GET")
+        || output.contains("POST");
     assert!(has_endpoints, "Should list endpoints. output: {}", output);
 }
 
 #[test]
 fn test_openapi_list_shows_methods() {
     let openapi_path = fixture_path("petstore-v3.yaml");
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show HTTP methods
-    let has_methods = output.contains("GET") ||
-                      output.contains("POST") ||
-                      output.contains("DELETE");
+    let has_methods =
+        output.contains("GET") || output.contains("POST") || output.contains("DELETE");
     assert!(has_methods, "Should show HTTP methods. output: {}", output);
 }
 
@@ -111,17 +147,22 @@ fn test_openapi_filter_by_tag() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // Filter for only "pets" tag
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--openapi-tag", "pets",
-        "--openapi-list"
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-tag",
+        "pets",
+        "--openapi-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should only show pet-related endpoints
-    assert!(output.contains("pet") || output.contains("Pet"),
-        "Should show pet endpoints. output: {}", output);
+    assert!(
+        output.contains("pet") || output.contains("Pet"),
+        "Should show pet endpoints. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -129,9 +170,11 @@ fn test_openapi_exclude_tag() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // Exclude "store" tag
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--openapi-exclude-tag", "store",
-        "--openapi-list"
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-exclude-tag",
+        "store",
+        "--openapi-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -143,10 +186,13 @@ fn test_openapi_multiple_tags() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // Include multiple tags
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--openapi-tag", "pets",
-        "--openapi-tag", "users",
-        "--openapi-list"
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-tag",
+        "pets",
+        "--openapi-tag",
+        "users",
+        "--openapi-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -161,17 +207,21 @@ fn test_openapi_include_deprecated() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // Include deprecated endpoints (DELETE /pets/{petId} is deprecated in the fixture)
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
         "--openapi-include-deprecated",
-        "--openapi-list"
+        "--openapi-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should include DELETE endpoint
-    assert!(output.contains("DELETE") || output.contains("deprecated") || output.contains("delete"),
-        "Should include deprecated endpoints. output: {}", output);
+    assert!(
+        output.contains("DELETE") || output.contains("deprecated") || output.contains("delete"),
+        "Should include deprecated endpoints. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -179,8 +229,9 @@ fn test_openapi_exclude_deprecated_by_default() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // Without --openapi-include-deprecated, deprecated should be excluded
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--openapi-list"
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -196,9 +247,11 @@ fn test_openapi_exclude_deprecated_by_default() {
 fn test_openapi_base_url_override() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--openapi-base-url", "http://localhost:8080",
-        "--openapi-list"
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-base-url",
+        "http://localhost:8080",
+        "--openapi-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -216,8 +269,10 @@ fn test_openapi_generate_workflow() {
     let output_file = temp_dir.path().join("workflow.yaml");
 
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--generate-workflow", output_file.to_str().unwrap()
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--generate-workflow",
+        output_file.to_str().unwrap(),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -226,8 +281,11 @@ fn test_openapi_generate_workflow() {
 
     let content = std::fs::read_to_string(&output_file).unwrap();
     // Should contain valid YAML workflow
-    assert!(content.contains("steps") || content.contains("name") || content.contains("url"),
-        "Should generate valid workflow. content: {}", content);
+    assert!(
+        content.contains("steps") || content.contains("name") || content.contains("url"),
+        "Should generate valid workflow. content: {}",
+        content
+    );
 }
 
 #[test]
@@ -237,16 +295,21 @@ fn test_openapi_workflow_contains_endpoints() {
     let output_file = temp_dir.path().join("workflow.yaml");
 
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--generate-workflow", output_file.to_str().unwrap()
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--generate-workflow",
+        output_file.to_str().unwrap(),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
 
     let content = std::fs::read_to_string(&output_file).unwrap();
     // Should contain endpoint references
-    assert!(content.contains("pets") || content.contains("/") || content.contains("GET"),
-        "Workflow should contain endpoints. content: {}", content);
+    assert!(
+        content.contains("pets") || content.contains("/") || content.contains("GET"),
+        "Workflow should contain endpoints. content: {}",
+        content
+    );
 }
 
 // =============================================================================
@@ -255,7 +318,11 @@ fn test_openapi_workflow_contains_endpoints() {
 
 #[test]
 fn test_openapi_nonexistent_file() {
-    let response = http_error(&["--import-openapi", "/nonexistent/path/api.yaml", "--openapi-list"]);
+    let response = http_error(&[
+        "--import-openapi",
+        "/nonexistent/path/api.yaml",
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
 }
@@ -266,7 +333,11 @@ fn test_openapi_invalid_spec() {
     let invalid_file = temp_dir.path().join("invalid.yaml");
     std::fs::write(&invalid_file, "not: a: valid: openapi: spec").unwrap();
 
-    let response = http_error(&["--import-openapi", invalid_file.to_str().unwrap(), "--openapi-list"]);
+    let response = http_error(&[
+        "--import-openapi",
+        invalid_file.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
 }
@@ -277,7 +348,11 @@ fn test_openapi_invalid_json() {
     let invalid_file = temp_dir.path().join("invalid.json");
     std::fs::write(&invalid_file, "{ invalid json }").unwrap();
 
-    let response = http_error(&["--import-openapi", invalid_file.to_str().unwrap(), "--openapi-list"]);
+    let response = http_error(&[
+        "--import-openapi",
+        invalid_file.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
 }
@@ -288,7 +363,11 @@ fn test_openapi_empty_spec() {
     let empty_file = temp_dir.path().join("empty.yaml");
     std::fs::write(&empty_file, "").unwrap();
 
-    let response = http_error(&["--import-openapi", empty_file.to_str().unwrap(), "--openapi-list"]);
+    let response = http_error(&[
+        "--import-openapi",
+        empty_file.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
 }
@@ -304,9 +383,11 @@ fn test_openapi_with_fuzz_flag() {
     let output_file = temp_dir.path().join("workflow.yaml");
 
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
         "--openapi-fuzz",
-        "--generate-workflow", output_file.to_str().unwrap()
+        "--generate-workflow",
+        output_file.to_str().unwrap(),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -324,7 +405,11 @@ fn test_openapi_with_fuzz_flag() {
 fn test_openapi_with_security_schemes() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // The petstore spec has security schemes defined
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     // Should handle security schemes
@@ -334,7 +419,11 @@ fn test_openapi_with_security_schemes() {
 fn test_openapi_with_refs() {
     let openapi_path = fixture_path("petstore-v3.yaml");
     // The petstore spec uses $ref for schemas
-    let response = http(&["--import-openapi", openapi_path.to_str().unwrap(), "--openapi-list"]);
+    let response = http(&[
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--openapi-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     // Should resolve $ref references
@@ -347,14 +436,22 @@ fn test_openapi_with_parameters() {
     let output_file = temp_dir.path().join("workflow.yaml");
 
     let response = http(&[
-        "--import-openapi", openapi_path.to_str().unwrap(),
-        "--generate-workflow", output_file.to_str().unwrap()
+        "--import-openapi",
+        openapi_path.to_str().unwrap(),
+        "--generate-workflow",
+        output_file.to_str().unwrap(),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
 
     let content = std::fs::read_to_string(&output_file).unwrap();
     // Should include parameter placeholders or magic values
-    assert!(content.contains("petId") || content.contains("id") || content.contains("limit") || content.contains("{"),
-        "Workflow should handle parameters. content: {}", content);
+    assert!(
+        content.contains("petId")
+            || content.contains("id")
+            || content.contains("limit")
+            || content.contains("{"),
+        "Workflow should handle parameters. content: {}",
+        content
+    );
 }

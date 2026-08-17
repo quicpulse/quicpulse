@@ -15,10 +15,10 @@
 
 mod common;
 
-use std::path::PathBuf;
-use wiremock::{Mock, MockServer, ResponseTemplate};
-use wiremock::matchers::{method, path, header, query_param, body_json};
 use serde_json::json;
+use std::path::PathBuf;
+use wiremock::matchers::{body_json, header, method, path, query_param};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 use common::{http, http_with_env, MockEnvironment};
 
@@ -38,13 +38,14 @@ fn workflow_fixture(name: &str) -> PathBuf {
 #[test]
 fn test_workflow_validate_yaml() {
     let workflow = workflow_fixture("basic.yaml");
-    let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--validate"
-    ]);
+    let r = http(&["--run", workflow.to_str().unwrap(), "--validate"]);
 
     // Validation should succeed
-    assert!(r.contains("valid") || r.exit_code == 0, "Workflow should validate: {}", r.stderr);
+    assert!(
+        r.contains("valid") || r.exit_code == 0,
+        "Workflow should validate: {}",
+        r.stderr
+    );
 }
 
 #[test]
@@ -53,10 +54,7 @@ fn test_workflow_validate_invalid() {
     let invalid_workflow = dir.path().join("invalid.yaml");
     std::fs::write(&invalid_workflow, "this is not valid yaml: [").unwrap();
 
-    let r = http(&[
-        "--run", invalid_workflow.to_str().unwrap(),
-        "--validate"
-    ]);
+    let r = http(&["--run", invalid_workflow.to_str().unwrap(), "--validate"]);
 
     // Should report error
     assert!(r.exit_code != 0 || r.stderr.contains("error") || r.stderr.contains("Error"));
@@ -84,13 +82,19 @@ async fn test_workflow_basic_execution() {
 
     let workflow = workflow_fixture("basic.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
     // Both steps should pass
-    assert!(r.contains("Simple GET") || r.contains("passed") || r.exit_code == 0,
-            "Workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.contains("Simple GET") || r.contains("passed") || r.exit_code == 0,
+        "Workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 #[tokio::test]
@@ -111,13 +115,22 @@ async fn test_workflow_with_variables() {
 
     let workflow = workflow_fixture("basic.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
-        "--var", "test_var=custom_value",
-        "--var", "numeric_var=100",
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
+        "--var",
+        "test_var=custom_value",
+        "--var",
+        "numeric_var=100",
     ]);
 
-    assert!(r.exit_code == 0, "Workflow with variables failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Workflow with variables failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -153,11 +166,18 @@ async fn test_workflow_extraction() {
 
     let workflow = workflow_fixture("extraction.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
-    assert!(r.exit_code == 0, "Extraction workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Extraction workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -191,11 +211,18 @@ async fn test_workflow_status_assertion() {
 
     let workflow = workflow_fixture("assertions.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
-    assert!(r.exit_code == 0, "Assertion workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Assertion workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 #[tokio::test]
@@ -211,13 +238,17 @@ async fn test_workflow_assertion_failure() {
 
     let workflow = workflow_fixture("assertions.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
     // Should fail due to assertion
-    assert!(r.exit_code != 0 || r.stderr.contains("failed") || r.stdout.contains("FAIL"),
-            "Assertion should have failed");
+    assert!(
+        r.exit_code != 0 || r.stderr.contains("failed") || r.stdout.contains("FAIL"),
+        "Assertion should have failed"
+    );
 }
 
 // ============================================================================
@@ -238,12 +269,20 @@ async fn test_workflow_environment_dev() {
 
     let workflow = workflow_fixture("environments.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--env", "dev",
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--env",
+        "dev",
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
-    assert!(r.exit_code == 0, "Dev environment workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Dev environment workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 #[tokio::test]
@@ -260,12 +299,20 @@ async fn test_workflow_environment_production() {
 
     let workflow = workflow_fixture("environments.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--env", "production",
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--env",
+        "production",
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
-    assert!(r.exit_code == 0, "Production environment workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Production environment workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -291,11 +338,18 @@ async fn test_workflow_magic_values() {
 
     let workflow = workflow_fixture("magic_values.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
-    assert!(r.exit_code == 0, "Magic values workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Magic values workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -320,11 +374,18 @@ async fn test_workflow_pre_script() {
 
     let workflow = workflow_fixture("scripting.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
     ]);
 
-    assert!(r.exit_code == 0, "Scripting workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Scripting workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -352,9 +413,12 @@ async fn test_workflow_junit_report() {
 
     let workflow = workflow_fixture("basic.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
-        "--report-junit", report_path.to_str().unwrap(),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
+        "--report-junit",
+        report_path.to_str().unwrap(),
     ]);
 
     // Check report was created
@@ -362,8 +426,10 @@ async fn test_workflow_junit_report() {
 
     let report_content = std::fs::read_to_string(&report_path).unwrap();
     assert!(report_content.contains("<?xml"), "Report should be XML");
-    assert!(report_content.contains("testsuites") || report_content.contains("testsuite"),
-            "Report should have testsuites element");
+    assert!(
+        report_content.contains("testsuites") || report_content.contains("testsuite"),
+        "Report should have testsuites element"
+    );
 }
 
 #[tokio::test]
@@ -387,9 +453,12 @@ async fn test_workflow_json_report() {
 
     let workflow = workflow_fixture("basic.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
-        "--report-json", report_path.to_str().unwrap(),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
+        "--report-json",
+        report_path.to_str().unwrap(),
     ]);
 
     // Check report was created
@@ -397,8 +466,10 @@ async fn test_workflow_json_report() {
 
     let report_content = std::fs::read_to_string(&report_path).unwrap();
     let report: serde_json::Value = serde_json::from_str(&report_content).unwrap();
-    assert!(report.get("name").is_some() || report.get("steps").is_some(),
-            "Report should have workflow info");
+    assert!(
+        report.get("name").is_some() || report.get("steps").is_some(),
+        "Report should have workflow info"
+    );
 }
 
 #[tokio::test]
@@ -422,17 +493,22 @@ async fn test_workflow_tap_report() {
 
     let workflow = workflow_fixture("basic.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
-        "--report-tap", report_path.to_str().unwrap(),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
+        "--report-tap",
+        report_path.to_str().unwrap(),
     ]);
 
     // Check report was created
     assert!(report_path.exists(), "TAP report should be created");
 
     let report_content = std::fs::read_to_string(&report_path).unwrap();
-    assert!(report_content.contains("TAP version") || report_content.contains("1.."),
-            "Report should be TAP format");
+    assert!(
+        report_content.contains("TAP version") || report_content.contains("1.."),
+        "Report should be TAP format"
+    );
 }
 
 // ============================================================================
@@ -465,17 +541,24 @@ async fn test_workflow_continue_on_failure() {
 
     let workflow = workflow_fixture("assertions.yaml");
     let r = http(&[
-        "--run", workflow.to_str().unwrap(),
-        "--var", &format!("base_url={}", server.uri()),
+        "--run",
+        workflow.to_str().unwrap(),
+        "--var",
+        &format!("base_url={}", server.uri()),
         "--continue-on-failure",
     ]);
 
     // Should continue despite first step failing
     // Output should show both steps were attempted - look for Step 2 or the second step name
     let output = format!("{} {}", r.stdout, r.stderr);
-    assert!(output.contains("Step 2") || output.contains("body assertions") ||
-            output.contains("Test body") || output.contains("Total:"),
-            "Should continue to next step: {}", output);
+    assert!(
+        output.contains("Step 2")
+            || output.contains("body assertions")
+            || output.contains("Test body")
+            || output.contains("Total:"),
+        "Should continue to next step: {}",
+        output
+    );
 }
 
 // ============================================================================
@@ -495,7 +578,10 @@ async fn test_workflow_toml_format() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("test.toml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name = "TOML Workflow Test"
 base_url = "{}"
 
@@ -506,13 +592,20 @@ url = "/health"
 
 [steps.assert]
 status = 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "TOML workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "TOML workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -532,7 +625,10 @@ async fn test_workflow_with_form_data() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("form.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Form Data Test
 base_url: "{}"
 
@@ -547,13 +643,20 @@ steps:
       token: body.token
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "Form workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Form workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 #[tokio::test]
@@ -571,7 +674,10 @@ async fn test_workflow_with_query_params() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("query.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Query Params Test
 base_url: "{}"
 
@@ -584,13 +690,20 @@ steps:
       page: "1"
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "Query params workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Query params workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 #[tokio::test]
@@ -608,7 +721,10 @@ async fn test_workflow_with_custom_headers() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("headers.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Headers Test
 base_url: "{}"
 
@@ -624,13 +740,20 @@ steps:
       X-Custom-Header: custom-value
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "Headers workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Headers workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -652,7 +775,10 @@ async fn test_workflow_basic_auth() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("basic_auth.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Basic Auth Test
 base_url: "{}"
 
@@ -666,13 +792,20 @@ steps:
       password: pass
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "Basic auth workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Basic auth workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 #[tokio::test]
@@ -689,7 +822,10 @@ async fn test_workflow_bearer_auth() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("bearer_auth.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Bearer Auth Test
 base_url: "{}"
 
@@ -705,13 +841,20 @@ steps:
       token: "{{{{ token }}}}"
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "Bearer auth workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Bearer auth workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -739,7 +882,10 @@ async fn test_workflow_skip_if() {
     let workflow_path = dir.path().join("skip_if.yaml");
 
     // skip_if uses simple truthiness check: {{var}} or !{{var}}
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Skip If Test
 base_url: "{}"
 
@@ -756,16 +902,21 @@ steps:
     method: GET
     url: /feature
     skip_if: "{{{{ should_skip }}}}"
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
     // Check that workflow completes and shows the step was skipped
     let output = format!("{} {}", r.stdout, r.stderr);
-    assert!(r.exit_code == 0 || output.contains("Skipped") || output.contains("skipped"),
-            "Skip-if workflow failed: {}", output);
+    assert!(
+        r.exit_code == 0 || output.contains("Skipped") || output.contains("skipped"),
+        "Skip-if workflow failed: {}",
+        output
+    );
 }
 
 // ============================================================================
@@ -785,7 +936,10 @@ async fn test_workflow_with_delay() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("delay.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Delay Test
 base_url: "{}"
 
@@ -796,15 +950,22 @@ steps:
     delay: "100ms"
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
     let start = std::time::Instant::now();
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
     let elapsed = start.elapsed();
 
-    assert!(r.exit_code == 0, "Delay workflow failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Delay workflow failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
     assert!(elapsed.as_millis() >= 100, "Delay should be at least 100ms");
 }
 
@@ -850,7 +1011,10 @@ async fn test_workflow_multi_step_chain() {
     let dir = tempfile::tempdir().unwrap();
     let workflow_path = dir.path().join("chain.yaml");
 
-    std::fs::write(&workflow_path, format!(r#"
+    std::fs::write(
+        &workflow_path,
+        format!(
+            r#"
 name: Multi-Step Chain Test
 base_url: "{}"
 
@@ -885,11 +1049,18 @@ steps:
       {{"name": "{{{{ user_name }}}} Updated"}}
     assert:
       status: 200
-"#, server.uri())).unwrap();
+"#,
+            server.uri()
+        ),
+    )
+    .unwrap();
 
-    let r = http(&[
-        "--run", workflow_path.to_str().unwrap(),
-    ]);
+    let r = http(&["--run", workflow_path.to_str().unwrap()]);
 
-    assert!(r.exit_code == 0, "Multi-step chain failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "Multi-step chain failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }

@@ -4,17 +4,20 @@
 //! This is more idiomatic Rust - using sum types for a finite set of
 //! authentication methods instead of runtime polymorphism.
 
+mod apikey;
 mod basic;
 mod bearer;
 mod digest;
-mod apikey;
 mod ntlm;
 
+pub use apikey::ApiKeyAuth;
 pub use basic::BasicAuth;
 pub use bearer::BearerAuth;
-pub use digest::{DigestAuth, DigestChallenge, DigestAlgorithm};
-pub use apikey::ApiKeyAuth;
-pub use ntlm::{NtlmAuth, NegotiateAuth, KerberosAuth, Type2Message, parse_type2_message, extract_type2_from_header};
+pub use digest::{DigestAlgorithm, DigestAuth, DigestChallenge};
+pub use ntlm::{
+    extract_type2_from_header, parse_type2_message, KerberosAuth, NegotiateAuth, NtlmAuth,
+    Type2Message,
+};
 
 use reqwest::header::HeaderMap;
 use thiserror::Error;
@@ -112,7 +115,11 @@ impl Auth {
     /// Whether this auth method parses credentials as "user:password"
     pub fn parses_credentials(&self) -> bool {
         match self {
-            Auth::Basic(_) | Auth::Digest(_) | Auth::Ntlm(_) | Auth::Negotiate(_) | Auth::Kerberos(_) => true,
+            Auth::Basic(_)
+            | Auth::Digest(_)
+            | Auth::Ntlm(_)
+            | Auth::Negotiate(_)
+            | Auth::Kerberos(_) => true,
             Auth::Bearer(_) | Auth::ApiKey(_) => false,
         }
     }
@@ -120,7 +127,11 @@ impl Auth {
     /// Whether to prompt for password if not provided
     pub fn prompts_password(&self) -> bool {
         match self {
-            Auth::Basic(_) | Auth::Digest(_) | Auth::Ntlm(_) | Auth::Negotiate(_) | Auth::Kerberos(_) => true,
+            Auth::Basic(_)
+            | Auth::Digest(_)
+            | Auth::Ntlm(_)
+            | Auth::Negotiate(_)
+            | Auth::Kerberos(_) => true,
             Auth::Bearer(_) | Auth::ApiKey(_) => false,
         }
     }
@@ -155,10 +166,8 @@ mod tests {
 
         // Verify base64 encoding
         let encoded = &value[6..];
-        let decoded = base64::Engine::decode(
-            &base64::engine::general_purpose::STANDARD,
-            encoded
-        ).unwrap();
+        let decoded =
+            base64::Engine::decode(&base64::engine::general_purpose::STANDARD, encoded).unwrap();
         assert_eq!(String::from_utf8(decoded).unwrap(), "user:pass");
     }
 

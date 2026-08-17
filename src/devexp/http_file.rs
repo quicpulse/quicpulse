@@ -42,8 +42,7 @@ pub struct HttpRequest {
 
 /// Parse a .http/.rest file into a list of requests
 pub fn parse_http_file(path: &Path) -> Result<Vec<HttpRequest>, QuicpulseError> {
-    let content = fs::read_to_string(path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
 
     parse_http_content(&content)
 }
@@ -95,11 +94,12 @@ pub fn parse_http_content(content: &str) -> Result<Vec<HttpRequest>, QuicpulseEr
         }
 
         let request_line_num = i + 1;
-        let (method, url) = parse_request_line(request_line)
-            .ok_or_else(|| QuicpulseError::Parse(format!(
+        let (method, url) = parse_request_line(request_line).ok_or_else(|| {
+            QuicpulseError::Parse(format!(
                 "Invalid request line at line {}: '{}'",
                 request_line_num, request_line
-            )))?;
+            ))
+        })?;
         i += 1;
 
         // Parse headers until empty line or end of file
@@ -151,10 +151,20 @@ pub fn parse_http_content(content: &str) -> Result<Vec<HttpRequest>, QuicpulseEr
         }
 
         // Trim empty lines from body
-        while !body_lines.is_empty() && body_lines.last().map(|l| l.trim().is_empty()).unwrap_or(false) {
+        while !body_lines.is_empty()
+            && body_lines
+                .last()
+                .map(|l| l.trim().is_empty())
+                .unwrap_or(false)
+        {
             body_lines.pop();
         }
-        while !body_lines.is_empty() && body_lines.first().map(|l| l.trim().is_empty()).unwrap_or(false) {
+        while !body_lines.is_empty()
+            && body_lines
+                .first()
+                .map(|l| l.trim().is_empty())
+                .unwrap_or(false)
+        {
             body_lines.remove(0);
         }
 
@@ -186,7 +196,9 @@ fn parse_request_line(line: &str) -> Option<(String, String)> {
 
     let method = parts[0].to_uppercase();
     // Validate it's a known HTTP method
-    let valid_methods = ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT"];
+    let valid_methods = [
+        "GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS", "TRACE", "CONNECT",
+    ];
     if !valid_methods.contains(&method.as_str()) {
         return None;
     }
@@ -242,7 +254,8 @@ pub fn request_to_args(request: &HttpRequest, variables: &HashMap<String, String
     // Add headers as request items
     for (name, value) in &request.headers {
         let expanded_value = expand_variables(value, variables);
-        args.request_items.push(format!("{}:{}", name, expanded_value));
+        args.request_items
+            .push(format!("{}:{}", name, expanded_value));
     }
 
     // Set body if present
@@ -283,10 +296,17 @@ pub fn parse_variables(content: &str) -> HashMap<String, String> {
 pub fn list_requests(path: &Path) -> Result<Vec<(usize, String, String, String)>, QuicpulseError> {
     let requests = parse_http_file(path)?;
 
-    Ok(requests.iter().enumerate().map(|(i, req)| {
-        let name = req.name.clone().unwrap_or_else(|| format!("Request {}", i + 1));
-        (i + 1, name, req.method.clone(), req.url.clone())
-    }).collect())
+    Ok(requests
+        .iter()
+        .enumerate()
+        .map(|(i, req)| {
+            let name = req
+                .name
+                .clone()
+                .unwrap_or_else(|| format!("Request {}", i + 1));
+            (i + 1, name, req.method.clone(), req.url.clone())
+        })
+        .collect())
 }
 
 #[cfg(test)]
@@ -313,8 +333,14 @@ Content-Type: application/json
 "#;
         let requests = parse_http_content(content).unwrap();
         assert_eq!(requests.len(), 1);
-        assert_eq!(requests[0].headers.get("Authorization"), Some(&"Bearer token123".to_string()));
-        assert_eq!(requests[0].headers.get("Content-Type"), Some(&"application/json".to_string()));
+        assert_eq!(
+            requests[0].headers.get("Authorization"),
+            Some(&"Bearer token123".to_string())
+        );
+        assert_eq!(
+            requests[0].headers.get("Content-Type"),
+            Some(&"application/json".to_string())
+        );
     }
 
     #[test]
@@ -367,7 +393,10 @@ GET {{baseUrl}}/users
 Authorization: Bearer {{token}}
 "#;
         let variables = parse_variables(content);
-        assert_eq!(variables.get("baseUrl"), Some(&"https://api.example.com".to_string()));
+        assert_eq!(
+            variables.get("baseUrl"),
+            Some(&"https://api.example.com".to_string())
+        );
         assert_eq!(variables.get("token"), Some(&"secret123".to_string()));
     }
 

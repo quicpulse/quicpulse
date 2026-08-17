@@ -1,9 +1,9 @@
 //! Plugin configuration
 
+use crate::errors::QuicpulseError;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use crate::errors::QuicpulseError;
 
 /// Plugin manifest
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,27 +102,24 @@ impl Default for PluginConfig {
 impl PluginManifest {
     /// Load manifest from a file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, QuicpulseError> {
-        let content = std::fs::read_to_string(path.as_ref())
-            .map_err(QuicpulseError::Io)?;
+        let content = std::fs::read_to_string(path.as_ref()).map_err(QuicpulseError::Io)?;
 
-        let ext = path.as_ref()
+        let ext = path
+            .as_ref()
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("json");
 
         match ext {
-            "yaml" | "yml" => {
-                serde_yaml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse plugin manifest: {}", e)))
-            }
-            "toml" => {
-                toml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse plugin manifest: {}", e)))
-            }
-            _ => {
-                serde_json::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse plugin manifest: {}", e)))
-            }
+            "yaml" | "yml" => serde_yaml::from_str(&content).map_err(|e| {
+                QuicpulseError::Config(format!("Failed to parse plugin manifest: {}", e))
+            }),
+            "toml" => toml::from_str(&content).map_err(|e| {
+                QuicpulseError::Config(format!("Failed to parse plugin manifest: {}", e))
+            }),
+            _ => serde_json::from_str(&content).map_err(|e| {
+                QuicpulseError::Config(format!("Failed to parse plugin manifest: {}", e))
+            }),
         }
     }
 
@@ -151,27 +148,24 @@ pub struct PluginsConfig {
 impl PluginsConfig {
     /// Load from file
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, QuicpulseError> {
-        let content = std::fs::read_to_string(path.as_ref())
-            .map_err(QuicpulseError::Io)?;
+        let content = std::fs::read_to_string(path.as_ref()).map_err(QuicpulseError::Io)?;
 
-        let ext = path.as_ref()
+        let ext = path
+            .as_ref()
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("json");
 
         match ext {
-            "yaml" | "yml" => {
-                serde_yaml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse plugins config: {}", e)))
-            }
-            "toml" => {
-                toml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse plugins config: {}", e)))
-            }
-            _ => {
-                serde_json::from_str(&content)
-                    .map_err(|e| QuicpulseError::Config(format!("Failed to parse plugins config: {}", e)))
-            }
+            "yaml" | "yml" => serde_yaml::from_str(&content).map_err(|e| {
+                QuicpulseError::Config(format!("Failed to parse plugins config: {}", e))
+            }),
+            "toml" => toml::from_str(&content).map_err(|e| {
+                QuicpulseError::Config(format!("Failed to parse plugins config: {}", e))
+            }),
+            _ => serde_json::from_str(&content).map_err(|e| {
+                QuicpulseError::Config(format!("Failed to parse plugins config: {}", e))
+            }),
         }
     }
 
@@ -182,16 +176,12 @@ impl PluginsConfig {
 
     /// Check if plugin is enabled
     pub fn is_enabled(&self, name: &str) -> bool {
-        self.plugins.get(name)
-            .map(|c| c.enabled)
-            .unwrap_or(true)
+        self.plugins.get(name).map(|c| c.enabled).unwrap_or(true)
     }
 
     /// Check if a bundled plugin is enabled (default: false for bundled plugins)
     pub fn is_bundled_enabled(&self, name: &str) -> bool {
-        self.plugins.get(name)
-            .map(|c| c.enabled)
-            .unwrap_or(false) // Bundled plugins are disabled by default
+        self.plugins.get(name).map(|c| c.enabled).unwrap_or(false) // Bundled plugins are disabled by default
     }
 }
 

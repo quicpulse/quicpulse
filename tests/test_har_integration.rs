@@ -2,10 +2,10 @@
 
 mod common;
 
-use common::{http, http_error, MockEnvironment, ExitStatus, fixtures};
+use common::{fixtures, http, http_error, ExitStatus, MockEnvironment};
 use std::path::PathBuf;
-use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn fixture_path(name: &str) -> PathBuf {
     fixtures::fixture_path(name)
@@ -22,20 +22,31 @@ fn test_har_load_valid_file() {
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     // Should list entries from the HAR file
-    assert!(response.stdout.contains("GET") || response.stderr.contains("GET"),
-        "Should show GET entries. stdout: {}, stderr: {}", response.stdout, response.stderr);
+    assert!(
+        response.stdout.contains("GET") || response.stderr.contains("GET"),
+        "Should show GET entries. stdout: {}, stderr: {}",
+        response.stdout,
+        response.stderr
+    );
 }
 
 #[test]
 fn test_har_load_nonexistent_file() {
-    let response = http_error(&["--import-har", "/nonexistent/path/to/file.har", "--har-list"]);
+    let response = http_error(&[
+        "--import-har",
+        "/nonexistent/path/to/file.har",
+        "--har-list",
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
     // Should show error about file not found
-    assert!(response.stderr.contains("No such file") ||
-            response.stderr.contains("not found") ||
-            response.stderr.contains("error"),
-        "Should show file error. stderr: {}", response.stderr);
+    assert!(
+        response.stderr.contains("No such file")
+            || response.stderr.contains("not found")
+            || response.stderr.contains("error"),
+        "Should show file error. stderr: {}",
+        response.stderr
+    );
 }
 
 #[test]
@@ -63,8 +74,11 @@ fn test_har_list_entries() {
     // Should list the entries from sample.har (contains 5 entries)
     // Check for URLs or methods in the output
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("users") || output.contains("GET") || output.contains("POST"),
-        "Should list HAR entries. output: {}", output);
+    assert!(
+        output.contains("users") || output.contains("GET") || output.contains("POST"),
+        "Should list HAR entries. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -75,8 +89,11 @@ fn test_har_list_shows_methods() {
     // The sample.har contains GET, POST, DELETE requests
     let output = format!("{}{}", response.stdout, response.stderr);
     // At least one method should be visible
-    assert!(output.contains("GET") || output.contains("POST") || output.contains("DELETE"),
-        "Should show HTTP methods. output: {}", output);
+    assert!(
+        output.contains("GET") || output.contains("POST") || output.contains("DELETE"),
+        "Should show HTTP methods. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -88,16 +105,21 @@ fn test_har_filter_by_url_pattern() {
     let har_path = fixture_path("sample.har");
     // Filter for "users" in the URL
     let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-filter", "users",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-filter",
+        "users",
+        "--har-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should filter to only user-related entries
-    assert!(output.contains("users"),
-        "Should show filtered entries. output: {}", output);
+    assert!(
+        output.contains("users"),
+        "Should show filtered entries. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -105,16 +127,21 @@ fn test_har_filter_no_matches() {
     let har_path = fixture_path("sample.har");
     // Filter for pattern that doesn't match anything
     let response = http_error(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-filter", "zzz_nonexistent_pattern_zzz",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-filter",
+        "zzz_nonexistent_pattern_zzz",
+        "--har-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
-    assert!(response.stderr.contains("No entries match") ||
-            response.stderr.contains("no entries") ||
-            response.stderr.contains("pattern"),
-        "Should show no matches error. stderr: {}", response.stderr);
+    assert!(
+        response.stderr.contains("No entries match")
+            || response.stderr.contains("no entries")
+            || response.stderr.contains("pattern"),
+        "Should show no matches error. stderr: {}",
+        response.stderr
+    );
 }
 
 #[test]
@@ -122,9 +149,11 @@ fn test_har_filter_regex_pattern() {
     let har_path = fixture_path("sample.har");
     // Use regex pattern
     let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-filter", "users/\\d+",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-filter",
+        "users/\\d+",
+        "--har-list",
     ]);
 
     // Should match /users/1, /users/2, etc.
@@ -140,16 +169,21 @@ fn test_har_filter_by_indices() {
     let har_path = fixture_path("sample.har");
     // Select specific indices (1-based)
     let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-index", "1",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-index",
+        "1",
+        "--har-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     // Should only show the first entry
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("1") || output.contains("users"),
-        "Should show selected entry. output: {}", output);
+    assert!(
+        output.contains("1") || output.contains("users"),
+        "Should show selected entry. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -157,10 +191,13 @@ fn test_har_filter_multiple_indices() {
     let har_path = fixture_path("sample.har");
     // Select multiple indices
     let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-index", "0",
-        "--har-index", "2",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-index",
+        "0",
+        "--har-index",
+        "2",
+        "--har-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -171,16 +208,21 @@ fn test_har_invalid_index() {
     let har_path = fixture_path("sample.har");
     // Select an index that doesn't exist (sample.har has 5 entries, so 999 is invalid)
     let response = http_error(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-index", "999",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-index",
+        "999",
+        "--har-list",
     ]);
 
     // Should handle gracefully - either error or empty result
-    assert!(response.exit_status == ExitStatus::Error ||
-            response.stderr.contains("No valid indices") ||
-            response.stderr.contains("index"),
-        "Should handle invalid index. stderr: {}", response.stderr);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || response.stderr.contains("No valid indices")
+            || response.stderr.contains("index"),
+        "Should handle invalid index. stderr: {}",
+        response.stderr
+    );
 }
 
 // =============================================================================
@@ -193,8 +235,10 @@ async fn test_har_replay_single_request() {
 
     Mock::given(method("GET"))
         .and(path("/users"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(serde_json::json!([{"id": 1, "name": "Test"}])))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_json(serde_json::json!([{"id": 1, "name": "Test"}])),
+        )
         .mount(&mock_server)
         .await;
 
@@ -234,15 +278,24 @@ async fn test_har_replay_single_request() {
             }]
         }
     });
-    std::fs::write(&har_file, serde_json::to_string_pretty(&har_content).unwrap()).unwrap();
+    std::fs::write(
+        &har_file,
+        serde_json::to_string_pretty(&har_content).unwrap(),
+    )
+    .unwrap();
 
     let response = http(&["--import-har", har_file.to_str().unwrap()]);
 
     // Should successfully replay the request
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("200") || output.contains("success") || output.contains("Replay") ||
-            response.exit_status == ExitStatus::Success,
-        "Should replay successfully. output: {}", output);
+    assert!(
+        output.contains("200")
+            || output.contains("success")
+            || output.contains("Replay")
+            || response.exit_status == ExitStatus::Success,
+        "Should replay successfully. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -325,15 +378,23 @@ async fn test_har_replay_multiple_requests() {
             ]
         }
     });
-    std::fs::write(&har_file, serde_json::to_string_pretty(&har_content).unwrap()).unwrap();
+    std::fs::write(
+        &har_file,
+        serde_json::to_string_pretty(&har_content).unwrap(),
+    )
+    .unwrap();
 
     let response = http(&["--import-har", har_file.to_str().unwrap()]);
 
     // Both requests should be replayed
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("2") || output.contains("Entries") ||
-            response.exit_status == ExitStatus::Success,
-        "Should replay multiple requests. output: {}", output);
+    assert!(
+        output.contains("2")
+            || output.contains("Entries")
+            || response.exit_status == ExitStatus::Success,
+        "Should replay multiple requests. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -343,31 +404,31 @@ async fn test_har_replay_multiple_requests() {
 #[test]
 fn test_har_dry_run_no_requests_sent() {
     let har_path = fixture_path("sample.har");
-    let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--dry-run"
-    ]);
+    let response = http(&["--import-har", har_path.to_str().unwrap(), "--dry-run"]);
 
     // Dry run mode shows entries but returns Error status (all requests "failed" in dry run)
     // The URLs in sample.har point to api.example.com which doesn't exist
     // This is expected behavior - dry run reports all as "failed"
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("DRY RUN") || output.contains("dry") || output.contains("Dry"),
-        "Should indicate dry run mode. output: {}", output);
+    assert!(
+        output.contains("DRY RUN") || output.contains("dry") || output.contains("Dry"),
+        "Should indicate dry run mode. output: {}",
+        output
+    );
 }
 
 #[test]
 fn test_har_dry_run_shows_entries() {
     let har_path = fixture_path("sample.har");
-    let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--dry-run"
-    ]);
+    let response = http(&["--import-har", har_path.to_str().unwrap(), "--dry-run"]);
 
     // Dry run returns Error status but still shows entries
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("5") || output.contains("entries") || output.contains("Entries"),
-        "Should show entry count. output: {}", output);
+    assert!(
+        output.contains("5") || output.contains("entries") || output.contains("Entries"),
+        "Should show entry count. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -439,19 +500,29 @@ async fn test_har_replay_with_delay() {
             ]
         }
     });
-    std::fs::write(&har_file, serde_json::to_string_pretty(&har_content).unwrap()).unwrap();
+    std::fs::write(
+        &har_file,
+        serde_json::to_string_pretty(&har_content).unwrap(),
+    )
+    .unwrap();
 
     let start = std::time::Instant::now();
     let response = http(&[
-        "--import-har", har_file.to_str().unwrap(),
-        "--har-delay", "50ms"
+        "--import-har",
+        har_file.to_str().unwrap(),
+        "--har-delay",
+        "50ms",
     ]);
     let elapsed = start.elapsed();
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     // With 50ms delay between 2 requests, should take at least 50ms
     // (but not too much more, accounting for test overhead)
-    assert!(elapsed.as_millis() >= 40, "Should have delay between requests. Elapsed: {:?}", elapsed);
+    assert!(
+        elapsed.as_millis() >= 40,
+        "Should have delay between requests. Elapsed: {:?}",
+        elapsed
+    );
 }
 
 #[test]
@@ -461,15 +532,21 @@ fn test_har_delay_parsing() {
     // Test various delay formats (dry-run returns Error status, but delay should be parsed)
     for delay in &["100ms", "1s", "500ms"] {
         let response = http(&[
-            "--import-har", har_path.to_str().unwrap(),
-            "--har-delay", delay,
-            "--dry-run"
+            "--import-har",
+            har_path.to_str().unwrap(),
+            "--har-delay",
+            delay,
+            "--dry-run",
         ]);
 
         // Dry run returns Error status, but delay should be parsed and shown
         let output = format!("{}{}", response.stdout, response.stderr);
-        assert!(output.contains("Delay") || output.contains(delay) || output.contains("ms"),
-            "Should accept delay format: {}. output: {}", delay, output);
+        assert!(
+            output.contains("Delay") || output.contains(delay) || output.contains("ms"),
+            "Should accept delay format: {}. output: {}",
+            delay,
+            output
+        );
     }
 }
 
@@ -483,8 +560,9 @@ async fn test_har_replay_post_with_body() {
 
     Mock::given(method("POST"))
         .and(path("/api/create"))
-        .respond_with(ResponseTemplate::new(201)
-            .set_body_json(serde_json::json!({"id": 1, "created": true})))
+        .respond_with(
+            ResponseTemplate::new(201).set_body_json(serde_json::json!({"id": 1, "created": true})),
+        )
         .mount(&mock_server)
         .await;
 
@@ -524,7 +602,11 @@ async fn test_har_replay_post_with_body() {
             }]
         }
     });
-    std::fs::write(&har_file, serde_json::to_string_pretty(&har_content).unwrap()).unwrap();
+    std::fs::write(
+        &har_file,
+        serde_json::to_string_pretty(&har_content).unwrap(),
+    )
+    .unwrap();
 
     let response = http(&["--import-har", har_file.to_str().unwrap()]);
 
@@ -546,15 +628,22 @@ fn test_har_empty_file() {
             "entries": []
         }
     });
-    std::fs::write(&empty_har, serde_json::to_string_pretty(&har_content).unwrap()).unwrap();
+    std::fs::write(
+        &empty_har,
+        serde_json::to_string_pretty(&har_content).unwrap(),
+    )
+    .unwrap();
 
     let response = http_error(&["--import-har", empty_har.to_str().unwrap()]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
-    assert!(response.stderr.contains("no entries") ||
-            response.stderr.contains("empty") ||
-            response.stderr.contains("No entries"),
-        "Should indicate empty HAR. stderr: {}", response.stderr);
+    assert!(
+        response.stderr.contains("no entries")
+            || response.stderr.contains("empty")
+            || response.stderr.contains("No entries"),
+        "Should indicate empty HAR. stderr: {}",
+        response.stderr
+    );
 }
 
 #[test]
@@ -562,10 +651,13 @@ fn test_har_combined_filter_and_index() {
     let har_path = fixture_path("sample.har");
     // Apply both filter and index (1-based indexing)
     let response = http(&[
-        "--import-har", har_path.to_str().unwrap(),
-        "--har-filter", "users",
-        "--har-index", "1",
-        "--har-list"
+        "--import-har",
+        har_path.to_str().unwrap(),
+        "--har-filter",
+        "users",
+        "--har-index",
+        "1",
+        "--har-list",
     ]);
 
     // Should apply filter first, then index

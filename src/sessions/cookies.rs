@@ -38,12 +38,16 @@ pub fn should_send_cookie(
     is_secure: bool,
 ) -> bool {
     // Check domain
-    let domain_match = cookie.domain.as_ref()
+    let domain_match = cookie
+        .domain
+        .as_ref()
         .map(|d| domain_matches(domain, d))
         .unwrap_or(true);
 
     // Check path
-    let path_match = cookie.path.as_ref()
+    let path_match = cookie
+        .path
+        .as_ref()
         .map(|p| path.starts_with(p))
         .unwrap_or(true);
 
@@ -60,6 +64,5 @@ pub fn should_send_cookie(
 pub fn domain_matches(request_domain: &str, cookie_domain: &str) -> bool {
     let cookie_domain = cookie_domain.trim_start_matches('.');
 
-    request_domain == cookie_domain
-        || request_domain.ends_with(&format!(".{}", cookie_domain))
+    request_domain == cookie_domain || request_domain.ends_with(&format!(".{}", cookie_domain))
 }

@@ -3,7 +3,7 @@
 //! Pipes output through a pager like `less` or `more` for easier reading.
 
 use std::io::{self, Write};
-use std::process::{Command, Stdio, Child};
+use std::process::{Child, Command, Stdio};
 
 /// Pager configuration
 #[derive(Debug, Clone)]
@@ -58,9 +58,7 @@ impl PagerWriter {
             command.args(&parts[1..]);
         }
 
-        let mut child = command
-            .stdin(Stdio::piped())
-            .spawn()?;
+        let mut child = command.stdin(Stdio::piped()).spawn()?;
 
         let stdin = child.stdin.take();
 

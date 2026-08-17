@@ -2,9 +2,9 @@
 //!
 //! Provides JWT decoding and inspection utilities.
 
-use rquickjs::{Ctx, Object, Function};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use crate::errors::QuicpulseError;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
@@ -30,7 +30,8 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     jwt.set("audience", Function::new(ctx.clone(), jwt_audience)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("jwt", jwt)
+    globals
+        .set("jwt", jwt)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set jwt global: {}", e)))?;
 
     Ok(())

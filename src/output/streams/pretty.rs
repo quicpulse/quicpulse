@@ -24,10 +24,7 @@ impl PrettyStream {
     /// Create a new pretty stream with syntax highlighting
     pub fn new(content: &str, syntax_name: &str, theme_name: &str) -> Self {
         let lines = highlight_content(content, syntax_name, theme_name);
-        Self {
-            lines,
-            position: 0,
-        }
+        Self { lines, position: 0 }
     }
 
     /// Create for JSON content
@@ -73,12 +70,15 @@ fn highlight_content(content: &str, syntax_name: &str, theme_name: &str) -> Vec<
     let ts = &*THEME_SET;
 
     // Find syntax by name or extension
-    let syntax = ss.find_syntax_by_name(syntax_name)
+    let syntax = ss
+        .find_syntax_by_name(syntax_name)
         .or_else(|| ss.find_syntax_by_extension(syntax_name.to_lowercase().as_str()))
         .unwrap_or_else(|| ss.find_syntax_plain_text());
 
     // Find theme or use default
-    let theme = ts.themes.get(theme_name)
+    let theme = ts
+        .themes
+        .get(theme_name)
         .or_else(|| ts.themes.get("base16-ocean.dark"))
         .unwrap_or_else(|| ts.themes.values().next().unwrap());
 
@@ -125,7 +125,7 @@ impl BufferedPrettyStream {
     pub fn new(content: &str, syntax_name: &str, theme_name: &str) -> Self {
         let pretty = PrettyStream::new(content, syntax_name, theme_name);
         let formatted = pretty.to_string();
-        
+
         // Split into chunks
         let chunks: Vec<String> = formatted
             .as_bytes()

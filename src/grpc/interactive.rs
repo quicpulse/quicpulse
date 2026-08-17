@@ -12,7 +12,11 @@ use std::io::{self, BufRead, Write};
 enum Command {
     List,
     Describe(String),
-    Call { service: String, method: String, payload: String },
+    Call {
+        service: String,
+        method: String,
+        payload: String,
+    },
     Use(String),
     Help,
     Quit,
@@ -80,7 +84,7 @@ impl GrpcRepl {
             // Parse and execute command
             let cmd = self.parse_command(input);
             match self.execute_command(cmd).await {
-                Ok(true) => {} // Continue
+                Ok(true) => {}      // Continue
                 Ok(false) => break, // Quit
                 Err(e) => {
                     eprintln!("\x1b[31mError: {}\x1b[0m", e);
@@ -138,7 +142,11 @@ impl GrpcRepl {
                     if let Some(dot_idx) = method_part.rfind('.') {
                         let service = method_part[..dot_idx].to_string();
                         let method = method_part[dot_idx + 1..].to_string();
-                        Command::Call { service, method, payload: payload.to_string() }
+                        Command::Call {
+                            service,
+                            method,
+                            payload: payload.to_string(),
+                        }
                     } else if let Some(ref svc) = self.current_service {
                         Command::Call {
                             service: svc.clone(),
@@ -146,10 +154,14 @@ impl GrpcRepl {
                             payload: payload.to_string(),
                         }
                     } else {
-                        Command::Unknown("No service selected. Use 'use <service>' first".to_string())
+                        Command::Unknown(
+                            "No service selected. Use 'use <service>' first".to_string(),
+                        )
                     }
                 } else {
-                    Command::Unknown("call requires JSON payload: call Method {\"key\": \"value\"}".to_string())
+                    Command::Unknown(
+                        "call requires JSON payload: call Method {\"key\": \"value\"}".to_string(),
+                    )
                 }
             }
             "help" | "h" | "?" => Command::Help,
@@ -174,7 +186,11 @@ impl GrpcRepl {
                 self.current_service = Some(service.clone());
                 println!("Now using service: \x1b[36m{}\x1b[0m", service);
             }
-            Command::Call { service, method, payload } => {
+            Command::Call {
+                service,
+                method,
+                payload,
+            } => {
                 self.call_method(&service, &method, &payload).await?;
             }
             Command::Help => {
@@ -259,8 +275,16 @@ impl GrpcRepl {
                 if svc.name == service || svc.full_name == service {
                     println!("\n\x1b[1mservice {} {{\x1b[0m", svc.name);
                     for method in &svc.methods {
-                        let client_stream = if method.client_streaming { "stream " } else { "" };
-                        let server_stream = if method.server_streaming { "stream " } else { "" };
+                        let client_stream = if method.client_streaming {
+                            "stream "
+                        } else {
+                            ""
+                        };
+                        let server_stream = if method.server_streaming {
+                            "stream "
+                        } else {
+                            ""
+                        };
                         println!(
                             "  \x1b[32mrpc\x1b[0m \x1b[36m{}\x1b[0m(\x1b[33m{}{}\x1b[0m) returns (\x1b[33m{}{}\x1b[0m);",
                             method.name,
@@ -287,14 +311,22 @@ impl GrpcRepl {
         Ok(())
     }
 
-    async fn call_method(&mut self, service: &str, method: &str, payload: &str) -> Result<(), QuicpulseError> {
+    async fn call_method(
+        &mut self,
+        service: &str,
+        method: &str,
+        payload: &str,
+    ) -> Result<(), QuicpulseError> {
         // Parse JSON payload
         let json: serde_json::Value = serde_json::from_str(payload)
             .map_err(|e| QuicpulseError::Argument(format!("Invalid JSON: {}", e)))?;
 
         if self.verbose {
             eprintln!("\x1b[90mCalling {}/{} with:\x1b[0m", service, method);
-            eprintln!("\x1b[90m{}\x1b[0m", serde_json::to_string_pretty(&json).unwrap_or_default());
+            eprintln!(
+                "\x1b[90m{}\x1b[0m",
+                serde_json::to_string_pretty(&json).unwrap_or_default()
+            );
         }
 
         println!("Calling \x1b[36m{}.{}\x1b[0m...", service, method);
@@ -308,7 +340,11 @@ impl GrpcRepl {
                 println!("{}", pretty);
             }
         } else {
-            println!("\x1b[31mError: {:?} - {}\x1b[0m", response.code(), response.message());
+            println!(
+                "\x1b[31mError: {:?} - {}\x1b[0m",
+                response.code(),
+                response.message()
+            );
         }
 
         Ok(())

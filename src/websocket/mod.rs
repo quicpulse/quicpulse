@@ -1,15 +1,15 @@
 //! WebSocket support module
 
-pub mod types;
-pub mod codec;
 pub mod client;
-pub mod stream;
+pub mod codec;
 pub mod interactive;
+pub mod stream;
+pub mod types;
 
-pub use types::{WsEndpoint, WsMessage, WsOptions, WsMode, BinaryMode};
+pub use types::{BinaryMode, WsEndpoint, WsMessage, WsMode, WsOptions};
 
-use crate::cli::Args;
 use crate::cli::parser::ProcessedArgs;
+use crate::cli::Args;
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
 use crate::status::ExitStatus;
@@ -92,7 +92,9 @@ pub fn parse_ws_endpoint(url: &str, args: &Args) -> Result<WsEndpoint, Quicpulse
     };
 
     if host.is_empty() {
-        return Err(QuicpulseError::Argument("WebSocket URL must include a host".to_string()));
+        return Err(QuicpulseError::Argument(
+            "WebSocket URL must include a host".to_string(),
+        ));
     }
 
     Ok(WsEndpoint {
@@ -136,16 +138,16 @@ pub async fn run_websocket(
     let mode = determine_mode(args, env);
 
     // Collect headers from request items
-    let headers: Vec<(String, String)> = processed.items.iter()
-        .filter_map(|item| {
-            match item {
-                InputItem::Header { name, value } => Some((name.clone(), value.clone())),
-                InputItem::EmptyHeader { name } => Some((name.clone(), String::new())),
-                InputItem::HeaderFile { name, path } => {
-                    std::fs::read_to_string(path).ok().map(|v| (name.clone(), v.trim().to_string()))
-                }
-                _ => None,
-            }
+    let headers: Vec<(String, String)> = processed
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            InputItem::Header { name, value } => Some((name.clone(), value.clone())),
+            InputItem::EmptyHeader { name } => Some((name.clone(), String::new())),
+            InputItem::HeaderFile { name, path } => std::fs::read_to_string(path)
+                .ok()
+                .map(|v| (name.clone(), v.trim().to_string())),
+            _ => None,
         })
         .collect();
 
@@ -154,19 +156,16 @@ pub async fn run_websocket(
         let mut obj = serde_json::Map::new();
         for item in &processed.items {
             let (key, value) = match item {
-                InputItem::DataField { key, value } => {
-                    (key.clone(), serde_json::json!(value))
-                }
+                InputItem::DataField { key, value } => (key.clone(), serde_json::json!(value)),
                 InputItem::DataFieldFile { key, path } => {
                     let content = std::fs::read_to_string(path).unwrap_or_default();
                     (key.clone(), serde_json::json!(content.trim()))
                 }
-                InputItem::JsonField { key, value } => {
-                    (key.clone(), value.clone())
-                }
+                InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                 InputItem::JsonFieldFile { key, path } => {
                     let content = std::fs::read_to_string(path).unwrap_or_default();
-                    let json_val = serde_json::from_str(&content).unwrap_or(serde_json::json!(content));
+                    let json_val =
+                        serde_json::from_str(&content).unwrap_or(serde_json::json!(content));
                     (key.clone(), json_val)
                 }
                 _ => continue,
@@ -180,8 +179,11 @@ pub async fn run_websocket(
 
     // Parse binary mode
     let binary_mode = if let Some(ref mode_str) = args.ws_binary {
-        Some(mode_str.parse::<BinaryMode>()
-            .map_err(|e| QuicpulseError::Argument(e))?)
+        Some(
+            mode_str
+                .parse::<BinaryMode>()
+                .map_err(|e| QuicpulseError::Argument(e))?,
+        )
     } else {
         None
     };
@@ -212,8 +214,9 @@ pub async fn run_websocket(
     // Send JSON body if present and not in listen mode
     if let Some(ref json) = json_body {
         if mode != WsMode::Listen {
-            let msg = serde_json::to_string(json)
-                .map_err(|e| QuicpulseError::WebSocket(format!("Failed to serialize JSON: {}", e)))?;
+            let msg = serde_json::to_string(json).map_err(|e| {
+                QuicpulseError::WebSocket(format!("Failed to serialize JSON: {}", e))
+            })?;
             ws_client.send_text(&msg).await?;
             if args.verbose > 0 {
                 eprintln!("Sent: {}", msg);
@@ -240,17 +243,13 @@ pub async fn run_websocket(
             Ok(ExitStatus::Success)
         }
 
-        WsMode::Listen => {
-            stream::run_listen_mode(&mut ws_client, &options).await
-        }
+        WsMode::Listen => stream::run_listen_mode(&mut ws_client, &options).await,
 
         WsMode::Interactive => {
             interactive::run_interactive_mode(&mut ws_client, &options, env).await
         }
 
-        WsMode::Stdin => {
-            stream::run_stdin_mode(&mut ws_client, &options).await
-        }
+        WsMode::Stdin => stream::run_stdin_mode(&mut ws_client, &options).await,
     }
 }
 

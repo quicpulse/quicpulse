@@ -7,10 +7,10 @@
 //! - User must have run `aws sso login --profile <profile_name>` to obtain SSO token
 //! - Token must not be expired
 
-use std::path::PathBuf;
-use crate::errors::QuicpulseError;
 use super::aws::AwsSigV4Config;
 use super::aws_config::AwsProfile;
+use crate::errors::QuicpulseError;
+use std::path::PathBuf;
 
 /// SSO token from cache
 #[derive(Debug, Clone, serde::Deserialize)]
@@ -48,16 +48,24 @@ pub async fn resolve_sso_profile(
     service: String,
 ) -> Result<AwsSigV4Config, QuicpulseError> {
     // Get SSO configuration from profile
-    let sso_start_url = profile.sso_start_url.as_ref()
+    let sso_start_url = profile
+        .sso_start_url
+        .as_ref()
         .ok_or_else(|| QuicpulseError::Config("SSO profile missing sso_start_url".to_string()))?;
 
-    let sso_region = profile.sso_region.as_ref()
+    let sso_region = profile
+        .sso_region
+        .as_ref()
         .ok_or_else(|| QuicpulseError::Config("SSO profile missing sso_region".to_string()))?;
 
-    let sso_account_id = profile.sso_account_id.as_ref()
+    let sso_account_id = profile
+        .sso_account_id
+        .as_ref()
         .ok_or_else(|| QuicpulseError::Config("SSO profile missing sso_account_id".to_string()))?;
 
-    let sso_role_name = profile.sso_role_name.as_ref()
+    let sso_role_name = profile
+        .sso_role_name
+        .as_ref()
         .ok_or_else(|| QuicpulseError::Config("SSO profile missing sso_role_name".to_string()))?;
 
     // Load SSO token from cache
@@ -77,7 +85,8 @@ pub async fn resolve_sso_profile(
         sso_account_id,
         sso_role_name,
         sso_region,
-    ).await?;
+    )
+    .await?;
 
     Ok(AwsSigV4Config {
         access_key_id: creds.access_key_id,
@@ -121,7 +130,7 @@ fn get_sso_cache_dir() -> Result<PathBuf, QuicpulseError> {
 
 /// Compute SHA1 hash of a string (for SSO cache file naming)
 fn sha1_hex(input: &str) -> String {
-    use sha1::{Sha1, Digest};
+    use sha1::{Digest, Sha1};
     let mut hasher = Sha1::new();
     hasher.update(input.as_bytes());
     hex::encode(hasher.finalize())
@@ -163,7 +172,9 @@ async fn get_role_credentials(
         .header("x-amz-sso_bearer_token", access_token)
         .send()
         .await
-        .map_err(|e| QuicpulseError::Config(format!("SSO GetRoleCredentials request failed: {}", e)))?;
+        .map_err(|e| {
+            QuicpulseError::Config(format!("SSO GetRoleCredentials request failed: {}", e))
+        })?;
 
     if !response.status().is_success() {
         let status = response.status();
@@ -171,7 +182,7 @@ async fn get_role_credentials(
 
         if status.as_u16() == 401 || status.as_u16() == 403 {
             return Err(QuicpulseError::Auth(
-                "SSO token is invalid or expired. Run 'aws sso login' to refresh.".to_string()
+                "SSO token is invalid or expired. Run 'aws sso login' to refresh.".to_string(),
             ));
         }
 
@@ -182,7 +193,9 @@ async fn get_role_credentials(
     }
 
     // Parse response
-    let response_body: SsoGetRoleCredentialsResponse = response.json().await
+    let response_body: SsoGetRoleCredentialsResponse = response
+        .json()
+        .await
         .map_err(|e| QuicpulseError::Auth(format!("Failed to parse SSO response: {}", e)))?;
 
     Ok(response_body.role_credentials)

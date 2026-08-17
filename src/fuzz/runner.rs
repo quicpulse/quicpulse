@@ -2,16 +2,16 @@
 //!
 //! Executes fuzzing payloads against API endpoints and reports anomalies.
 
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
-use reqwest::{Client, Method, header::HeaderMap};
+use reqwest::{header::HeaderMap, Client, Method};
 use serde_json::Value as JsonValue;
-use tokio::sync::Semaphore;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::{Duration, Instant};
+use tokio::sync::Semaphore;
 
+use super::payloads::{generate_payloads, FuzzPayload, PayloadCategory};
 use crate::errors::QuicpulseError;
 use crate::output::terminal::{self, colors, RESET};
-use super::payloads::{FuzzPayload, PayloadCategory, generate_payloads};
 
 /// Maximum number of test cases to prevent memory explosion
 const MAX_TEST_CASES: usize = 10_000;
@@ -140,8 +140,7 @@ pub struct FuzzRunner {
 impl FuzzRunner {
     /// Create a new fuzz runner
     pub fn new(options: FuzzOptions) -> Result<Self, QuicpulseError> {
-        let mut builder = Client::builder()
-            .timeout(options.timeout);
+        let mut builder = Client::builder().timeout(options.timeout);
 
         // Apply security settings (Bug #4 fix)
         if options.insecure {
@@ -155,16 +154,13 @@ impl FuzzRunner {
         }
 
         if let Some(ref ca_path) = options.ca_cert {
-            let cert_data = std::fs::read(ca_path)
-                .map_err(|e| QuicpulseError::Io(e))?;
+            let cert_data = std::fs::read(ca_path).map_err(|e| QuicpulseError::Io(e))?;
             let cert = reqwest::Certificate::from_pem(&cert_data)
                 .map_err(|e| QuicpulseError::Argument(format!("Invalid CA certificate: {}", e)))?;
             builder = builder.add_root_certificate(cert);
         }
 
-        let client = builder
-            .build()
-            .map_err(|e| QuicpulseError::Request(e))?;
+        let client = builder.build().map_err(|e| QuicpulseError::Request(e))?;
 
         Ok(Self { client, options })
     }
@@ -192,24 +188,33 @@ impl FuzzRunner {
 
         if self.options.verbose {
             if custom_count > 0 {
-                eprintln!("Generated {} payloads ({} built-in, {} custom) across {} categories",
+                eprintln!(
+                    "Generated {} payloads ({} built-in, {} custom) across {} categories",
                     payloads.len(),
                     payloads.len() - custom_count,
                     custom_count,
-                    PayloadCategory::all().len());
+                    PayloadCategory::all().len()
+                );
             } else {
-                eprintln!("Generated {} payloads across {} categories",
+                eprintln!(
+                    "Generated {} payloads across {} categories",
                     payloads.len(),
-                    PayloadCategory::all().len());
+                    PayloadCategory::all().len()
+                );
             }
         }
 
         // Generate all test cases (with memory limit - Bug #38 fix)
         let total_potential_cases = fields_to_fuzz.len() * payloads.len();
         if total_potential_cases > MAX_TEST_CASES {
-            eprintln!("\x1b[33mWarning: Test case limit exceeded ({} > {})\x1b[0m",
-                total_potential_cases, MAX_TEST_CASES);
-            eprintln!("Limiting to {} test cases. Use --fuzz-risk to filter by risk level.", MAX_TEST_CASES);
+            eprintln!(
+                "\x1b[33mWarning: Test case limit exceeded ({} > {})\x1b[0m",
+                total_potential_cases, MAX_TEST_CASES
+            );
+            eprintln!(
+                "Limiting to {} test cases. Use --fuzz-risk to filter by risk level.",
+                MAX_TEST_CASES
+            );
         }
 
         let mut test_cases = Vec::with_capacity(total_potential_cases.min(MAX_TEST_CASES));
@@ -223,8 +228,11 @@ impl FuzzRunner {
         }
 
         if self.options.verbose {
-            eprintln!("Running {} test cases with concurrency {}",
-                test_cases.len(), self.options.concurrency);
+            eprintln!(
+                "Running {} test cases with concurrency {}",
+                test_cases.len(),
+                self.options.concurrency
+            );
         }
 
         // Run tests concurrently
@@ -252,7 +260,8 @@ impl FuzzRunner {
                     headers,
                     verbose,
                     body_format,
-                ).await;
+                )
+                .await;
                 drop(permit);
                 result
             });
@@ -314,9 +323,12 @@ impl FuzzRunner {
         };
 
         if verbose {
-            eprintln!("  Testing {} = {} ({})", field,
+            eprintln!(
+                "  Testing {} = {} ({})",
+                field,
                 truncate_display(&payload.value.to_string(), 50),
-                payload.description);
+                payload.description
+            );
         }
 
         let start = Instant::now();
@@ -332,7 +344,8 @@ impl FuzzRunner {
                 FuzzBodyFormat::Form => {
                     // Convert JSON object to form data
                     if let Some(obj) = body.as_object() {
-                        let form_data: HashMap<String, String> = obj.iter()
+                        let form_data: HashMap<String, String> = obj
+                            .iter()
                             .map(|(k, v)| {
                                 let value_str = match v {
                                     JsonValue::String(s) => s.clone(),
@@ -421,7 +434,8 @@ impl FuzzRunner {
 
         for result in results {
             // Update category summary
-            let cat_summary = summary.by_category
+            let cat_summary = summary
+                .by_category
                 .entry(result.payload.category)
                 .or_insert_with(CategorySummary::default);
             cat_summary.total += 1;
@@ -443,7 +457,12 @@ impl FuzzRunner {
                     summary.successful += 1;
                 }
                 None => {
-                    if result.error.as_ref().map(|e| e.contains("timeout")).unwrap_or(false) {
+                    if result
+                        .error
+                        .as_ref()
+                        .map(|e| e.contains("timeout"))
+                        .unwrap_or(false)
+                    {
                         summary.timeouts += 1;
                     } else {
                         summary.connection_errors += 1;
@@ -457,16 +476,30 @@ impl FuzzRunner {
 }
 
 /// Format fuzz results for display
-pub fn format_fuzz_results(results: &[FuzzResult], summary: &FuzzSummary, anomalies_only: bool) -> String {
+pub fn format_fuzz_results(
+    results: &[FuzzResult],
+    summary: &FuzzSummary,
+    anomalies_only: bool,
+) -> String {
     let mut output = String::new();
 
-    let header_line = terminal::colorize("═══════════════════════════════════════════════════════════════════", colors::GREY);
-    let section_line = terminal::colorize("───────────────────────────────────────────────────────────────────", colors::GREY);
+    let header_line = terminal::colorize(
+        "═══════════════════════════════════════════════════════════════════",
+        colors::GREY,
+    );
+    let section_line = terminal::colorize(
+        "───────────────────────────────────────────────────────────────────",
+        colors::GREY,
+    );
 
     output.push_str("\n");
     output.push_str(&header_line);
     output.push_str("\n");
-    output.push_str(&format!("{}                        FUZZ TEST RESULTS{}\n", terminal::bold_fg(colors::WHITE), RESET));
+    output.push_str(&format!(
+        "{}                        FUZZ TEST RESULTS{}\n",
+        terminal::bold_fg(colors::WHITE),
+        RESET
+    ));
     output.push_str(&header_line);
     output.push_str("\n\n");
 
@@ -474,17 +507,22 @@ pub fn format_fuzz_results(results: &[FuzzResult], summary: &FuzzSummary, anomal
     let anomalies: Vec<_> = results.iter().filter(|r| r.is_anomaly).collect();
 
     if anomalies.is_empty() {
-        output.push_str(&format!("  {} {}\n\n",
+        output.push_str(&format!(
+            "  {} {}\n\n",
             terminal::colorize("✓", colors::GREEN),
-            terminal::success("No anomalies detected!")));
+            terminal::success("No anomalies detected!")
+        ));
     } else {
-        output.push_str(&format!("  {} {} {} anomalies:\n\n",
+        output.push_str(&format!(
+            "  {} {} {} anomalies:\n\n",
             terminal::colorize("⚠", colors::ORANGE),
             terminal::warning("Found"),
-            terminal::number(&anomalies.len().to_string())));
+            terminal::number(&anomalies.len().to_string())
+        ));
 
         for result in &anomalies {
-            let status_str = result.status_code
+            let status_str = result
+                .status_code
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| "ERR".to_string());
 
@@ -511,9 +549,11 @@ pub fn format_fuzz_results(results: &[FuzzResult], summary: &FuzzSummary, anomal
                 terminal::colorize(&format!("{}/5", result.payload.risk_level), status_color)
             ));
             if let Some(ref reason) = result.anomaly_reason {
-                output.push_str(&format!("      {} {}\n",
+                output.push_str(&format!(
+                    "      {} {}\n",
                     terminal::muted("Reason:"),
-                    terminal::colorize(reason, colors::ORANGE)));
+                    terminal::colorize(reason, colors::ORANGE)
+                ));
             }
             output.push('\n');
         }
@@ -523,48 +563,90 @@ pub fn format_fuzz_results(results: &[FuzzResult], summary: &FuzzSummary, anomal
     if !anomalies_only {
         let normal: Vec<_> = results.iter().filter(|r| !r.is_anomaly).collect();
         if !normal.is_empty() {
-            output.push_str(&format!("  {} {} payloads handled correctly\n\n",
+            output.push_str(&format!(
+                "  {} {} payloads handled correctly\n\n",
                 terminal::colorize("✓", colors::GREEN),
-                terminal::number(&normal.len().to_string())));
+                terminal::number(&normal.len().to_string())
+            ));
         }
     }
 
     // Summary section
     output.push_str(&section_line);
     output.push_str("\n");
-    output.push_str(&format!("{}                           SUMMARY{}\n", terminal::bold_fg(colors::WHITE), RESET));
+    output.push_str(&format!(
+        "{}                           SUMMARY{}\n",
+        terminal::bold_fg(colors::WHITE),
+        RESET
+    ));
     output.push_str(&section_line);
     output.push_str("\n\n");
 
-    output.push_str(&format!("  {}    {}\n", terminal::label("Total Requests:"), terminal::number(&summary.total_requests.to_string())));
-    output.push_str(&format!("  {}          {}\n", terminal::label("Duration:"), terminal::number(&format!("{:?}", summary.duration))));
-    output.push_str(&format!("  {}      {}\n\n", terminal::label("Requests/sec:"),
-        terminal::number(&format!("{:.1}", summary.total_requests as f64 / summary.duration.as_secs_f64()))));
+    output.push_str(&format!(
+        "  {}    {}\n",
+        terminal::label("Total Requests:"),
+        terminal::number(&summary.total_requests.to_string())
+    ));
+    output.push_str(&format!(
+        "  {}          {}\n",
+        terminal::label("Duration:"),
+        terminal::number(&format!("{:?}", summary.duration))
+    ));
+    output.push_str(&format!(
+        "  {}      {}\n\n",
+        terminal::label("Requests/sec:"),
+        terminal::number(&format!(
+            "{:.1}",
+            summary.total_requests as f64 / summary.duration.as_secs_f64()
+        ))
+    ));
 
     output.push_str(&format!("  {}:\n", terminal::label("Response Breakdown")));
-    output.push_str(&format!("    {} {} {}\n",
+    output.push_str(&format!(
+        "    {} {} {}\n",
         terminal::colorize("✓", colors::GREEN),
         terminal::muted("Successful (2xx/3xx):"),
-        terminal::colorize(&summary.successful.to_string(), colors::GREEN)));
-    output.push_str(&format!("    {} {} {}\n",
+        terminal::colorize(&summary.successful.to_string(), colors::GREEN)
+    ));
+    output.push_str(&format!(
+        "    {} {} {}\n",
         terminal::colorize("⊘", colors::ORANGE),
         terminal::muted("Client Errors (4xx):"),
-        terminal::colorize(&summary.client_errors.to_string(), colors::ORANGE)));
-    let server_err_color = if summary.server_errors > 0 { colors::RED } else { colors::GREEN };
-    output.push_str(&format!("    {} {} {}\n",
+        terminal::colorize(&summary.client_errors.to_string(), colors::ORANGE)
+    ));
+    let server_err_color = if summary.server_errors > 0 {
+        colors::RED
+    } else {
+        colors::GREEN
+    };
+    output.push_str(&format!(
+        "    {} {} {}\n",
         terminal::colorize("✗", colors::RED),
         terminal::muted("Server Errors (5xx):"),
-        terminal::colorize(&summary.server_errors.to_string(), server_err_color)));
-    let timeout_color = if summary.timeouts > 0 { colors::ORANGE } else { colors::GREEN };
-    output.push_str(&format!("    {} {} {}\n",
+        terminal::colorize(&summary.server_errors.to_string(), server_err_color)
+    ));
+    let timeout_color = if summary.timeouts > 0 {
+        colors::ORANGE
+    } else {
+        colors::GREEN
+    };
+    output.push_str(&format!(
+        "    {} {} {}\n",
         terminal::colorize("⏱", colors::YELLOW),
         terminal::muted("Timeouts:"),
-        terminal::colorize(&summary.timeouts.to_string(), timeout_color)));
-    let conn_err_color = if summary.connection_errors > 0 { colors::RED } else { colors::GREEN };
-    output.push_str(&format!("    {} {} {}\n\n",
+        terminal::colorize(&summary.timeouts.to_string(), timeout_color)
+    ));
+    let conn_err_color = if summary.connection_errors > 0 {
+        colors::RED
+    } else {
+        colors::GREEN
+    };
+    output.push_str(&format!(
+        "    {} {} {}\n\n",
         terminal::colorize("⚡", colors::AQUA),
         terminal::muted("Connection Errors:"),
-        terminal::colorize(&summary.connection_errors.to_string(), conn_err_color)));
+        terminal::colorize(&summary.connection_errors.to_string(), conn_err_color)
+    ));
 
     // Category breakdown
     if !summary.by_category.is_empty() {

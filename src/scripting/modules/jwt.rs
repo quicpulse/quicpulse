@@ -3,9 +3,9 @@
 //! Provides functions to decode and inspect JWT tokens without verification.
 //! Useful for debugging authentication flows.
 
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use rune::alloc::String as RuneString;
 use rune::{ContextError, Module};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde_json::Value as JsonValue;
 
 /// Create the JWT module
@@ -29,7 +29,9 @@ pub fn module() -> Result<Module, ContextError> {
     module.function("is_expired", is_expired).build()?;
     module.function("expires_in", expires_in).build()?;
     module.function("parts_count", parts_count).build()?;
-    module.function("is_valid_format", is_valid_format).build()?;
+    module
+        .function("is_valid_format", is_valid_format)
+        .build()?;
 
     Ok(module)
 }
@@ -157,7 +159,8 @@ fn is_valid_format(token: &str) -> bool {
 
 fn decode_base64_json(input: &str) -> Option<JsonValue> {
     // Try URL-safe base64 first, then standard
-    let decoded = URL_SAFE_NO_PAD.decode(input)
+    let decoded = URL_SAFE_NO_PAD
+        .decode(input)
         .or_else(|_| {
             // Try with padding
             let padded = match input.len() % 4 {

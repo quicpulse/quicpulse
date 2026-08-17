@@ -6,9 +6,9 @@
 //! - SSO profiles (sso_start_url, sso_region, sso_account_id, sso_role_name)
 //! - AssumeRole profiles (role_arn, source_profile, external_id)
 
+use crate::errors::QuicpulseError;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use crate::errors::QuicpulseError;
 
 /// AWS profile configuration
 #[derive(Debug, Clone, Default)]
@@ -210,7 +210,10 @@ fn parse_config_file() -> Result<HashMap<String, AwsProfile>, QuicpulseError> {
 ///
 /// In the config file, profile sections are prefixed with "profile " (except default).
 /// In the credentials file, sections are just the profile name.
-fn parse_ini_file(content: &str, is_config_file: bool) -> Result<HashMap<String, AwsProfile>, QuicpulseError> {
+fn parse_ini_file(
+    content: &str,
+    is_config_file: bool,
+) -> Result<HashMap<String, AwsProfile>, QuicpulseError> {
     let mut profiles: HashMap<String, AwsProfile> = HashMap::new();
     let mut current_profile: Option<String> = None;
 
@@ -248,10 +251,12 @@ fn parse_ini_file(content: &str, is_config_file: bool) -> Result<HashMap<String,
             };
 
             current_profile = Some(profile_name.clone());
-            profiles.entry(profile_name.clone()).or_insert_with(|| AwsProfile {
-                name: profile_name,
-                ..Default::default()
-            });
+            profiles
+                .entry(profile_name.clone())
+                .or_insert_with(|| AwsProfile {
+                    name: profile_name,
+                    ..Default::default()
+                });
             continue;
         }
 
@@ -336,8 +341,14 @@ aws_session_token = AQoDYXdzEJr...
         assert!(profiles.contains_key("dev"));
 
         let default = profiles.get("default").unwrap();
-        assert_eq!(default.access_key_id.as_deref(), Some("AKIAIOSFODNN7EXAMPLE"));
-        assert_eq!(default.secret_access_key.as_deref(), Some("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"));
+        assert_eq!(
+            default.access_key_id.as_deref(),
+            Some("AKIAIOSFODNN7EXAMPLE")
+        );
+        assert_eq!(
+            default.secret_access_key.as_deref(),
+            Some("wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY")
+        );
 
         let dev = profiles.get("dev").unwrap();
         assert!(dev.session_token.is_some());

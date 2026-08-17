@@ -1,9 +1,9 @@
 //! Plugin loader
 
-use std::path::{Path, PathBuf};
-use crate::errors::QuicpulseError;
 use super::config::{PluginManifest, PluginType};
 use super::hooks::{HookContext, HookResult, PluginHook};
+use crate::errors::QuicpulseError;
+use std::path::{Path, PathBuf};
 
 /// A loaded plugin
 #[derive(Debug, Clone)]
@@ -89,8 +89,7 @@ impl PluginLoader {
             }
 
             // Each subdirectory could be a plugin
-            let entries = std::fs::read_dir(search_path)
-                .map_err(QuicpulseError::Io)?;
+            let entries = std::fs::read_dir(search_path).map_err(QuicpulseError::Io)?;
 
             for entry in entries {
                 let entry = entry.map_err(QuicpulseError::Io)?;
@@ -125,7 +124,9 @@ impl PluginLoader {
         }
 
         // Parse hooks
-        let hooks: Vec<PluginHook> = manifest.hooks.iter()
+        let hooks: Vec<PluginHook> = manifest
+            .hooks
+            .iter()
             .filter_map(|h| PluginHook::from_str(h))
             .collect();
 
@@ -164,7 +165,11 @@ impl PluginLoader {
     }
 
     /// Load a plugin from a git URL
-    pub async fn load_from_git(&self, url: &str, dest: &Path) -> Result<LoadedPlugin, QuicpulseError> {
+    pub async fn load_from_git(
+        &self,
+        url: &str,
+        dest: &Path,
+    ) -> Result<LoadedPlugin, QuicpulseError> {
         // Clone the repository
         let status = std::process::Command::new("git")
             .args(["clone", "--depth", "1", url])
@@ -173,7 +178,9 @@ impl PluginLoader {
             .map_err(|e| QuicpulseError::Config(format!("Failed to clone plugin: {}", e)))?;
 
         if !status.success() {
-            return Err(QuicpulseError::Config("Failed to clone plugin repository".to_string()));
+            return Err(QuicpulseError::Config(
+                "Failed to clone plugin repository".to_string(),
+            ));
         }
 
         self.load_plugin(dest)
@@ -197,7 +204,8 @@ pub async fn execute_script_hook(
     context: &HookContext,
 ) -> Result<HookResult, QuicpulseError> {
     let entry_path = plugin.manifest.entry_path(&plugin.directory);
-    let ext = entry_path.extension()
+    let ext = entry_path
+        .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
 
@@ -210,12 +218,10 @@ pub async fn execute_script_hook(
             // Binary plugin - execute as subprocess
             execute_binary_plugin(&entry_path, hook, context).await
         }
-        _ => {
-            Err(QuicpulseError::Config(format!(
-                "Unsupported plugin type: {:?} / {}",
-                plugin.manifest.plugin_type, ext
-            )))
-        }
+        _ => Err(QuicpulseError::Config(format!(
+            "Unsupported plugin type: {:?} / {}",
+            plugin.manifest.plugin_type, ext
+        ))),
     }
 }
 
@@ -226,12 +232,14 @@ async fn execute_rune_script(
     _context: &HookContext,
 ) -> Result<HookResult, QuicpulseError> {
     // Read the script
-    let _script = std::fs::read_to_string(path)
-        .map_err(QuicpulseError::Io)?;
+    let _script = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
 
     // For now, return a default result
     // In a full implementation, this would use the rune VM to execute the script
-    eprintln!("Plugin script execution not fully implemented yet: {:?}", path);
+    eprintln!(
+        "Plugin script execution not fully implemented yet: {:?}",
+        path
+    );
     eprintln!("Hook: {}", hook.as_str());
 
     Ok(HookResult::ok())
@@ -261,12 +269,18 @@ async fn execute_binary_plugin(
 
     // Write context to stdin
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(context_json.as_bytes()).await
-            .map_err(|e| QuicpulseError::Config(format!("Failed to write to plugin stdin: {}", e)))?;
+        stdin
+            .write_all(context_json.as_bytes())
+            .await
+            .map_err(|e| {
+                QuicpulseError::Config(format!("Failed to write to plugin stdin: {}", e))
+            })?;
     }
 
     // Wait for output
-    let output = child.wait_with_output().await
+    let output = child
+        .wait_with_output()
+        .await
         .map_err(|e| QuicpulseError::Config(format!("Failed to get plugin output: {}", e)))?;
 
     if !output.status.success() {

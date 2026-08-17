@@ -2,4 +2,4 @@
 
 mod config;
 
-pub use config::{Config, HooksConfig, HookDef};
+pub use config::{Config, HookDef, HooksConfig};

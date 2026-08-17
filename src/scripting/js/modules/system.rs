@@ -2,29 +2,36 @@
 //!
 //! Provides system utilities like sleep, timestamps, and platform info.
 
-use rquickjs::{Ctx, Object, Function};
-use std::time::{SystemTime, UNIX_EPOCH};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let system = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create system object: {}", e)))?;
 
-    system.set("sleep_ms", Function::new(ctx.clone(), sleep_ms)?)
+    system
+        .set("sleep_ms", Function::new(ctx.clone(), sleep_ms)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    system.set("now", Function::new(ctx.clone(), now)?)
+    system
+        .set("now", Function::new(ctx.clone(), now)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    system.set("now_ms", Function::new(ctx.clone(), now_ms)?)
+    system
+        .set("now_ms", Function::new(ctx.clone(), now_ms)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    system.set("hostname", Function::new(ctx.clone(), get_hostname)?)
+    system
+        .set("hostname", Function::new(ctx.clone(), get_hostname)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    system.set("platform", Function::new(ctx.clone(), platform)?)
+    system
+        .set("platform", Function::new(ctx.clone(), platform)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    system.set("arch", Function::new(ctx.clone(), arch)?)
+    system
+        .set("arch", Function::new(ctx.clone(), arch)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("system", system)
+    globals
+        .set("system", system)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set system global: {}", e)))?;
 
     Ok(())

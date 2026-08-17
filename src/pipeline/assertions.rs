@@ -2,11 +2,11 @@
 //!
 //! Provides assertion checks for status codes, response times, body content, and headers.
 
-use std::time::Duration;
-use reqwest::header::HeaderMap;
-use serde_json::Value as JsonValue;
 use crate::cli::Args;
 use crate::filter;
+use reqwest::header::HeaderMap;
+use serde_json::Value as JsonValue;
+use std::time::Duration;
 
 /// Represents an assertion to check against a response
 #[derive(Debug, Clone)]
@@ -99,14 +99,15 @@ pub fn check_assertions(
     headers: &HeaderMap,
     body: &str,
 ) -> Vec<AssertionResult> {
-    assertions.iter().map(|assertion| {
-        match assertion {
+    assertions
+        .iter()
+        .map(|assertion| match assertion {
             Assertion::Status(pattern) => check_status(status_code, pattern),
             Assertion::Time(max_duration) => check_time(response_time, *max_duration),
             Assertion::Body(pattern) => check_body(body, pattern),
             Assertion::Header(name, value) => check_header(headers, name, value.as_deref()),
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 /// Check status code assertion
@@ -119,7 +120,10 @@ fn check_status(status_code: u16, pattern: &str) -> AssertionResult {
         return if status_code == expected {
             AssertionResult::pass(&assertion, &format!("Status {} matches", status_code))
         } else {
-            AssertionResult::fail(&assertion, &format!("Expected {}, got {}", expected, status_code))
+            AssertionResult::fail(
+                &assertion,
+                &format!("Expected {}, got {}", expected, status_code),
+            )
         };
     }
 
@@ -127,9 +131,15 @@ fn check_status(status_code: u16, pattern: &str) -> AssertionResult {
     if let Some((start, end)) = pattern.split_once('-') {
         if let (Ok(start), Ok(end)) = (start.trim().parse::<u16>(), end.trim().parse::<u16>()) {
             return if status_code >= start && status_code <= end {
-                AssertionResult::pass(&assertion, &format!("Status {} in range {}-{}", status_code, start, end))
+                AssertionResult::pass(
+                    &assertion,
+                    &format!("Status {} in range {}-{}", status_code, start, end),
+                )
             } else {
-                AssertionResult::fail(&assertion, &format!("Status {} not in range {}-{}", status_code, start, end))
+                AssertionResult::fail(
+                    &assertion,
+                    &format!("Status {} not in range {}-{}", status_code, start, end),
+                )
             };
         }
     }
@@ -140,9 +150,15 @@ fn check_status(status_code: u16, pattern: &str) -> AssertionResult {
             let class_start = class * 100;
             let class_end = class_start + 99;
             return if status_code >= class_start && status_code <= class_end {
-                AssertionResult::pass(&assertion, &format!("Status {} is {}xx", status_code, class))
+                AssertionResult::pass(
+                    &assertion,
+                    &format!("Status {} is {}xx", status_code, class),
+                )
             } else {
-                AssertionResult::fail(&assertion, &format!("Status {} is not {}xx", status_code, class))
+                AssertionResult::fail(
+                    &assertion,
+                    &format!("Status {} is not {}xx", status_code, class),
+                )
             };
         }
     }
@@ -155,9 +171,15 @@ fn check_time(actual: Duration, max: Duration) -> AssertionResult {
     let assertion = format!("time<{:?}", max);
 
     if actual <= max {
-        AssertionResult::pass(&assertion, &format!("Response time {:?} <= {:?}", actual, max))
+        AssertionResult::pass(
+            &assertion,
+            &format!("Response time {:?} <= {:?}", actual, max),
+        )
     } else {
-        AssertionResult::fail(&assertion, &format!("Response time {:?} > {:?}", actual, max))
+        AssertionResult::fail(
+            &assertion,
+            &format!("Response time {:?} > {:?}", actual, max),
+        )
     }
 }
 
@@ -176,7 +198,9 @@ fn check_body(body: &str, pattern: &str) -> AssertionResult {
                             let is_truthy = results.iter().any(|v| match v {
                                 JsonValue::Null => false,
                                 JsonValue::Bool(b) => *b,
-                                JsonValue::Number(n) => n.as_f64().map(|f| f != 0.0).unwrap_or(false),
+                                JsonValue::Number(n) => {
+                                    n.as_f64().map(|f| f != 0.0).unwrap_or(false)
+                                }
                                 JsonValue::String(s) => !s.is_empty(),
                                 JsonValue::Array(a) => !a.is_empty(),
                                 JsonValue::Object(o) => !o.is_empty(),
@@ -184,7 +208,10 @@ fn check_body(body: &str, pattern: &str) -> AssertionResult {
                             if is_truthy {
                                 return AssertionResult::pass(&assertion, "JQ expression matched");
                             } else {
-                                return AssertionResult::fail(&assertion, "JQ expression returned falsy value");
+                                return AssertionResult::fail(
+                                    &assertion,
+                                    "JQ expression returned falsy value",
+                                );
                             }
                         }
                         // JQ expression returned no results
@@ -192,13 +219,19 @@ fn check_body(body: &str, pattern: &str) -> AssertionResult {
                     }
                     Err(e) => {
                         // JQ filter error
-                        return AssertionResult::fail(&assertion, &format!("JQ filter error: {}", e));
+                        return AssertionResult::fail(
+                            &assertion,
+                            &format!("JQ filter error: {}", e),
+                        );
                     }
                 }
             }
             Err(_) => {
                 // Body is not JSON, can't use JQ expression
-                return AssertionResult::fail(&assertion, "Response is not JSON, cannot use JQ expression");
+                return AssertionResult::fail(
+                    &assertion,
+                    "Response is not JSON, cannot use JQ expression",
+                );
             }
         }
     }
@@ -213,9 +246,15 @@ fn check_body(body: &str, pattern: &str) -> AssertionResult {
                     let actual_str = results[0].to_string();
                     let actual_str = actual_str.trim_matches('"');
                     if actual_str == expected_value {
-                        return AssertionResult::pass(&assertion, &format!("{} = {}", key, expected_value));
+                        return AssertionResult::pass(
+                            &assertion,
+                            &format!("{} = {}", key, expected_value),
+                        );
                     } else {
-                        return AssertionResult::fail(&assertion, &format!("{} = {} (expected {})", key, actual_str, expected_value));
+                        return AssertionResult::fail(
+                            &assertion,
+                            &format!("{} = {} (expected {})", key, actual_str, expected_value),
+                        );
                     }
                 }
             }
@@ -240,24 +279,29 @@ fn check_header(headers: &HeaderMap, name: &str, expected_value: Option<&str>) -
     };
 
     // Find header (case-insensitive)
-    let header_value = headers.iter()
+    let header_value = headers
+        .iter()
         .find(|(k, _)| k.as_str().eq_ignore_ascii_case(name))
         .and_then(|(_, v)| v.to_str().ok());
 
     match (header_value, expected_value) {
         (Some(actual), Some(expected)) => {
             if actual.contains(expected) {
-                AssertionResult::pass(&assertion, &format!("{}: {} contains {}", name, actual, expected))
+                AssertionResult::pass(
+                    &assertion,
+                    &format!("{}: {} contains {}", name, actual, expected),
+                )
             } else {
-                AssertionResult::fail(&assertion, &format!("{}: {} does not match {}", name, actual, expected))
+                AssertionResult::fail(
+                    &assertion,
+                    &format!("{}: {} does not match {}", name, actual, expected),
+                )
             }
         }
         (Some(actual), None) => {
             AssertionResult::pass(&assertion, &format!("Header {} present: {}", name, actual))
         }
-        (None, _) => {
-            AssertionResult::fail(&assertion, &format!("Header {} not found", name))
-        }
+        (None, _) => AssertionResult::fail(&assertion, &format!("Header {} not found", name)),
     }
 }
 
@@ -306,7 +350,10 @@ mod tests {
 
     #[test]
     fn test_parse_time() {
-        assert_eq!(parse_time_assertion("<500ms"), Some(Duration::from_millis(500)));
+        assert_eq!(
+            parse_time_assertion("<500ms"),
+            Some(Duration::from_millis(500))
+        );
         assert_eq!(parse_time_assertion("< 2s"), Some(Duration::from_secs(2)));
         assert_eq!(parse_time_assertion("1s"), Some(Duration::from_secs(1)));
     }

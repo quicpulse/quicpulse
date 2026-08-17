@@ -3,8 +3,8 @@
 //! This module provides utilities for parsing and manipulating
 //! GraphQL query variables.
 
-use serde_json::{json, Value as JsonValue, Map};
 use crate::errors::QuicpulseError;
+use serde_json::{json, Map, Value as JsonValue};
 
 /// GraphQL variables container
 #[derive(Debug, Clone, Default)]
@@ -138,9 +138,10 @@ impl VariableDefinition {
         // Split name and type
         let parts: Vec<&str> = def_part.splitn(2, ':').collect();
         if parts.len() != 2 {
-            return Err(QuicpulseError::Argument(
-                format!("Invalid variable definition: {}", s),
-            ));
+            return Err(QuicpulseError::Argument(format!(
+                "Invalid variable definition: {}",
+                s
+            )));
         }
 
         let name = parts[0].trim().trim_start_matches('$').to_string();
@@ -173,13 +174,11 @@ pub fn parse_variable_value(value: &str, type_hint: Option<&str>) -> JsonValue {
                     return json!(n);
                 }
             }
-            "bool" | "boolean" => {
-                match value.to_lowercase().as_str() {
-                    "true" | "1" | "yes" => return json!(true),
-                    "false" | "0" | "no" => return json!(false),
-                    _ => {}
-                }
-            }
+            "bool" | "boolean" => match value.to_lowercase().as_str() {
+                "true" | "1" | "yes" => return json!(true),
+                "false" | "0" | "no" => return json!(false),
+                _ => {}
+            },
             "string" => return json!(value),
             _ => {}
         }
@@ -274,7 +273,7 @@ mod tests {
         assert_eq!(parse_variable_value("12.5", None), json!(12.5));
         assert_eq!(parse_variable_value("true", None), json!(true));
         assert_eq!(parse_variable_value("hello", None), json!("hello"));
-        assert_eq!(parse_variable_value("[1,2,3]", None), json!([1,2,3]));
+        assert_eq!(parse_variable_value("[1,2,3]", None), json!([1, 2, 3]));
     }
 
     #[test]

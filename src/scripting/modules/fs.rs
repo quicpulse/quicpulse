@@ -83,11 +83,23 @@ fn is_path_allowed(path: &Path) -> bool {
     let skip_count = if cfg!(target_os = "macos") {
         // On macOS, canonical paths start with /private/var/... - skip the root "private"
         if components.len() > 1 {
-            if let std::path::Component::Normal(first) = components.get(1).unwrap_or(&std::path::Component::CurDir) {
-                if first.to_string_lossy() == "private" { 2 } else { 1 }
-            } else { 1 }
-        } else { 1 }
-    } else { 1 };
+            if let std::path::Component::Normal(first) =
+                components.get(1).unwrap_or(&std::path::Component::CurDir)
+            {
+                if first.to_string_lossy() == "private" {
+                    2
+                } else {
+                    1
+                }
+            } else {
+                1
+            }
+        } else {
+            1
+        }
+    } else {
+        1
+    };
 
     for component in components.iter().skip(skip_count) {
         if let std::path::Component::Normal(name) = component {
@@ -98,7 +110,10 @@ fn is_path_allowed(path: &Path) -> bool {
                     || name_lower.starts_with(&format!("{}_", pattern))
                     || name_lower.starts_with(&format!("{}-", pattern))
                     || (name_lower.ends_with("~") && name_lower.starts_with(pattern))
-                    || (name_lower.contains(pattern) && (pattern.starts_with('.') || pattern.contains("rsa") || pattern.contains("ed25519")))
+                    || (name_lower.contains(pattern)
+                        && (pattern.starts_with('.')
+                            || pattern.contains("rsa")
+                            || pattern.contains("ed25519")))
                 {
                     return false;
                 }
@@ -149,11 +164,23 @@ fn is_path_allowed_canonical(canonical: &Path) -> bool {
     let skip_count = if cfg!(target_os = "macos") {
         // On macOS, canonical paths start with /private/var/... - skip the root "private"
         if components.len() > 1 {
-            if let std::path::Component::Normal(first) = components.get(1).unwrap_or(&std::path::Component::CurDir) {
-                if first.to_string_lossy() == "private" { 2 } else { 1 }
-            } else { 1 }
-        } else { 1 }
-    } else { 1 };
+            if let std::path::Component::Normal(first) =
+                components.get(1).unwrap_or(&std::path::Component::CurDir)
+            {
+                if first.to_string_lossy() == "private" {
+                    2
+                } else {
+                    1
+                }
+            } else {
+                1
+            }
+        } else {
+            1
+        }
+    } else {
+        1
+    };
 
     for component in components.iter().skip(skip_count) {
         if let std::path::Component::Normal(name) = component {
@@ -164,7 +191,10 @@ fn is_path_allowed_canonical(canonical: &Path) -> bool {
                     || name_lower.starts_with(&format!("{}_", pattern))
                     || name_lower.starts_with(&format!("{}-", pattern))
                     || (name_lower.ends_with("~") && name_lower.starts_with(pattern))
-                    || (name_lower.contains(pattern) && (pattern.starts_with('.') || pattern.contains("rsa") || pattern.contains("ed25519")))
+                    || (name_lower.contains(pattern)
+                        && (pattern.starts_with('.')
+                            || pattern.contains("rsa")
+                            || pattern.contains("ed25519")))
                 {
                     return false;
                 }
@@ -361,7 +391,9 @@ fn basename(path: &str) -> RuneString {
 fn dirname(path: &str) -> RuneString {
     let path = Path::new(path);
     match path.parent() {
-        Some(parent) => RuneString::try_from(parent.to_string_lossy().to_string()).unwrap_or_default(),
+        Some(parent) => {
+            RuneString::try_from(parent.to_string_lossy().to_string()).unwrap_or_default()
+        }
         None => RuneString::new(),
     }
 }
@@ -422,15 +454,25 @@ mod tests {
         writeln!(temp_file, "test content").unwrap();
 
         let path_str = temp_file.path().to_string_lossy().to_string();
-        assert!(file_exists(&path_str), "file_exists failed for {}", path_str);
+        assert!(
+            file_exists(&path_str),
+            "file_exists failed for {}",
+            path_str
+        );
         assert!(is_file(&path_str), "is_file failed for {}", path_str);
 
         // read_file now returns JSON with "ok", "content", and optional "error" fields
         let result = read_file(&path_str);
         let result_str = result.as_str();
-        assert!(result_str.contains("\"ok\":true") || result_str.contains("\"ok\": true"),
-            "Expected ok:true in result, got: {}", result_str);
-        assert!(result_str.contains("test content"),
-            "Expected 'test content' in result, got: {}", result_str);
+        assert!(
+            result_str.contains("\"ok\":true") || result_str.contains("\"ok\": true"),
+            "Expected ok:true in result, got: {}",
+            result_str
+        );
+        assert!(
+            result_str.contains("test content"),
+            "Expected 'test content' in result, got: {}",
+            result_str
+        );
     }
 }

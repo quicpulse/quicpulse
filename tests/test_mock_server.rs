@@ -12,7 +12,7 @@ mod common;
 
 #[test]
 fn test_route_exact_path() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Get,
@@ -39,7 +39,7 @@ fn test_route_exact_path() {
 
 #[test]
 fn test_route_with_parameter() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Get,
@@ -69,7 +69,7 @@ fn test_route_with_parameter() {
 
 #[test]
 fn test_route_with_multiple_parameters() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Get,
@@ -89,7 +89,7 @@ fn test_route_with_multiple_parameters() {
 
 #[test]
 fn test_route_wildcard_single() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Get,
@@ -112,7 +112,7 @@ fn test_route_wildcard_single() {
 
 #[test]
 fn test_route_wildcard_double() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Get,
@@ -133,7 +133,7 @@ fn test_route_wildcard_double() {
 
 #[test]
 fn test_route_method_any() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Any,
@@ -156,7 +156,7 @@ fn test_route_method_any() {
 
 #[test]
 fn test_route_disabled() {
-    use quicpulse::mock::routes::{RouteConfig, Route, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, Route, RouteConfig};
 
     let config = RouteConfig {
         method: HttpMethod::Get,
@@ -221,7 +221,10 @@ fn test_response_config_text() {
     let config = ResponseConfig::text("Hello, World!");
     assert_eq!(config.status, 200);
     assert_eq!(config.body, Some("Hello, World!".to_string()));
-    assert_eq!(config.headers.get("Content-Type"), Some(&"text/plain".to_string()));
+    assert_eq!(
+        config.headers.get("Content-Type"),
+        Some(&"text/plain".to_string())
+    );
 }
 
 #[test]
@@ -232,7 +235,10 @@ fn test_response_config_json() {
     let config = ResponseConfig::json_body(json!({"message": "Hello"}));
     assert_eq!(config.status, 200);
     assert_eq!(config.json, Some(json!({"message": "Hello"})));
-    assert_eq!(config.headers.get("Content-Type"), Some(&"application/json".to_string()));
+    assert_eq!(
+        config.headers.get("Content-Type"),
+        Some(&"application/json".to_string())
+    );
 }
 
 #[test]
@@ -308,8 +314,7 @@ fn test_mock_server_config_add_route() {
     use quicpulse::mock::config::MockServerConfig;
     use quicpulse::mock::routes::RouteConfig;
 
-    let config = MockServerConfig::new()
-        .add_route(RouteConfig::get("/health", "OK"));
+    let config = MockServerConfig::new().add_route(RouteConfig::get("/health", "OK"));
 
     assert_eq!(config.routes.len(), 1);
     assert_eq!(config.routes[0].path, "/health");
@@ -350,8 +355,7 @@ fn test_mock_server_config_validate_valid() {
     use quicpulse::mock::config::MockServerConfig;
     use quicpulse::mock::routes::RouteConfig;
 
-    let config = MockServerConfig::new()
-        .add_route(RouteConfig::get("/api/users/:id", "user"));
+    let config = MockServerConfig::new().add_route(RouteConfig::get("/api/users/:id", "user"));
 
     assert!(config.validate().is_ok());
 }
@@ -359,7 +363,7 @@ fn test_mock_server_config_validate_valid() {
 #[test]
 fn test_mock_server_config_validate_invalid_route() {
     use quicpulse::mock::config::MockServerConfig;
-    use quicpulse::mock::routes::{RouteConfig, HttpMethod, ResponseConfig};
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, RouteConfig};
 
     let config = MockServerConfig {
         routes: vec![RouteConfig {
@@ -420,8 +424,8 @@ fn test_mock_server_simple_config() {
 
 #[tokio::test]
 async fn test_mock_server_creation() {
-    use quicpulse::mock::{MockServer, MockServerConfig};
     use quicpulse::mock::routes::RouteConfig;
+    use quicpulse::mock::{MockServer, MockServerConfig};
 
     let config = MockServerConfig::new()
         .with_port(0) // Use any available port
@@ -454,8 +458,8 @@ async fn test_mock_server_request_log() {
 
 #[tokio::test]
 async fn test_mock_server_responds_to_requests() {
-    use quicpulse::mock::{MockServer, MockServerConfig};
     use quicpulse::mock::routes::RouteConfig;
+    use quicpulse::mock::{MockServer, MockServerConfig};
     use std::net::TcpListener;
 
     // Find an available port
@@ -481,8 +485,11 @@ async fn test_mock_server_responds_to_requests() {
     let client = reqwest::Client::new();
     let response = timeout(
         Duration::from_secs(2),
-        client.get(format!("http://127.0.0.1:{}/health", port)).send()
-    ).await;
+        client
+            .get(format!("http://127.0.0.1:{}/health", port))
+            .send(),
+    )
+    .await;
 
     if let Ok(Ok(resp)) = response {
         assert_eq!(resp.status(), 200);
@@ -495,8 +502,8 @@ async fn test_mock_server_responds_to_requests() {
 
 #[tokio::test]
 async fn test_mock_server_404_for_unknown_routes() {
-    use quicpulse::mock::{MockServer, MockServerConfig};
     use quicpulse::mock::routes::RouteConfig;
+    use quicpulse::mock::{MockServer, MockServerConfig};
     use std::net::TcpListener;
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -518,8 +525,11 @@ async fn test_mock_server_404_for_unknown_routes() {
     let client = reqwest::Client::new();
     let response = timeout(
         Duration::from_secs(2),
-        client.get(format!("http://127.0.0.1:{}/unknown", port)).send()
-    ).await;
+        client
+            .get(format!("http://127.0.0.1:{}/unknown", port))
+            .send(),
+    )
+    .await;
 
     if let Ok(Ok(resp)) = response {
         assert_eq!(resp.status(), 404);
@@ -530,8 +540,8 @@ async fn test_mock_server_404_for_unknown_routes() {
 
 #[tokio::test]
 async fn test_mock_server_json_response() {
+    use quicpulse::mock::routes::{HttpMethod, ResponseConfig, RouteConfig};
     use quicpulse::mock::{MockServer, MockServerConfig};
-    use quicpulse::mock::routes::{RouteConfig, HttpMethod, ResponseConfig};
     use serde_json::json;
     use std::net::TcpListener;
 
@@ -564,8 +574,11 @@ async fn test_mock_server_json_response() {
     let client = reqwest::Client::new();
     let response = timeout(
         Duration::from_secs(2),
-        client.get(format!("http://127.0.0.1:{}/api/user", port)).send()
-    ).await;
+        client
+            .get(format!("http://127.0.0.1:{}/api/user", port))
+            .send(),
+    )
+    .await;
 
     if let Ok(Ok(resp)) = response {
         assert_eq!(resp.status(), 200);
@@ -579,8 +592,8 @@ async fn test_mock_server_json_response() {
 
 #[tokio::test]
 async fn test_mock_server_cors_headers() {
-    use quicpulse::mock::{MockServer, MockServerConfig};
     use quicpulse::mock::routes::RouteConfig;
+    use quicpulse::mock::{MockServer, MockServerConfig};
     use std::net::TcpListener;
 
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -603,8 +616,11 @@ async fn test_mock_server_cors_headers() {
     let client = reqwest::Client::new();
     let response = timeout(
         Duration::from_secs(2),
-        client.get(format!("http://127.0.0.1:{}/api/data", port)).send()
-    ).await;
+        client
+            .get(format!("http://127.0.0.1:{}/api/data", port))
+            .send(),
+    )
+    .await;
 
     if let Ok(Ok(resp)) = response {
         assert_eq!(resp.status(), 200);

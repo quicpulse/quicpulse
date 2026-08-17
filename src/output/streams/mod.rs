@@ -5,5 +5,5 @@ pub mod pretty;
 pub mod raw;
 
 pub use encoded::EncodedStream;
-pub use pretty::{PrettyStream, BufferedPrettyStream};
+pub use pretty::{BufferedPrettyStream, PrettyStream};
 pub use raw::RawStream;

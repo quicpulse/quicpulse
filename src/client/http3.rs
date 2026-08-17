@@ -8,13 +8,13 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use bytes::Buf;
-use http::{Request, StatusCode};
 use http::header::HeaderMap;
+use http::{Request, StatusCode};
 use tokio::net::lookup_host;
 
-use crate::auth::{AwsSigV4Config, sign_request as aws_sign_request};
+use crate::auth::{sign_request as aws_sign_request, AwsSigV4Config};
 use crate::errors::QuicpulseError;
-use tracing::{info, debug, instrument};
+use tracing::{debug, info, instrument};
 
 /// HTTP/3 response with body
 #[derive(Debug)]
@@ -51,16 +51,15 @@ pub async fn send_http3_request_with_options(
     let timeout_secs = timeout.as_secs_f64();
 
     // Parse URL
-    let parsed_url = url::Url::parse(url)
-        .map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
+    let parsed_url =
+        url::Url::parse(url).map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
 
     if parsed_url.scheme() != "https" {
-        return Err(QuicpulseError::Config(
-            "HTTP/3 requires HTTPS".to_string()
-        ));
+        return Err(QuicpulseError::Config("HTTP/3 requires HTTPS".to_string()));
     }
 
-    let host = parsed_url.host_str()
+    let host = parsed_url
+        .host_str()
         .ok_or_else(|| QuicpulseError::Parse("URL missing host".to_string()))?;
     let port = parsed_url.port().unwrap_or(443);
 
@@ -78,7 +77,7 @@ pub async fn send_http3_request_with_options(
 
     let client_config = h3_quinn::quinn::ClientConfig::new(Arc::new(
         h3_quinn::quinn::crypto::rustls::QuicClientConfig::try_from(tls_config)
-            .map_err(|e| QuicpulseError::Config(format!("TLS config error: {}", e)))?
+            .map_err(|e| QuicpulseError::Config(format!("TLS config error: {}", e)))?,
     ));
     endpoint.set_default_client_config(client_config);
 
@@ -115,9 +114,7 @@ pub async fn send_http3_request_with_options(
         parsed_url.path().to_string()
     };
 
-    let mut req_builder = Request::builder()
-        .method(method)
-        .uri(&path);
+    let mut req_builder = Request::builder().method(method).uri(&path);
 
     // Add headers
     for (name, value) in headers.iter() {
@@ -129,34 +126,39 @@ pub async fn send_http3_request_with_options(
         req_builder = req_builder.header("host", host);
     }
 
-    let req = req_builder.body(())
+    let req = req_builder
+        .body(())
         .map_err(|e| QuicpulseError::Parse(format!("Failed to build request: {}", e)))?;
 
     // Send request with timeout
     let response = tokio::time::timeout(timeout, async {
-        let mut stream = send_request.send_request(req)
+        let mut stream = send_request
+            .send_request(req)
             .await
             .map_err(|e| QuicpulseError::Connection(format!("Failed to send request: {}", e)))?;
 
         // Send body if present
         if let Some(body_bytes) = body {
-            stream.send_data(bytes::Bytes::from(body_bytes))
+            stream
+                .send_data(bytes::Bytes::from(body_bytes))
                 .await
                 .map_err(|e| QuicpulseError::Connection(format!("Failed to send body: {}", e)))?;
         }
 
-        stream.finish()
+        stream
+            .finish()
             .await
             .map_err(|e| QuicpulseError::Connection(format!("Failed to finish request: {}", e)))?;
 
         // Receive response
-        let resp = stream.recv_response()
-            .await
-            .map_err(|e| QuicpulseError::Connection(format!("Failed to receive response: {}", e)))?;
+        let resp = stream.recv_response().await.map_err(|e| {
+            QuicpulseError::Connection(format!("Failed to receive response: {}", e))
+        })?;
 
         // Read body
         let mut body_data = Vec::new();
-        while let Some(chunk) = stream.recv_data()
+        while let Some(chunk) = stream
+            .recv_data()
             .await
             .map_err(|e| QuicpulseError::Connection(format!("Failed to receive body: {}", e)))?
         {
@@ -185,7 +187,8 @@ async fn resolve_host(host: &str, port: u16) -> Result<SocketAddr, QuicpulseErro
         .await
         .map_err(|e| QuicpulseError::Config(format!("DNS lookup failed: {}", e)))?;
 
-    addrs.next()
+    addrs
+        .next()
         .ok_or_else(|| QuicpulseError::Config(format!("No addresses found for {}", host)))
 }
 
@@ -214,7 +217,7 @@ fn build_tls_config(
         }
         if store.is_empty() {
             return Err(QuicpulseError::Config(
-                "No root certificates found".to_string()
+                "No root certificates found".to_string(),
             ));
         }
         store
@@ -230,11 +233,11 @@ fn build_tls_config(
     };
 
     let mut config = if verify {
-        let builder = rustls::ClientConfig::builder()
-            .with_root_certificates(root_store);
+        let builder = rustls::ClientConfig::builder().with_root_certificates(root_store);
         if let Some((certs, key)) = client_auth {
-            builder.with_client_auth_cert(certs, key)
-                .map_err(|e| QuicpulseError::Ssl(format!("Failed to set client certificate: {}", e)))?
+            builder.with_client_auth_cert(certs, key).map_err(|e| {
+                QuicpulseError::Ssl(format!("Failed to set client certificate: {}", e))
+            })?
         } else {
             builder.with_no_client_auth()
         }
@@ -243,8 +246,9 @@ fn build_tls_config(
             .dangerous()
             .with_custom_certificate_verifier(Arc::new(NoopServerCertVerifier));
         if let Some((certs, key)) = client_auth {
-            builder.with_client_auth_cert(certs, key)
-                .map_err(|e| QuicpulseError::Ssl(format!("Failed to set client certificate: {}", e)))?
+            builder.with_client_auth_cert(certs, key).map_err(|e| {
+                QuicpulseError::Ssl(format!("Failed to set client certificate: {}", e))
+            })?
         } else {
             builder.with_no_client_auth()
         }
@@ -260,30 +264,49 @@ fn build_tls_config(
 fn load_client_cert(
     cert_path: &std::path::Path,
     key_path: Option<&std::path::Path>,
-) -> Result<Option<(Vec<rustls::pki_types::CertificateDer<'static>>, rustls::pki_types::PrivateKeyDer<'static>)>, QuicpulseError> {
+) -> Result<
+    Option<(
+        Vec<rustls::pki_types::CertificateDer<'static>>,
+        rustls::pki_types::PrivateKeyDer<'static>,
+    )>,
+    QuicpulseError,
+> {
     use std::io::BufReader;
 
     // Read certificate file
-    let cert_data = std::fs::read(cert_path)
-        .map_err(|e| QuicpulseError::Ssl(format!("Failed to read certificate '{}': {}", cert_path.display(), e)))?;
+    let cert_data = std::fs::read(cert_path).map_err(|e| {
+        QuicpulseError::Ssl(format!(
+            "Failed to read certificate '{}': {}",
+            cert_path.display(),
+            e
+        ))
+    })?;
 
     // Parse certificates
     let mut certs = Vec::new();
     for cert in rustls_pemfile::certs(&mut BufReader::new(&cert_data[..])) {
         match cert {
             Ok(c) => certs.push(c),
-            Err(e) => return Err(QuicpulseError::Ssl(format!("Failed to parse certificate: {}", e))),
+            Err(e) => {
+                return Err(QuicpulseError::Ssl(format!(
+                    "Failed to parse certificate: {}",
+                    e
+                )))
+            }
         }
     }
 
     if certs.is_empty() {
-        return Err(QuicpulseError::Ssl("No certificates found in file".to_string()));
+        return Err(QuicpulseError::Ssl(
+            "No certificates found in file".to_string(),
+        ));
     }
 
     // Read key file (either separate or from cert file)
     let key_data = if let Some(kp) = key_path {
-        std::fs::read(kp)
-            .map_err(|e| QuicpulseError::Ssl(format!("Failed to read key file '{}': {}", kp.display(), e)))?
+        std::fs::read(kp).map_err(|e| {
+            QuicpulseError::Ssl(format!("Failed to read key file '{}': {}", kp.display(), e))
+        })?
     } else {
         cert_data.clone()
     };
@@ -291,30 +314,35 @@ fn load_client_cert(
     // Parse private key (try different formats)
     let key = {
         // Try PKCS#8 first
-        let pkcs8_keys: Vec<_> = rustls_pemfile::pkcs8_private_keys(&mut BufReader::new(&key_data[..]))
-            .filter_map(|k| k.ok())
-            .collect();
+        let pkcs8_keys: Vec<_> =
+            rustls_pemfile::pkcs8_private_keys(&mut BufReader::new(&key_data[..]))
+                .filter_map(|k| k.ok())
+                .collect();
 
         if let Some(key) = pkcs8_keys.into_iter().next() {
             rustls::pki_types::PrivateKeyDer::Pkcs8(key)
         } else {
             // Try RSA key
-            let rsa_keys: Vec<_> = rustls_pemfile::rsa_private_keys(&mut BufReader::new(&key_data[..]))
-                .filter_map(|k| k.ok())
-                .collect();
+            let rsa_keys: Vec<_> =
+                rustls_pemfile::rsa_private_keys(&mut BufReader::new(&key_data[..]))
+                    .filter_map(|k| k.ok())
+                    .collect();
 
             if let Some(key) = rsa_keys.into_iter().next() {
                 rustls::pki_types::PrivateKeyDer::Pkcs1(key)
             } else {
                 // Try EC key
-                let ec_keys: Vec<_> = rustls_pemfile::ec_private_keys(&mut BufReader::new(&key_data[..]))
-                    .filter_map(|k| k.ok())
-                    .collect();
+                let ec_keys: Vec<_> =
+                    rustls_pemfile::ec_private_keys(&mut BufReader::new(&key_data[..]))
+                        .filter_map(|k| k.ok())
+                        .collect();
 
                 if let Some(key) = ec_keys.into_iter().next() {
                     rustls::pki_types::PrivateKeyDer::Sec1(key)
                 } else {
-                    return Err(QuicpulseError::Ssl("No private key found in file".to_string()));
+                    return Err(QuicpulseError::Ssl(
+                        "No private key found in file".to_string(),
+                    ));
                 }
             }
         }
@@ -375,14 +403,18 @@ impl rustls::client::danger::ServerCertVerifier for NoopServerCertVerifier {
 }
 
 /// Build URL with query parameters from InputItems
-fn build_url_with_query(base_url: &str, items: &[crate::input::InputItem]) -> Result<String, QuicpulseError> {
+fn build_url_with_query(
+    base_url: &str,
+    items: &[crate::input::InputItem],
+) -> Result<String, QuicpulseError> {
     use crate::input::InputItem;
 
     let mut parsed = url::Url::parse(base_url)
         .map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
 
     // Collect existing query params
-    let mut params: Vec<(String, String)> = parsed.query_pairs()
+    let mut params: Vec<(String, String)> = parsed
+        .query_pairs()
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .collect();
 
@@ -405,10 +437,15 @@ fn build_url_with_query(base_url: &str, items: &[crate::input::InputItem]) -> Re
 
     // Build query string using form-style encoding
     if !params.is_empty() {
-        let query = params.iter()
-            .map(|(k, v)| format!("{}={}",
-                percent_encoding::utf8_percent_encode(k, percent_encoding::NON_ALPHANUMERIC),
-                percent_encoding::utf8_percent_encode(v, percent_encoding::NON_ALPHANUMERIC)))
+        let query = params
+            .iter()
+            .map(|(k, v)| {
+                format!(
+                    "{}={}",
+                    percent_encoding::utf8_percent_encode(k, percent_encoding::NON_ALPHANUMERIC),
+                    percent_encoding::utf8_percent_encode(v, percent_encoding::NON_ALPHANUMERIC)
+                )
+            })
             .collect::<Vec<_>>()
             .join("&");
         parsed.set_query(Some(&query));
@@ -433,17 +470,24 @@ fn build_http3_body(
     }
 
     // Collect data items
-    let data_items: Vec<_> = processed.items.iter()
-        .filter(|item| matches!(item,
-            InputItem::DataField { .. } |
-            InputItem::DataFieldFile { .. } |
-            InputItem::JsonField { .. } |
-            InputItem::JsonFieldFile { .. }
-        ))
+    let data_items: Vec<_> = processed
+        .items
+        .iter()
+        .filter(|item| {
+            matches!(
+                item,
+                InputItem::DataField { .. }
+                    | InputItem::DataFieldFile { .. }
+                    | InputItem::JsonField { .. }
+                    | InputItem::JsonFieldFile { .. }
+            )
+        })
         .collect();
 
     // Collect file upload items
-    let file_items: Vec<_> = processed.items.iter()
+    let file_items: Vec<_> = processed
+        .items
+        .iter()
         .filter(|item| matches!(item, InputItem::FileUpload { .. }))
         .collect();
 
@@ -463,24 +507,28 @@ fn build_http3_body(
         for item in &data_items {
             match item {
                 InputItem::DataField { key, value } => {
-                    write!(body, "--{}\r\n", boundary)
-                        .map_err(|e| QuicpulseError::Io(e))?;
-                    write!(body, "Content-Disposition: form-data; name=\"{}\"\r\n\r\n", key)
-                        .map_err(|e| QuicpulseError::Io(e))?;
-                    write!(body, "{}\r\n", value)
-                        .map_err(|e| QuicpulseError::Io(e))?;
+                    write!(body, "--{}\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+                    write!(
+                        body,
+                        "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
+                        key
+                    )
+                    .map_err(|e| QuicpulseError::Io(e))?;
+                    write!(body, "{}\r\n", value).map_err(|e| QuicpulseError::Io(e))?;
                 }
                 InputItem::DataFieldFile { key, path } => {
                     let value = std::fs::read_to_string(path)
                         .map_err(|e| QuicpulseError::Io(e))?
                         .trim()
                         .to_string();
-                    write!(body, "--{}\r\n", boundary)
-                        .map_err(|e| QuicpulseError::Io(e))?;
-                    write!(body, "Content-Disposition: form-data; name=\"{}\"\r\n\r\n", key)
-                        .map_err(|e| QuicpulseError::Io(e))?;
-                    write!(body, "{}\r\n", value)
-                        .map_err(|e| QuicpulseError::Io(e))?;
+                    write!(body, "--{}\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+                    write!(
+                        body,
+                        "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
+                        key
+                    )
+                    .map_err(|e| QuicpulseError::Io(e))?;
+                    write!(body, "{}\r\n", value).map_err(|e| QuicpulseError::Io(e))?;
                 }
                 _ => {}
             }
@@ -488,30 +536,37 @@ fn build_http3_body(
 
         // Add file uploads
         for item in &file_items {
-            if let InputItem::FileUpload { field, path, mime_type, filename } = item {
-                let contents = std::fs::read(path)
-                    .map_err(|e| QuicpulseError::Io(e))?;
-                let fname = filename.clone()
+            if let InputItem::FileUpload {
+                field,
+                path,
+                mime_type,
+                filename,
+            } = item
+            {
+                let contents = std::fs::read(path).map_err(|e| QuicpulseError::Io(e))?;
+                let fname = filename
+                    .clone()
                     .or_else(|| path.file_name()?.to_str().map(String::from))
                     .unwrap_or_else(|| "file".to_string());
-                let mime = mime_type.clone()
+                let mime = mime_type
+                    .clone()
                     .unwrap_or_else(|| guess_mime_from_path(path));
 
-                write!(body, "--{}\r\n", boundary)
-                    .map_err(|e| QuicpulseError::Io(e))?;
-                write!(body, "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n",
-                    field, fname)
-                    .map_err(|e| QuicpulseError::Io(e))?;
+                write!(body, "--{}\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+                write!(
+                    body,
+                    "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n",
+                    field, fname
+                )
+                .map_err(|e| QuicpulseError::Io(e))?;
                 write!(body, "Content-Type: {}\r\n\r\n", mime)
                     .map_err(|e| QuicpulseError::Io(e))?;
                 body.extend_from_slice(&contents);
-                write!(body, "\r\n")
-                    .map_err(|e| QuicpulseError::Io(e))?;
+                write!(body, "\r\n").map_err(|e| QuicpulseError::Io(e))?;
             }
         }
 
-        write!(body, "--{}--\r\n", boundary)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        write!(body, "--{}--\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
 
         let content_type = format!("multipart/form-data; boundary={}", boundary);
         if let Ok(v) = http::header::HeaderValue::try_from(content_type) {
@@ -552,7 +607,8 @@ fn build_http3_body(
         let body = serde_urlencoded::to_string(&form_data)
             .map_err(|e| QuicpulseError::Parse(format!("Failed to encode form: {}", e)))?;
         if !headers.contains_key("content-type") {
-            if let Ok(v) = http::header::HeaderValue::try_from("application/x-www-form-urlencoded") {
+            if let Ok(v) = http::header::HeaderValue::try_from("application/x-www-form-urlencoded")
+            {
                 headers.insert("content-type", v);
             }
         }
@@ -577,10 +633,9 @@ fn build_http3_body(
                 json_obj.insert(key.clone(), value.clone());
             }
             InputItem::JsonFieldFile { key, path } => {
-                let content = std::fs::read_to_string(path)
-                    .map_err(|e| QuicpulseError::Io(e))?;
-                let value: serde_json::Value = serde_json::from_str(&content)
-                    .map_err(|e| QuicpulseError::Json(e))?;
+                let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+                let value: serde_json::Value =
+                    serde_json::from_str(&content).map_err(|e| QuicpulseError::Json(e))?;
                 json_obj.insert(key.clone(), value);
             }
             _ => {}
@@ -592,14 +647,14 @@ fn build_http3_body(
             headers.insert("content-type", v);
         }
     }
-    Ok(Some(serde_json::to_vec(&serde_json::Value::Object(json_obj)).unwrap_or_default()))
+    Ok(Some(
+        serde_json::to_vec(&serde_json::Value::Object(json_obj)).unwrap_or_default(),
+    ))
 }
 
 /// Guess MIME type from file path
 fn guess_mime_from_path(path: &std::path::Path) -> String {
-    let ext = path.extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
     match ext.to_lowercase().as_str() {
         "txt" => "text/plain",
         "html" | "htm" => "text/html",
@@ -622,7 +677,8 @@ fn guess_mime_from_path(path: &std::path::Path) -> String {
         "mp4" => "video/mp4",
         "webm" => "video/webm",
         _ => "application/octet-stream",
-    }.to_string()
+    }
+    .to_string()
 }
 
 /// Run an HTTP/3 request (entry point from core.rs)
@@ -632,12 +688,14 @@ pub async fn run_http3(
     env: &crate::context::Environment,
     session: Option<&crate::sessions::Session>,
 ) -> Result<crate::status::ExitStatus, QuicpulseError> {
-    use std::io::Write;
-    use crate::input::InputItem;
     use crate::cli::args::AuthType;
+    use crate::input::InputItem;
     use crate::middleware::auth::{Auth, DigestAuth, DigestChallenge};
-    use crate::output::formatters::{ColorFormatter, ColorStyle, format_json, JsonFormatterOptions};
+    use crate::output::formatters::{
+        format_json, ColorFormatter, ColorStyle, JsonFormatterOptions,
+    };
     use crate::output::writer::PrettyOption;
+    use std::io::Write;
 
     let timeout = Duration::from_secs(args.timeout.unwrap_or(30.0) as u64);
 
@@ -645,8 +703,8 @@ pub async fn run_http3(
     let url = build_url_with_query(&processed.url, &processed.items)?;
 
     // Parse URL for session cookies
-    let parsed_url = url::Url::parse(&url)
-        .map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
+    let parsed_url =
+        url::Url::parse(&url).map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
 
     // Build headers from processed items
     let mut headers = HeaderMap::new();
@@ -754,9 +812,10 @@ pub async fn run_http3(
                 // Will be implemented in Phase 2
             }
             _ => {
-                return Err(QuicpulseError::Config(
-                    format!("{:?} auth not yet supported with HTTP/3", auth_type)
-                ));
+                return Err(QuicpulseError::Config(format!(
+                    "{:?} auth not yet supported with HTTP/3",
+                    auth_type
+                )));
             }
         }
     }
@@ -793,7 +852,8 @@ pub async fn run_http3(
 
     // Check if AWS SigV4 authentication is requested
     let use_aws_sigv4 = matches!(args.auth_type, Some(AuthType::AwsSigv4));
-    let is_multipart = headers.get("content-type")
+    let is_multipart = headers
+        .get("content-type")
         .and_then(|v| v.to_str().ok())
         .map(|ct| ct.starts_with("multipart/"))
         .unwrap_or(false);
@@ -838,9 +898,13 @@ pub async fn run_http3(
     // Sign request with AWS SigV4 if configured
     if let Some(ref config) = aws_config {
         // Collect headers for signing
-        let current_headers: Vec<(String, String)> = headers.iter()
+        let current_headers: Vec<(String, String)> = headers
+            .iter()
             .filter_map(|(name, value)| {
-                value.to_str().ok().map(|v| (name.to_string(), v.to_string()))
+                value
+                    .to_str()
+                    .ok()
+                    .map(|v| (name.to_string(), v.to_string()))
             })
             .collect();
 
@@ -884,7 +948,8 @@ pub async fn run_http3(
         verify_tls,
         client_cert,
         client_key,
-    ).await?;
+    )
+    .await?;
 
     // Handle Digest auth challenge-response (401 retry)
     if resp.status == StatusCode::UNAUTHORIZED {
@@ -901,8 +966,9 @@ pub async fn run_http3(
                                     .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
 
                                 // Parse URL for path
-                                let parsed_url = url::Url::parse(&url)
-                                    .map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
+                                let parsed_url = url::Url::parse(&url).map_err(|e| {
+                                    QuicpulseError::Parse(format!("Invalid URL: {}", e))
+                                })?;
                                 let uri_with_query = if let Some(query) = parsed_url.query() {
                                     format!("{}?{}", parsed_url.path(), query)
                                 } else {
@@ -910,18 +976,26 @@ pub async fn run_http3(
                                 };
 
                                 // Generate Authorization header
-                                let auth_header = digest_auth.respond_to_challenge(
-                                    &challenge,
-                                    &processed.method,
-                                    &uri_with_query,
-                                ).map_err(|e| QuicpulseError::Auth(e.to_string()))?;
+                                let auth_header = digest_auth
+                                    .respond_to_challenge(
+                                        &challenge,
+                                        &processed.method,
+                                        &uri_with_query,
+                                    )
+                                    .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
 
                                 // Rebuild headers with Authorization
                                 let mut retry_headers = headers.clone();
                                 retry_headers.insert(
                                     "authorization",
-                                    http::header::HeaderValue::try_from(auth_header)
-                                        .map_err(|e| QuicpulseError::Parse(format!("Invalid auth header: {}", e)))?,
+                                    http::header::HeaderValue::try_from(auth_header).map_err(
+                                        |e| {
+                                            QuicpulseError::Parse(format!(
+                                                "Invalid auth header: {}",
+                                                e
+                                            ))
+                                        },
+                                    )?,
                                 );
 
                                 // Retry with auth
@@ -934,7 +1008,8 @@ pub async fn run_http3(
                                     verify_tls,
                                     client_cert,
                                     client_key,
-                                ).await?;
+                                )
+                                .await?;
                             }
                         }
                     }
@@ -964,12 +1039,16 @@ pub async fn run_http3(
             // Resolve relative URL
             let base_url = url::Url::parse(&current_url)
                 .map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
-            let next_url = base_url.join(&location)
-                .map_err(|e| QuicpulseError::Parse(format!("Invalid redirect URL '{}': {}", location, e)))?;
+            let next_url = base_url.join(&location).map_err(|e| {
+                QuicpulseError::Parse(format!("Invalid redirect URL '{}': {}", location, e))
+            })?;
 
             // HTTP/3 only works with HTTPS
             if next_url.scheme() != "https" {
-                eprintln!("Warning: Cannot follow redirect to non-HTTPS URL: {}", next_url);
+                eprintln!(
+                    "Warning: Cannot follow redirect to non-HTTPS URL: {}",
+                    next_url
+                );
                 break;
             }
 
@@ -992,7 +1071,11 @@ pub async fn run_http3(
 
             // Print intermediate response if --all is set
             if args.all {
-                println!("HTTP/3 {} {}", resp.status.as_u16(), resp.status.canonical_reason().unwrap_or(""));
+                println!(
+                    "HTTP/3 {} {}",
+                    resp.status.as_u16(),
+                    resp.status.canonical_reason().unwrap_or("")
+                );
                 for (name, value) in resp.headers.iter() {
                     println!("{}: {}", name, value.to_str().unwrap_or("<binary>"));
                 }
@@ -1057,7 +1140,8 @@ pub async fn run_http3(
                 verify_tls,
                 client_cert,
                 client_key,
-            ).await?;
+            )
+            .await?;
 
             current_url = next_url.to_string();
             current_method = next_method;
@@ -1078,7 +1162,13 @@ pub async fn run_http3(
 
     let pretty_option = match args.pretty {
         Some(opt) => opt,
-        None => if env.stdout_isatty { PrettyOption::All } else { PrettyOption::Format },
+        None => {
+            if env.stdout_isatty {
+                PrettyOption::All
+            } else {
+                PrettyOption::Format
+            }
+        }
     };
 
     let color_style = match &args.style {
@@ -1125,12 +1215,14 @@ pub async fn run_http3(
         let filename = determine_download_filename(&url, &resp.headers, args.output.as_ref());
 
         // Write body to file
-        std::fs::write(&filename, &resp.body)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        std::fs::write(&filename, &resp.body).map_err(|e| QuicpulseError::Io(e))?;
 
         eprintln!("Downloaded {} bytes to {:?}", resp.body.len(), filename);
 
-        return Ok(crate::status::ExitStatus::from_http_status(resp.status.as_u16(), args.check_status));
+        return Ok(crate::status::ExitStatus::from_http_status(
+            resp.status.as_u16(),
+            args.check_status,
+        ));
     }
 
     // Print body (unless headers-only mode)
@@ -1138,17 +1230,24 @@ pub async fn run_http3(
         let body_str = String::from_utf8_lossy(&resp.body);
 
         // Detect content type for formatting
-        let content_type = resp.headers.get("content-type")
+        let content_type = resp
+            .headers
+            .get("content-type")
             .and_then(|v| v.to_str().ok())
             .unwrap_or("text/plain");
 
-        let base_mime = content_type.split(';').next().unwrap_or(content_type).trim();
+        let base_mime = content_type
+            .split(';')
+            .next()
+            .unwrap_or(content_type)
+            .trim();
         let is_json = base_mime == "application/json" || base_mime.ends_with("+json");
 
         let output = if is_json {
             // Try to parse and format JSON
             if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_str) {
-                let formatted = if matches!(pretty_option, PrettyOption::All | PrettyOption::Format) {
+                let formatted = if matches!(pretty_option, PrettyOption::All | PrettyOption::Format)
+                {
                     serde_json::to_string_pretty(&json).unwrap_or_else(|_| body_str.to_string())
                 } else {
                     json.to_string()
@@ -1172,11 +1271,18 @@ pub async fn run_http3(
     }
 
     // Check status for exit code
-    Ok(crate::status::ExitStatus::from_http_status(resp.status.as_u16(), args.check_status))
+    Ok(crate::status::ExitStatus::from_http_status(
+        resp.status.as_u16(),
+        args.check_status,
+    ))
 }
 
 /// Determine download filename from URL, headers, or user-specified path
-fn determine_download_filename(url: &str, headers: &HeaderMap, output: Option<&std::path::PathBuf>) -> std::path::PathBuf {
+fn determine_download_filename(
+    url: &str,
+    headers: &HeaderMap,
+    output: Option<&std::path::PathBuf>,
+) -> std::path::PathBuf {
     // Priority 1: User-specified output path
     if let Some(path) = output {
         return path.clone();
@@ -1246,50 +1352,53 @@ fn infer_aws_service(url: &str) -> Option<String> {
         if !parts.is_empty() {
             let service = parts[0];
             // Handle some common service names
-            return Some(match service {
-                "s3" | "s3-accelerate" => "s3",
-                "execute-api" => "execute-api",
-                "lambda" => "lambda",
-                "dynamodb" => "dynamodb",
-                "sqs" => "sqs",
-                "sns" => "sns",
-                "sts" => "sts",
-                "iam" => "iam",
-                "ec2" => "ec2",
-                "rds" => "rds",
-                "secretsmanager" => "secretsmanager",
-                "ssm" => "ssm",
-                "kinesis" => "kinesis",
-                "firehose" => "firehose",
-                "logs" => "logs",
-                "events" => "events",
-                "apigateway" => "apigateway",
-                "cloudformation" => "cloudformation",
-                "cloudwatch" => "monitoring",
-                "elasticloadbalancing" => "elasticloadbalancing",
-                "autoscaling" => "autoscaling",
-                "elasticache" => "elasticache",
-                "elasticbeanstalk" => "elasticbeanstalk",
-                "glacier" => "glacier",
-                "kms" => "kms",
-                "redshift" => "redshift",
-                "route53" => "route53",
-                "ses" => "ses",
-                "swf" => "swf",
-                "cloudsearch" => "cloudsearch",
-                "elastictranscoder" => "elastictranscoder",
-                "importexport" => "importexport",
-                "storagegateway" => "storagegateway",
-                "datapipeline" => "datapipeline",
-                "directconnect" => "directconnect",
-                "opsworks" => "opsworks",
-                "elasticmapreduce" => "elasticmapreduce",
-                "support" => "support",
-                "cognito-identity" => "cognito-identity",
-                "cognito-idp" => "cognito-idp",
-                "cognito-sync" => "cognito-sync",
-                other => other,
-            }.to_string());
+            return Some(
+                match service {
+                    "s3" | "s3-accelerate" => "s3",
+                    "execute-api" => "execute-api",
+                    "lambda" => "lambda",
+                    "dynamodb" => "dynamodb",
+                    "sqs" => "sqs",
+                    "sns" => "sns",
+                    "sts" => "sts",
+                    "iam" => "iam",
+                    "ec2" => "ec2",
+                    "rds" => "rds",
+                    "secretsmanager" => "secretsmanager",
+                    "ssm" => "ssm",
+                    "kinesis" => "kinesis",
+                    "firehose" => "firehose",
+                    "logs" => "logs",
+                    "events" => "events",
+                    "apigateway" => "apigateway",
+                    "cloudformation" => "cloudformation",
+                    "cloudwatch" => "monitoring",
+                    "elasticloadbalancing" => "elasticloadbalancing",
+                    "autoscaling" => "autoscaling",
+                    "elasticache" => "elasticache",
+                    "elasticbeanstalk" => "elasticbeanstalk",
+                    "glacier" => "glacier",
+                    "kms" => "kms",
+                    "redshift" => "redshift",
+                    "route53" => "route53",
+                    "ses" => "ses",
+                    "swf" => "swf",
+                    "cloudsearch" => "cloudsearch",
+                    "elastictranscoder" => "elastictranscoder",
+                    "importexport" => "importexport",
+                    "storagegateway" => "storagegateway",
+                    "datapipeline" => "datapipeline",
+                    "directconnect" => "directconnect",
+                    "opsworks" => "opsworks",
+                    "elasticmapreduce" => "elasticmapreduce",
+                    "support" => "support",
+                    "cognito-identity" => "cognito-identity",
+                    "cognito-idp" => "cognito-idp",
+                    "cognito-sync" => "cognito-sync",
+                    other => other,
+                }
+                .to_string(),
+            );
         }
     }
     None
@@ -1309,7 +1418,8 @@ mod tests {
                 HeaderMap::new(),
                 None,
                 Duration::from_secs(5),
-            ).await;
+            )
+            .await;
 
             assert!(result.is_err());
             let err = result.unwrap_err();
@@ -1328,7 +1438,8 @@ mod tests {
                 HeaderMap::new(),
                 None,
                 Duration::from_secs(10),
-            ).await;
+            )
+            .await;
 
             match result {
                 Ok(resp) => {

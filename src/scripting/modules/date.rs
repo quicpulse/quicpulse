@@ -2,9 +2,9 @@
 //!
 //! Provides date parsing, formatting, and manipulation utilities.
 
+use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
 use rune::alloc::String as RuneString;
 use rune::{ContextError, Module};
-use chrono::{DateTime, Duration, Local, NaiveDateTime, TimeZone, Utc};
 
 /// Create the date module
 pub fn module() -> Result<Module, ContextError> {
@@ -22,7 +22,9 @@ pub fn module() -> Result<Module, ContextError> {
     module.function("parse_iso", parse_iso).build()?;
     module.function("parse_rfc2822", parse_rfc2822).build()?;
     module.function("from_timestamp", from_timestamp).build()?;
-    module.function("from_timestamp_ms", from_timestamp_ms).build()?;
+    module
+        .function("from_timestamp_ms", from_timestamp_ms)
+        .build()?;
 
     // Formatting
     module.function("format", format_date).build()?;
@@ -289,7 +291,10 @@ fn subtract_days(date_str: &str, days: i64) -> RuneString {
 
 /// Get difference in days between two dates
 fn diff_days(date1: &str, date2: &str) -> i64 {
-    match (DateTime::parse_from_rfc3339(date1), DateTime::parse_from_rfc3339(date2)) {
+    match (
+        DateTime::parse_from_rfc3339(date1),
+        DateTime::parse_from_rfc3339(date2),
+    ) {
         (Ok(dt1), Ok(dt2)) => (dt2 - dt1).num_days(),
         _ => 0,
     }
@@ -297,7 +302,10 @@ fn diff_days(date1: &str, date2: &str) -> i64 {
 
 /// Get difference in hours between two dates
 fn diff_hours(date1: &str, date2: &str) -> i64 {
-    match (DateTime::parse_from_rfc3339(date1), DateTime::parse_from_rfc3339(date2)) {
+    match (
+        DateTime::parse_from_rfc3339(date1),
+        DateTime::parse_from_rfc3339(date2),
+    ) {
         (Ok(dt1), Ok(dt2)) => (dt2 - dt1).num_hours(),
         _ => 0,
     }
@@ -305,7 +313,10 @@ fn diff_hours(date1: &str, date2: &str) -> i64 {
 
 /// Get difference in seconds between two dates
 fn diff_seconds(date1: &str, date2: &str) -> i64 {
-    match (DateTime::parse_from_rfc3339(date1), DateTime::parse_from_rfc3339(date2)) {
+    match (
+        DateTime::parse_from_rfc3339(date1),
+        DateTime::parse_from_rfc3339(date2),
+    ) {
         (Ok(dt1), Ok(dt2)) => (dt2 - dt1).num_seconds(),
         _ => 0,
     }
@@ -313,7 +324,10 @@ fn diff_seconds(date1: &str, date2: &str) -> i64 {
 
 /// Check if date1 is before date2
 fn is_before(date1: &str, date2: &str) -> bool {
-    match (DateTime::parse_from_rfc3339(date1), DateTime::parse_from_rfc3339(date2)) {
+    match (
+        DateTime::parse_from_rfc3339(date1),
+        DateTime::parse_from_rfc3339(date2),
+    ) {
         (Ok(dt1), Ok(dt2)) => dt1 < dt2,
         _ => false,
     }
@@ -321,7 +335,10 @@ fn is_before(date1: &str, date2: &str) -> bool {
 
 /// Check if date1 is after date2
 fn is_after(date1: &str, date2: &str) -> bool {
-    match (DateTime::parse_from_rfc3339(date1), DateTime::parse_from_rfc3339(date2)) {
+    match (
+        DateTime::parse_from_rfc3339(date1),
+        DateTime::parse_from_rfc3339(date2),
+    ) {
         (Ok(dt1), Ok(dt2)) => dt1 > dt2,
         _ => false,
     }
@@ -331,7 +348,10 @@ fn is_after(date1: &str, date2: &str) -> bool {
 fn start_of_day(date_str: &str) -> RuneString {
     match DateTime::parse_from_rfc3339(date_str) {
         Ok(dt) => {
-            let start = dt.with_hour(0).and_then(|d| d.with_minute(0)).and_then(|d| d.with_second(0));
+            let start = dt
+                .with_hour(0)
+                .and_then(|d| d.with_minute(0))
+                .and_then(|d| d.with_second(0));
             match start {
                 Some(s) => RuneString::try_from(s.to_rfc3339()).unwrap_or_default(),
                 None => RuneString::try_from(date_str.to_string()).unwrap_or_default(),
@@ -345,7 +365,10 @@ fn start_of_day(date_str: &str) -> RuneString {
 fn end_of_day(date_str: &str) -> RuneString {
     match DateTime::parse_from_rfc3339(date_str) {
         Ok(dt) => {
-            let end = dt.with_hour(23).and_then(|d| d.with_minute(59)).and_then(|d| d.with_second(59));
+            let end = dt
+                .with_hour(23)
+                .and_then(|d| d.with_minute(59))
+                .and_then(|d| d.with_second(59));
             match end {
                 Some(e) => RuneString::try_from(e.to_rfc3339()).unwrap_or_default(),
                 None => RuneString::try_from(date_str.to_string()).unwrap_or_default(),

@@ -3,9 +3,9 @@
 mod common;
 
 use common::{http, http_error, ExitStatus};
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path};
 use std::time::Duration;
+use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // =============================================================================
 // Basic Benchmark Tests
@@ -22,18 +22,19 @@ async fn test_bench_basic() {
         .mount(&mock_server)
         .await;
 
-    let response = http(&[
-        "--bench",
-        "GET",
-        &format!("{}/api/test", mock_server.uri())
-    ]);
+    let response = http(&["--bench", "GET", &format!("{}/api/test", mock_server.uri())]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should show benchmark results
-    assert!(output.contains("requests") || output.contains("latency") ||
-            output.contains("Benchmark") || output.contains("ms"),
-        "Should show benchmark results. output: {}", output);
+    assert!(
+        output.contains("requests")
+            || output.contains("latency")
+            || output.contains("Benchmark")
+            || output.contains("ms"),
+        "Should show benchmark results. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -49,9 +50,10 @@ async fn test_bench_custom_request_count() {
 
     let response = http(&[
         "--bench",
-        "--requests", "20",
+        "--requests",
+        "20",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -70,10 +72,12 @@ async fn test_bench_custom_concurrency() {
 
     let response = http(&[
         "--bench",
-        "--requests", "50",
-        "--concurrency", "5",
+        "--requests",
+        "50",
+        "--concurrency",
+        "5",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -89,28 +93,29 @@ async fn test_bench_shows_latency_stats() {
 
     Mock::given(method("GET"))
         .and(path("/test"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_delay(Duration::from_millis(10)))
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_millis(10)))
         .mount(&mock_server)
         .await;
 
     let response = http(&[
         "--bench",
-        "--requests", "30",
-        "--concurrency", "5",
+        "--requests",
+        "30",
+        "--concurrency",
+        "5",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show latency statistics
-    let has_stats = output.contains("ms") ||
-                    output.contains("latency") ||
-                    output.contains("Latency") ||
-                    output.contains("avg") ||
-                    output.contains("mean");
+    let has_stats = output.contains("ms")
+        || output.contains("latency")
+        || output.contains("Latency")
+        || output.contains("avg")
+        || output.contains("mean");
     assert!(has_stats, "Should show latency stats. output: {}", output);
 }
 
@@ -126,22 +131,27 @@ async fn test_bench_shows_percentiles() {
 
     let response = http(&[
         "--bench",
-        "--requests", "50",
+        "--requests",
+        "50",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show percentiles (p50, p90, p99, etc.)
-    let has_percentiles = output.contains("p50") ||
-                          output.contains("p90") ||
-                          output.contains("p99") ||
-                          output.contains("50th") ||
-                          output.contains("percentile") ||
-                          output.contains("%");
-    assert!(has_percentiles, "Should show percentiles. output: {}", output);
+    let has_percentiles = output.contains("p50")
+        || output.contains("p90")
+        || output.contains("p99")
+        || output.contains("50th")
+        || output.contains("percentile")
+        || output.contains("%");
+    assert!(
+        has_percentiles,
+        "Should show percentiles. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -160,19 +170,20 @@ async fn test_bench_status_code_breakdown() {
 
     let response = http(&[
         "--bench",
-        "--requests", "30",
+        "--requests",
+        "30",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show status code counts or success rate
-    let has_status = output.contains("200") ||
-                     output.contains("success") ||
-                     output.contains("Success") ||
-                     output.contains("2xx");
+    let has_status = output.contains("200")
+        || output.contains("success")
+        || output.contains("Success")
+        || output.contains("2xx");
     assert!(has_status, "Should show status codes. output: {}", output);
 }
 
@@ -197,21 +208,26 @@ async fn test_bench_with_mixed_status_codes() {
 
     let response = http(&[
         "--bench",
-        "--requests", "20",
-        "--concurrency", "2",
+        "--requests",
+        "20",
+        "--concurrency",
+        "2",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     // Should complete even with errors
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should show error statistics
-    assert!(output.contains("500") ||
-            output.contains("error") ||
-            output.contains("failed") ||
-            output.contains("5xx") ||
-            output.len() > 100,
-        "Should show mixed results. output: {}", output);
+    assert!(
+        output.contains("500")
+            || output.contains("error")
+            || output.contains("failed")
+            || output.contains("5xx")
+            || output.len() > 100,
+        "Should show mixed results. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -230,20 +246,21 @@ async fn test_bench_shows_throughput() {
 
     let response = http(&[
         "--bench",
-        "--requests", "50",
+        "--requests",
+        "50",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show throughput metrics (requests/sec, bytes/sec)
-    let has_throughput = output.contains("req/s") ||
-                         output.contains("requests/sec") ||
-                         output.contains("Requests/sec") ||
-                         output.contains("/s") ||
-                         output.contains("throughput");
+    let has_throughput = output.contains("req/s")
+        || output.contains("requests/sec")
+        || output.contains("Requests/sec")
+        || output.contains("/s")
+        || output.contains("throughput");
     assert!(has_throughput, "Should show throughput. output: {}", output);
 }
 
@@ -259,22 +276,23 @@ async fn test_bench_shows_total_time() {
 
     let response = http(&[
         "--bench",
-        "--requests", "30",
+        "--requests",
+        "30",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show total duration
-    let has_duration = output.contains("duration") ||
-                       output.contains("Duration") ||
-                       output.contains("total") ||
-                       output.contains("Total") ||
-                       output.contains("time") ||
-                       output.contains("ms") ||
-                       output.contains("s");
+    let has_duration = output.contains("duration")
+        || output.contains("Duration")
+        || output.contains("total")
+        || output.contains("Total")
+        || output.contains("time")
+        || output.contains("ms")
+        || output.contains("s");
     assert!(has_duration, "Should show duration. output: {}", output);
 }
 
@@ -294,10 +312,11 @@ async fn test_bench_post_with_body() {
 
     let response = http(&[
         "--bench",
-        "--requests", "20",
+        "--requests",
+        "20",
         "POST",
         &format!("{}/api/create", mock_server.uri()),
-        "name=test"
+        "name=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -315,10 +334,11 @@ async fn test_bench_post_json_body() {
 
     let response = http(&[
         "--bench",
-        "--requests", "20",
+        "--requests",
+        "20",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "name:=123"
+        "name:=123",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -333,20 +353,25 @@ async fn test_bench_connection_errors() {
     // Connect to a port that's not listening
     let response = http_error(&[
         "--bench",
-        "--requests", "5",
-        "--concurrency", "2",
+        "--requests",
+        "5",
+        "--concurrency",
+        "2",
         "GET",
-        "http://127.0.0.1:59999/nonexistent"
+        "http://127.0.0.1:59999/nonexistent",
     ]);
 
     // Should handle connection errors gracefully
     // The bench might complete with errors reported
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("error") ||
-            output.contains("failed") ||
-            output.contains("connection") ||
-            response.exit_status == ExitStatus::Error,
-        "Should report connection errors. output: {}", output);
+    assert!(
+        output.contains("error")
+            || output.contains("failed")
+            || output.contains("connection")
+            || response.exit_status == ExitStatus::Error,
+        "Should report connection errors. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -355,29 +380,34 @@ async fn test_bench_timeout_errors() {
 
     Mock::given(method("GET"))
         .and(path("/slow"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_delay(Duration::from_secs(10))) // Very slow
+        .respond_with(ResponseTemplate::new(200).set_delay(Duration::from_secs(10))) // Very slow
         .mount(&mock_server)
         .await;
 
     // With a short timeout, requests should timeout
     let response = http(&[
         "--bench",
-        "--requests", "3",
-        "--concurrency", "1",
-        "--timeout", "0.5",  // 500ms timeout
+        "--requests",
+        "3",
+        "--concurrency",
+        "1",
+        "--timeout",
+        "0.5", // 500ms timeout
         "GET",
-        &format!("{}/slow", mock_server.uri())
+        &format!("{}/slow", mock_server.uri()),
     ]);
 
     // Should handle timeouts
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("timeout") ||
-            output.contains("Timeout") ||
-            output.contains("failed") ||
-            output.contains("error") ||
-            output.len() > 50,
-        "Should report timeouts. output: {}", output);
+    assert!(
+        output.contains("timeout")
+            || output.contains("Timeout")
+            || output.contains("failed")
+            || output.contains("error")
+            || output.len() > 50,
+        "Should report timeouts. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -396,10 +426,12 @@ async fn test_bench_single_concurrency() {
 
     let response = http(&[
         "--bench",
-        "--requests", "10",
-        "--concurrency", "1",  // Single concurrent request
+        "--requests",
+        "10",
+        "--concurrency",
+        "1", // Single concurrent request
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -417,10 +449,12 @@ async fn test_bench_high_concurrency() {
 
     let response = http(&[
         "--bench",
-        "--requests", "100",
-        "--concurrency", "50",  // High concurrency
+        "--requests",
+        "100",
+        "--concurrency",
+        "50", // High concurrency
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -442,10 +476,12 @@ async fn test_bench_single_request() {
 
     let response = http(&[
         "--bench",
-        "--requests", "1",
-        "--concurrency", "1",
+        "--requests",
+        "1",
+        "--concurrency",
+        "1",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -463,11 +499,12 @@ async fn test_bench_with_headers() {
 
     let response = http(&[
         "--bench",
-        "--requests", "20",
+        "--requests",
+        "20",
         "GET",
         &format!("{}/api", mock_server.uri()),
         "Authorization:Bearer token123",
-        "X-Custom:value"
+        "X-Custom:value",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -479,8 +516,7 @@ async fn test_bench_with_follow_redirects() {
 
     Mock::given(method("GET"))
         .and(path("/redirect"))
-        .respond_with(ResponseTemplate::new(302)
-            .append_header("Location", "/final"))
+        .respond_with(ResponseTemplate::new(302).append_header("Location", "/final"))
         .mount(&mock_server)
         .await;
 
@@ -492,10 +528,11 @@ async fn test_bench_with_follow_redirects() {
 
     let response = http(&[
         "--bench",
-        "--requests", "20",
+        "--requests",
+        "20",
         "--follow",
         "GET",
-        &format!("{}/redirect", mock_server.uri())
+        &format!("{}/redirect", mock_server.uri()),
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);

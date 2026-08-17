@@ -2,101 +2,236 @@
 //!
 //! Provides fake data generation utilities.
 
-use rquickjs::{Ctx, Object, Function};
-use rand::Rng;
 use crate::errors::QuicpulseError;
+use rand::{Rng, RngExt};
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let faker = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create faker object: {}", e)))?;
 
-    faker.set("name", Function::new(ctx.clone(), fake_name)?)
+    faker
+        .set("name", Function::new(ctx.clone(), fake_name)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("first_name", Function::new(ctx.clone(), fake_first_name)?)
+    faker
+        .set("first_name", Function::new(ctx.clone(), fake_first_name)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("last_name", Function::new(ctx.clone(), fake_last_name)?)
+    faker
+        .set("last_name", Function::new(ctx.clone(), fake_last_name)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("email", Function::new(ctx.clone(), fake_email)?)
+    faker
+        .set("email", Function::new(ctx.clone(), fake_email)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("username", Function::new(ctx.clone(), fake_username)?)
+    faker
+        .set("username", Function::new(ctx.clone(), fake_username)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("phone", Function::new(ctx.clone(), fake_phone)?)
+    faker
+        .set("phone", Function::new(ctx.clone(), fake_phone)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("address", Function::new(ctx.clone(), fake_address)?)
+    faker
+        .set("address", Function::new(ctx.clone(), fake_address)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("city", Function::new(ctx.clone(), fake_city)?)
+    faker
+        .set("city", Function::new(ctx.clone(), fake_city)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("country", Function::new(ctx.clone(), fake_country)?)
+    faker
+        .set("country", Function::new(ctx.clone(), fake_country)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("company", Function::new(ctx.clone(), fake_company)?)
+    faker
+        .set("company", Function::new(ctx.clone(), fake_company)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("sentence", Function::new(ctx.clone(), fake_sentence)?)
+    faker
+        .set("sentence", Function::new(ctx.clone(), fake_sentence)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("paragraph", Function::new(ctx.clone(), fake_paragraph)?)
+    faker
+        .set("paragraph", Function::new(ctx.clone(), fake_paragraph)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("word", Function::new(ctx.clone(), fake_word)?)
+    faker
+        .set("word", Function::new(ctx.clone(), fake_word)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("integer", Function::new(ctx.clone(), fake_integer)?)
+    faker
+        .set("integer", Function::new(ctx.clone(), fake_integer)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("float", Function::new(ctx.clone(), fake_float)?)
+    faker
+        .set("float", Function::new(ctx.clone(), fake_float)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("boolean", Function::new(ctx.clone(), fake_boolean)?)
+    faker
+        .set("boolean", Function::new(ctx.clone(), fake_boolean)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("uuid", Function::new(ctx.clone(), fake_uuid)?)
+    faker
+        .set("uuid", Function::new(ctx.clone(), fake_uuid)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("ipv4", Function::new(ctx.clone(), fake_ipv4)?)
+    faker
+        .set("ipv4", Function::new(ctx.clone(), fake_ipv4)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("ipv6", Function::new(ctx.clone(), fake_ipv6)?)
+    faker
+        .set("ipv6", Function::new(ctx.clone(), fake_ipv6)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("url", Function::new(ctx.clone(), fake_url)?)
+    faker
+        .set("url", Function::new(ctx.clone(), fake_url)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    faker.set("user_agent", Function::new(ctx.clone(), fake_user_agent)?)
+    faker
+        .set("user_agent", Function::new(ctx.clone(), fake_user_agent)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("faker", faker)
+    globals
+        .set("faker", faker)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set faker global: {}", e)))?;
 
     Ok(())
 }
 
 const FIRST_NAMES: &[&str] = &[
-    "James", "John", "Robert", "Michael", "William", "David", "Richard", "Joseph",
-    "Mary", "Patricia", "Jennifer", "Linda", "Elizabeth", "Barbara", "Susan", "Jessica",
-    "Thomas", "Charles", "Christopher", "Daniel", "Matthew", "Anthony", "Mark", "Donald",
-    "Sarah", "Karen", "Nancy", "Lisa", "Betty", "Margaret", "Sandra", "Ashley",
+    "James",
+    "John",
+    "Robert",
+    "Michael",
+    "William",
+    "David",
+    "Richard",
+    "Joseph",
+    "Mary",
+    "Patricia",
+    "Jennifer",
+    "Linda",
+    "Elizabeth",
+    "Barbara",
+    "Susan",
+    "Jessica",
+    "Thomas",
+    "Charles",
+    "Christopher",
+    "Daniel",
+    "Matthew",
+    "Anthony",
+    "Mark",
+    "Donald",
+    "Sarah",
+    "Karen",
+    "Nancy",
+    "Lisa",
+    "Betty",
+    "Margaret",
+    "Sandra",
+    "Ashley",
 ];
 
 const LAST_NAMES: &[&str] = &[
-    "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
-    "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson", "Thomas",
-    "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson", "White",
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Rodriguez",
+    "Martinez",
+    "Hernandez",
+    "Lopez",
+    "Gonzalez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Taylor",
+    "Moore",
+    "Jackson",
+    "Martin",
+    "Lee",
+    "Perez",
+    "Thompson",
+    "White",
 ];
 
 const DOMAINS: &[&str] = &[
-    "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "example.com", "test.com",
+    "gmail.com",
+    "yahoo.com",
+    "hotmail.com",
+    "outlook.com",
+    "example.com",
+    "test.com",
 ];
 
 const CITIES: &[&str] = &[
-    "New York", "Los Angeles", "Chicago", "Houston", "Phoenix", "Philadelphia",
-    "San Antonio", "San Diego", "Dallas", "San Jose", "Austin", "Jacksonville",
-    "London", "Paris", "Tokyo", "Sydney", "Berlin", "Madrid", "Rome", "Toronto",
+    "New York",
+    "Los Angeles",
+    "Chicago",
+    "Houston",
+    "Phoenix",
+    "Philadelphia",
+    "San Antonio",
+    "San Diego",
+    "Dallas",
+    "San Jose",
+    "Austin",
+    "Jacksonville",
+    "London",
+    "Paris",
+    "Tokyo",
+    "Sydney",
+    "Berlin",
+    "Madrid",
+    "Rome",
+    "Toronto",
 ];
 
 const COUNTRIES: &[&str] = &[
-    "United States", "United Kingdom", "Canada", "Australia", "Germany", "France",
-    "Japan", "Italy", "Spain", "Brazil", "Mexico", "India", "China", "Russia",
+    "United States",
+    "United Kingdom",
+    "Canada",
+    "Australia",
+    "Germany",
+    "France",
+    "Japan",
+    "Italy",
+    "Spain",
+    "Brazil",
+    "Mexico",
+    "India",
+    "China",
+    "Russia",
 ];
 
 const COMPANIES: &[&str] = &[
-    "Acme Corp", "Globex", "Initech", "Umbrella Corp", "Stark Industries",
-    "Wayne Enterprises", "Oscorp", "LexCorp", "Cyberdyne Systems", "Weyland-Yutani",
+    "Acme Corp",
+    "Globex",
+    "Initech",
+    "Umbrella Corp",
+    "Stark Industries",
+    "Wayne Enterprises",
+    "Oscorp",
+    "LexCorp",
+    "Cyberdyne Systems",
+    "Weyland-Yutani",
 ];
 
 const WORDS: &[&str] = &[
-    "lorem", "ipsum", "dolor", "sit", "amet", "consectetur", "adipiscing", "elit",
-    "sed", "do", "eiusmod", "tempor", "incididunt", "ut", "labore", "et", "dolore",
-    "magna", "aliqua", "enim", "ad", "minim", "veniam", "quis", "nostrud",
+    "lorem",
+    "ipsum",
+    "dolor",
+    "sit",
+    "amet",
+    "consectetur",
+    "adipiscing",
+    "elit",
+    "sed",
+    "do",
+    "eiusmod",
+    "tempor",
+    "incididunt",
+    "ut",
+    "labore",
+    "et",
+    "dolore",
+    "magna",
+    "aliqua",
+    "enim",
+    "ad",
+    "minim",
+    "veniam",
+    "quis",
+    "nostrud",
 ];
 
 const USER_AGENTS: &[&str] = &[
@@ -153,7 +288,9 @@ fn fake_phone() -> String {
 fn fake_address() -> String {
     let mut rng = rand::rng();
     let num: u32 = rng.random_range(1..9999);
-    let streets = ["Main St", "Oak Ave", "Maple Dr", "Cedar Ln", "Pine Rd", "Elm St"];
+    let streets = [
+        "Main St", "Oak Ave", "Maple Dr", "Cedar Ln", "Pine Rd", "Elm St",
+    ];
     format!("{} {}", num, pick_random(&streets))
 }
 

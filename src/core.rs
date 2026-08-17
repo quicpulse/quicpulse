@@ -1,6 +1,6 @@
 use clap::Parser;
-use tracing::{info, debug, error, warn, instrument};
-use tracing_subscriber::{fmt, EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing::{debug, error, info, instrument, warn};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 fn form_urlencode(s: &str) -> String {
     let mut result = String::with_capacity(s.len());
@@ -29,25 +29,27 @@ fn json_to_deterministic_format(value: &serde_json::Value) -> String {
 use std::time::Instant;
 
 use crate::bench::run_benchmark;
-use crate::cli::{Args, process_args};
-use crate::devexp::{generate_code, generate_curl_command, format_curl_pretty, import_curl, EnvVars};
+use crate::cli::{process_args, Args};
+use crate::devexp::{
+    format_curl_pretty, generate_code, generate_curl_command, import_curl, EnvVars,
+};
 use crate::fuzz::run_fuzz;
 use crate::grpc::run_grpc;
 use crate::har::run_har_replay;
 use crate::openapi::run_openapi_import;
-use crate::pipeline::{run_workflow, handle_workflow_commands};
+use crate::pipeline::{handle_workflow_commands, run_workflow};
 use crate::websocket::{is_ws_request, run_websocket};
 // PrettyOption is now shared between cli::args and output::writer
-use crate::client::{send_request_with_session, check_status, IntermediateResponse, run_http3};
+use crate::client::{check_status, run_http3, send_request_with_session, IntermediateResponse};
 use crate::config::Config;
 use crate::context::Environment;
 use crate::downloads::Downloader;
 use crate::errors::QuicpulseError;
 use crate::filter;
 use crate::internal;
-use crate::output::formatters::{ColorFormatter, ColorStyle, format_json, JsonFormatterOptions};
-use crate::output::pager::{PagerConfig, write_with_pager};
-use crate::output::writer::{OutputOptions, ProcessingOptions, PrettyOption};
+use crate::output::formatters::{format_json, ColorFormatter, ColorStyle, JsonFormatterOptions};
+use crate::output::pager::{write_with_pager, PagerConfig};
+use crate::output::writer::{OutputOptions, PrettyOption, ProcessingOptions};
 use crate::pipeline;
 use crate::pipeline::assertions::{build_assertions, check_assertions};
 use crate::sessions::Session;
@@ -81,10 +83,12 @@ fn init_tracing(args: &Args) {
         // Human-readable output to stderr
         tracing_subscriber::registry()
             .with(filter)
-            .with(fmt::layer()
-                .with_target(true)
-                .with_level(true)
-                .with_writer(std::io::stderr))
+            .with(
+                fmt::layer()
+                    .with_target(true)
+                    .with_level(true)
+                    .with_writer(std::io::stderr),
+            )
             .init();
     }
 }
@@ -118,7 +122,8 @@ pub fn run(args: Vec<String>, mut env: Environment) -> ExitStatus {
         Err(e) => {
             e.print().ok();
             return if e.kind() == clap::error::ErrorKind::DisplayHelp
-                || e.kind() == clap::error::ErrorKind::DisplayVersion {
+                || e.kind() == clap::error::ErrorKind::DisplayVersion
+            {
                 ExitStatus::Success
             } else {
                 ExitStatus::Error
@@ -146,7 +151,10 @@ pub fn run(args: Vec<String>, mut env: Environment) -> ExitStatus {
                 return ExitStatus::Success;
             }
             Err(internal::UpdateError::AlreadyUpToDate) => {
-                eprintln!("Already running the latest version ({})", env!("CARGO_PKG_VERSION"));
+                eprintln!(
+                    "Already running the latest version ({})",
+                    env!("CARGO_PKG_VERSION")
+                );
                 return ExitStatus::Success;
             }
             Err(e) => {
@@ -232,7 +240,10 @@ pub async fn program(args: Args, env: Environment) -> Result<ExitStatus, Quicpul
     }
 
     if args.method.is_none() {
-        eprintln!("usage: {} [METHOD] URL [REQUEST_ITEM ...]", env.program_name);
+        eprintln!(
+            "usage: {} [METHOD] URL [REQUEST_ITEM ...]",
+            env.program_name
+        );
         eprintln!("\nFor more information, run: {} --help", env.program_name);
         return Ok(ExitStatus::Error);
     }
@@ -345,7 +356,8 @@ pub async fn program(args: Args, env: Environment) -> Result<ExitStatus, Quicpul
         &env,
         session.as_ref(),
         download_headers.as_ref(),
-    ).await?;
+    )
+    .await?;
 
     if args.all && !result.intermediate_responses.is_empty() {
         for intermediate in &result.intermediate_responses {
@@ -388,21 +400,30 @@ pub async fn program(args: Args, env: Environment) -> Result<ExitStatus, Quicpul
 
         let is_download_mode = downloader.is_some();
         if is_download_mode {
-            let has_body_assertions = assertions.iter().any(|a| {
-                matches!(a, pipeline::Assertion::Body(_))
-            });
+            let has_body_assertions = assertions
+                .iter()
+                .any(|a| matches!(a, pipeline::Assertion::Body(_)));
             if has_body_assertions {
                 eprintln!("\x1b[33mWarning: Body assertions are skipped in download mode (--download).\x1b[0m");
-                eprintln!("The response body is streamed to disk and not available for assertions.");
+                eprintln!(
+                    "The response body is streamed to disk and not available for assertions."
+                );
             }
         }
 
-        let results = check_assertions(&assertions, status_code, response_time, &response_headers, &response_body);
+        let results = check_assertions(
+            &assertions,
+            status_code,
+            response_time,
+            &response_headers,
+            &response_body,
+        );
 
         let results: Vec<_> = if is_download_mode {
-            results.into_iter().filter(|r| {
-                r.passed || !r.assertion.contains("body")
-            }).collect()
+            results
+                .into_iter()
+                .filter(|r| r.passed || !r.assertion.contains("body"))
+                .collect()
         } else {
             results
         };
@@ -436,7 +457,10 @@ fn print_request(
 
     let mut request_str = format!("{} {} HTTP/1.1\n", processed.method, processed.url);
 
-    request_str.push_str(&format!("User-Agent: {}\n", crate::client::USER_AGENT_STRING));
+    request_str.push_str(&format!(
+        "User-Agent: {}\n",
+        crate::client::USER_AGENT_STRING
+    ));
 
     if !args.form && !args.multipart {
         request_str.push_str("Accept: application/json, */*;q=0.5\n");
@@ -444,7 +468,8 @@ fn print_request(
 
     if processed.has_data {
         if args.form {
-            request_str.push_str("Content-Type: application/x-www-form-urlencoded; charset=utf-8\n");
+            request_str
+                .push_str("Content-Type: application/x-www-form-urlencoded; charset=utf-8\n");
         } else if !args.multipart {
             request_str.push_str("Content-Type: application/json\n");
         }
@@ -477,7 +502,9 @@ fn print_request(
     print!("{}", formatted);
 
     if args.verbose > 1 && processed.has_data {
-        let data_items: Vec<_> = processed.items.iter()
+        let data_items: Vec<_> = processed
+            .items
+            .iter()
             .filter(|item| item.is_data())
             .collect();
 
@@ -485,20 +512,22 @@ fn print_request(
             println!();
 
             if args.form {
-                let form_body: Vec<String> = data_items.iter()
-                    .filter_map(|item| {
-                        match item {
-                            InputItem::DataField { key, value } => Some(format!("{}={}", key, value)),
-                            InputItem::DataFieldFile { key, path } => {
-                                std::fs::read_to_string(path).ok().map(|v| format!("{}={}", key, v.trim()))
-                            }
-                            _ => None,
-                        }
+                let form_body: Vec<String> = data_items
+                    .iter()
+                    .filter_map(|item| match item {
+                        InputItem::DataField { key, value } => Some(format!("{}={}", key, value)),
+                        InputItem::DataFieldFile { key, path } => std::fs::read_to_string(path)
+                            .ok()
+                            .map(|v| format!("{}={}", key, v.trim())),
+                        _ => None,
                     })
                     .collect();
                 let body_str = form_body.join("&");
                 if let Some(fmt) = formatter {
-                    println!("{}", fmt.format_by_mime(&body_str, "application/x-www-form-urlencoded"));
+                    println!(
+                        "{}",
+                        fmt.format_by_mime(&body_str, "application/x-www-form-urlencoded")
+                    );
                 } else {
                     println!("{}", body_str);
                 }
@@ -512,14 +541,16 @@ fn print_request(
                             }
                             InputItem::DataFieldFile { key, path } => {
                                 let content = std::fs::read_to_string(path).unwrap_or_default();
-                                (key.clone(), serde_json::Value::String(content.trim().to_string()))
+                                (
+                                    key.clone(),
+                                    serde_json::Value::String(content.trim().to_string()),
+                                )
                             }
-                            InputItem::JsonField { key, value } => {
-                                (key.clone(), value.clone())
-                            }
+                            InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                             InputItem::JsonFieldFile { key, path } => {
                                 let content = std::fs::read_to_string(path).unwrap_or_default();
-                                let json_val = serde_json::from_str(&content).unwrap_or(serde_json::Value::String(content));
+                                let json_val = serde_json::from_str(&content)
+                                    .unwrap_or(serde_json::Value::String(content));
                                 (key.clone(), json_val)
                             }
                             _ => continue,
@@ -587,7 +618,11 @@ fn print_intermediate_response(
     }
 }
 
-fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &Args, env: &Environment) {
+fn print_offline_request(
+    processed: &crate::cli::parser::ProcessedArgs,
+    args: &Args,
+    env: &Environment,
+) {
     use crate::input::InputItem;
     use std::collections::HashMap;
 
@@ -598,24 +633,25 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
     let output_opts = build_output_options(args, env);
 
     let mut url = processed.url.clone();
-    let query_items: Vec<_> = processed.items.iter()
+    let query_items: Vec<_> = processed
+        .items
+        .iter()
         .filter(|item| item.is_query())
         .collect();
 
     if !query_items.is_empty() {
-        let query_string: String = query_items.iter()
-            .filter_map(|item| {
-                match item {
-                    InputItem::QueryParam { name, value } => Some(format!("{}={}",
-                        form_urlencode(name),
-                        form_urlencode(value))),
-                    InputItem::QueryParamFile { name, path } => {
-                        std::fs::read_to_string(path).ok().map(|v| format!("{}={}",
-                            form_urlencode(name),
-                            form_urlencode(v.trim())))
-                    }
-                    _ => None,
-                }
+        let query_string: String = query_items
+            .iter()
+            .filter_map(|item| match item {
+                InputItem::QueryParam { name, value } => Some(format!(
+                    "{}={}",
+                    form_urlencode(name),
+                    form_urlencode(value)
+                )),
+                InputItem::QueryParamFile { name, path } => std::fs::read_to_string(path)
+                    .ok()
+                    .map(|v| format!("{}={}", form_urlencode(name), form_urlencode(v.trim()))),
+                _ => None,
             })
             .collect::<Vec<_>>()
             .join("&");
@@ -629,37 +665,47 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
 
     if output_opts.request_headers {
         let (path_and_query, url_credentials) = if let Ok(parsed) = url::Url::parse(&url) {
-             let path = if args.path_as_is {
-                 let url_without_scheme = url.split("://").nth(1).unwrap_or(&url);
-                 let path_start = url_without_scheme.find('/');
-                 let query_start = url_without_scheme.find('?');
-                 match (path_start, query_start) {
-                     (Some(ps), Some(qs)) if ps < qs => url_without_scheme[ps..qs].to_string() + &url_without_scheme[qs..],
-                     (Some(ps), _) => url_without_scheme[ps..].to_string(),
-                     (None, Some(qs)) => "/".to_string() + &url_without_scheme[qs..],
-                     (None, None) => "/".to_string(),
-                 }
-             } else {
-                 let mut p = parsed.path().to_string();
-                 if let Some(q) = parsed.query() {
-                     p.push('?');
-                     p.push_str(q);
-                 }
-                 if p.is_empty() { "/".to_string() } else { p }
-             };
+            let path = if args.path_as_is {
+                let url_without_scheme = url.split("://").nth(1).unwrap_or(&url);
+                let path_start = url_without_scheme.find('/');
+                let query_start = url_without_scheme.find('?');
+                match (path_start, query_start) {
+                    (Some(ps), Some(qs)) if ps < qs => {
+                        url_without_scheme[ps..qs].to_string() + &url_without_scheme[qs..]
+                    }
+                    (Some(ps), _) => url_without_scheme[ps..].to_string(),
+                    (None, Some(qs)) => "/".to_string() + &url_without_scheme[qs..],
+                    (None, None) => "/".to_string(),
+                }
+            } else {
+                let mut p = parsed.path().to_string();
+                if let Some(q) = parsed.query() {
+                    p.push('?');
+                    p.push_str(q);
+                }
+                if p.is_empty() {
+                    "/".to_string()
+                } else {
+                    p
+                }
+            };
 
-             let creds = if args.auth.is_none() && !parsed.username().is_empty() {
-                 Some((parsed.username().to_string(), parsed.password().map(|p| p.to_string())))
-             } else {
-                 None
-             };
-             (path, creds)
+            let creds = if args.auth.is_none() && !parsed.username().is_empty() {
+                Some((
+                    parsed.username().to_string(),
+                    parsed.password().map(|p| p.to_string()),
+                ))
+            } else {
+                None
+            };
+            (path, creds)
         } else {
             (url.clone(), None)
         };
 
         let should_sort = match &args.pretty {
-            Some(crate::cli::args::PrettyOption::All) | Some(crate::cli::args::PrettyOption::Format) => !args.unsorted,
+            Some(crate::cli::args::PrettyOption::All)
+            | Some(crate::cli::args::PrettyOption::Format) => !args.unsorted,
             _ => false,
         };
 
@@ -712,9 +758,12 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
         let is_empty_raw = args.raw.as_ref().map_or(false, |r| r.is_empty());
         let has_nonempty_raw = args.raw.as_ref().map_or(false, |r| !r.is_empty());
         let has_raw = args.raw.is_some();
-        let is_json_mode = !is_form_mode && !is_empty_raw && ((!has_raw && processed.has_data) || has_nonempty_raw);
+        let is_json_mode = !is_form_mode
+            && !is_empty_raw
+            && ((!has_raw && processed.has_data) || has_nonempty_raw);
         let method_upper = processed.method.to_uppercase();
-        let needs_content_length_zero = !matches!(method_upper.as_str(), "GET" | "HEAD" | "OPTIONS");
+        let needs_content_length_zero =
+            !matches!(method_upper.as_str(), "GET" | "HEAD" | "OPTIONS");
 
         let accept_encoding_overridden = custom_headers.contains_key("accept-encoding");
         let connection_overridden = custom_headers.contains_key("connection");
@@ -744,9 +793,8 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
                 match args.auth_type {
                     Some(crate::cli::args::AuthType::Bearer) => {
                         all_headers.push(("Authorization".to_string(), format!("Bearer {}", auth)));
-                    },
-                    Some(crate::cli::args::AuthType::Digest) => {
-                    },
+                    }
+                    Some(crate::cli::args::AuthType::Digest) => {}
                     _ => {
                         let mut parts = auth.splitn(2, ':');
                         let user = parts.next().unwrap_or("");
@@ -754,7 +802,8 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
                         let creds = format!("{}:{}", user, pass);
                         use base64::Engine;
                         let encoded = base64::engine::general_purpose::STANDARD.encode(creds);
-                        all_headers.push(("Authorization".to_string(), format!("Basic {}", encoded)));
+                        all_headers
+                            .push(("Authorization".to_string(), format!("Basic {}", encoded)));
                     }
                 }
             } else if let Some((username, password)) = &url_credentials {
@@ -766,43 +815,67 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
         }
 
         if let Some(val) = custom_headers.get("user-agent") {
-            if !val.is_empty() { all_headers.push(("User-Agent".to_string(), val.clone())); }
+            if !val.is_empty() {
+                all_headers.push(("User-Agent".to_string(), val.clone()));
+            }
         } else {
-            all_headers.push(("User-Agent".to_string(), crate::client::USER_AGENT_STRING.to_string()));
+            all_headers.push((
+                "User-Agent".to_string(),
+                crate::client::USER_AGENT_STRING.to_string(),
+            ));
         }
 
         if accept_encoding_overridden {
             if let Some(val) = custom_headers.get("accept-encoding") {
-                if !val.is_empty() { all_headers.push(("Accept-Encoding".to_string(), val.clone())); }
+                if !val.is_empty() {
+                    all_headers.push(("Accept-Encoding".to_string(), val.clone()));
+                }
             }
         }
         if accept_overridden {
             if let Some(val) = custom_headers.get("accept") {
-                if !val.is_empty() { all_headers.push(("Accept".to_string(), val.clone())); }
+                if !val.is_empty() {
+                    all_headers.push(("Accept".to_string(), val.clone()));
+                }
             }
         }
         if connection_overridden {
             if let Some(val) = custom_headers.get("connection") {
-                if !val.is_empty() { all_headers.push(("Connection".to_string(), val.clone())); }
+                if !val.is_empty() {
+                    all_headers.push(("Connection".to_string(), val.clone()));
+                }
             }
         }
         if custom_headers.contains_key("authorization") && args.auth.is_none() {
             if let Some(val) = custom_headers.get("authorization") {
-                if !val.is_empty() { all_headers.push(("Authorization".to_string(), val.clone())); }
+                if !val.is_empty() {
+                    all_headers.push(("Authorization".to_string(), val.clone()));
+                }
             }
         }
 
         if !accept_overridden && is_json_mode {
-            all_headers.push(("Accept".to_string(), "application/json, */*;q=0.5".to_string()));
+            all_headers.push((
+                "Accept".to_string(),
+                "application/json, */*;q=0.5".to_string(),
+            ));
         }
 
         if let Some(ct) = custom_headers.get("content-type") {
-            if !ct.is_empty() { all_headers.push(("Content-Type".to_string(), ct.clone())); }
+            if !ct.is_empty() {
+                all_headers.push(("Content-Type".to_string(), ct.clone()));
+            }
         } else if is_form_mode {
             if args.form {
-                all_headers.push(("Content-Type".to_string(), "application/x-www-form-urlencoded; charset=utf-8".to_string()));
+                all_headers.push((
+                    "Content-Type".to_string(),
+                    "application/x-www-form-urlencoded; charset=utf-8".to_string(),
+                ));
             } else if args.multipart {
-                all_headers.push(("Content-Type".to_string(), "multipart/form-data; boundary=----WebKitFormBoundary".to_string()));
+                all_headers.push((
+                    "Content-Type".to_string(),
+                    "multipart/form-data; boundary=----WebKitFormBoundary".to_string(),
+                ));
             }
         } else if is_json_mode {
             all_headers.push(("Content-Type".to_string(), "application/json".to_string()));
@@ -812,7 +885,17 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
             all_headers.push(("Transfer-Encoding".to_string(), "chunked".to_string()));
         }
 
-        let standard_headers = ["accept-encoding", "accept", "connection", "content-length", "authorization", "user-agent", "content-type", "transfer-encoding", "host"];
+        let standard_headers = [
+            "accept-encoding",
+            "accept",
+            "connection",
+            "content-length",
+            "authorization",
+            "user-agent",
+            "content-type",
+            "transfer-encoding",
+            "host",
+        ];
         for (key, value) in &final_headers_list {
             let key_lower = key.to_lowercase();
             if !standard_headers.contains(&key_lower.as_str()) {
@@ -821,7 +904,9 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
         }
 
         if let Some(val) = custom_headers.get("host") {
-            if !val.is_empty() { all_headers.push(("Host".to_string(), val.clone())); }
+            if !val.is_empty() {
+                all_headers.push(("Host".to_string(), val.clone()));
+            }
         } else if let Ok(parsed_url) = url::Url::parse(&url) {
             if let Some(host) = parsed_url.host_str() {
                 let host_val = if let Some(port) = parsed_url.port() {
@@ -857,7 +942,9 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
     }
 
     if output_opts.request_body && processed.has_data {
-        let data_items: Vec<_> = processed.items.iter()
+        let data_items: Vec<_> = processed
+            .items
+            .iter()
             .filter(|item| item.is_data())
             .collect();
         if !data_items.is_empty() {
@@ -870,43 +957,48 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
             };
 
             let pretty = if let Some(p) = &args.pretty {
-                 match p {
-                     crate::cli::args::PrettyOption::All |
-                     crate::cli::args::PrettyOption::Format |
-                     crate::cli::args::PrettyOption::Colors => true,
-                     crate::cli::args::PrettyOption::None => false,
-                 }
+                match p {
+                    crate::cli::args::PrettyOption::All
+                    | crate::cli::args::PrettyOption::Format
+                    | crate::cli::args::PrettyOption::Colors => true,
+                    crate::cli::args::PrettyOption::None => false,
+                }
             } else {
-                 env.stdout_isatty
+                env.stdout_isatty
             };
 
             if args.form {
-                let form_body: String = data_items.iter()
+                let form_body: String = data_items
+                    .iter()
                     .filter_map(|item| {
                         match item {
                             InputItem::DataField { key, value } => {
-                                Some(format!("{}={}",
-                                    form_urlencode(key),
-                                    form_urlencode(value)))
+                                Some(format!("{}={}", form_urlencode(key), form_urlencode(value)))
                             }
                             InputItem::DataFieldFile { key, path } => {
                                 let value = std::fs::read_to_string(path).unwrap_or_default();
-                                Some(format!("{}={}",
+                                Some(format!(
+                                    "{}={}",
                                     form_urlencode(key),
-                                    form_urlencode(value.trim())))
+                                    form_urlencode(value.trim())
+                                ))
                             }
                             InputItem::JsonField { key, value } => {
                                 // In form mode, JSON values are converted to their string representation
                                 let value_str = value.to_string();
-                                Some(format!("{}={}",
+                                Some(format!(
+                                    "{}={}",
                                     form_urlencode(key),
-                                    form_urlencode(&value_str)))
+                                    form_urlencode(&value_str)
+                                ))
                             }
                             InputItem::JsonFieldFile { key, path } => {
                                 let content = std::fs::read_to_string(path).unwrap_or_default();
-                                Some(format!("{}={}",
+                                Some(format!(
+                                    "{}={}",
                                     form_urlencode(key),
-                                    form_urlencode(content.trim())))
+                                    form_urlencode(content.trim())
+                                ))
                             }
                             _ => None,
                         }
@@ -943,11 +1035,12 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
                         }
                         InputItem::DataFieldFile { key, path } => {
                             let content = std::fs::read_to_string(path).unwrap_or_default();
-                            (key.clone(), serde_json::Value::String(content.trim().to_string()))
+                            (
+                                key.clone(),
+                                serde_json::Value::String(content.trim().to_string()),
+                            )
                         }
-                        InputItem::JsonField { key, value } => {
-                            (key.clone(), value.clone())
-                        }
+                        InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                         InputItem::JsonFieldFile { key, path } => {
                             let content = std::fs::read_to_string(path).unwrap_or_default();
                             let json_val = serde_json::from_str(&content)
@@ -960,7 +1053,8 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
                 }
 
                 let sort_keys = match &args.pretty {
-                    Some(crate::cli::args::PrettyOption::All) | Some(crate::cli::args::PrettyOption::Format) => !args.unsorted,
+                    Some(crate::cli::args::PrettyOption::All)
+                    | Some(crate::cli::args::PrettyOption::Format) => !args.unsorted,
                     _ => false,
                 };
                 if sort_keys {
@@ -973,13 +1067,18 @@ fn print_offline_request(processed: &crate::cli::parser::ProcessedArgs, args: &A
                 }
 
                 let json_body = serde_json::Value::Object(body);
-                let formatted = if matches!(&args.pretty, Some(crate::cli::args::PrettyOption::All) | Some(crate::cli::args::PrettyOption::Format)) {
+                let formatted = if matches!(
+                    &args.pretty,
+                    Some(crate::cli::args::PrettyOption::All)
+                        | Some(crate::cli::args::PrettyOption::Format)
+                ) {
                     let mut buf = Vec::new();
                     let json_formatter = serde_json::ser::PrettyFormatter::with_indent(b"    ");
                     let mut ser = serde_json::Serializer::with_formatter(&mut buf, json_formatter);
                     use serde::Serialize;
                     json_body.serialize(&mut ser).ok();
-                    String::from_utf8(buf).unwrap_or_else(|_| json_to_deterministic_format(&json_body))
+                    String::from_utf8(buf)
+                        .unwrap_or_else(|_| json_to_deterministic_format(&json_body))
                 } else {
                     json_to_deterministic_format(&json_body)
                 };
@@ -1011,7 +1110,8 @@ async fn print_response(
 ) -> Result<(), QuicpulseError> {
     let status = response.status();
     let headers = response.headers().clone();
-    let content_type = headers.get("content-type")
+    let content_type = headers
+        .get("content-type")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
@@ -1064,7 +1164,10 @@ async fn print_response(
             while let Some(chunk) = response.chunk().await.map_err(QuicpulseError::Request)? {
                 total_bytes += chunk.len() as u64;
                 if total_bytes > STREAM_MAX_SIZE {
-                    eprintln!("\n\x1b[33mWarning: Stream exceeded {} bytes, stopping.\x1b[0m", STREAM_MAX_SIZE);
+                    eprintln!(
+                        "\n\x1b[33mWarning: Stream exceeded {} bytes, stopping.\x1b[0m",
+                        STREAM_MAX_SIZE
+                    );
                     break;
                 }
                 let _ = stdout.write_all(&chunk);
@@ -1101,7 +1204,11 @@ async fn print_response(
     Ok(())
 }
 
-async fn read_body_with_limit(mut response: reqwest::Response, max_size: u64, stdout_isatty: bool) -> Result<String, QuicpulseError> {
+async fn read_body_with_limit(
+    mut response: reqwest::Response,
+    max_size: u64,
+    stdout_isatty: bool,
+) -> Result<String, QuicpulseError> {
     let mut body_bytes = Vec::new();
     let mut total_bytes: u64 = 0;
 
@@ -1109,20 +1216,35 @@ async fn read_body_with_limit(mut response: reqwest::Response, max_size: u64, st
         total_bytes += chunk.len() as u64;
 
         if total_bytes > max_size {
-            eprintln!("\x1b[33mWarning: Response body too large (>{} bytes), truncating output.\x1b[0m", max_size);
+            eprintln!(
+                "\x1b[33mWarning: Response body too large (>{} bytes), truncating output.\x1b[0m",
+                max_size
+            );
             eprintln!("Use --download to save large responses to a file.");
-            body_bytes.extend_from_slice(&chunk[..(max_size as usize - (total_bytes - chunk.len() as u64) as usize).min(chunk.len())]);
+            body_bytes.extend_from_slice(
+                &chunk[..(max_size as usize - (total_bytes - chunk.len() as u64) as usize)
+                    .min(chunk.len())],
+            );
             let body = String::from_utf8_lossy(&body_bytes).into_owned();
-            return Ok(format!("{}\n... [truncated, use --download for full response]", body));
+            return Ok(format!(
+                "{}\n... [truncated, use --download for full response]",
+                body
+            ));
         }
 
         body_bytes.extend_from_slice(&chunk);
     }
 
     if stdout_isatty && crate::utils::is_binary(&body_bytes) {
-        eprintln!("\x1b[33mWarning: Binary content detected ({} bytes).\x1b[0m", body_bytes.len());
+        eprintln!(
+            "\x1b[33mWarning: Binary content detected ({} bytes).\x1b[0m",
+            body_bytes.len()
+        );
         eprintln!("Use --download to save binary responses to a file.");
-        return Ok(format!("[Binary data, {} bytes - use --download to save]", body_bytes.len()));
+        return Ok(format!(
+            "[Binary data, {} bytes - use --download to save]",
+            body_bytes.len()
+        ));
     }
 
     Ok(String::from_utf8_lossy(&body_bytes).into_owned())
@@ -1189,7 +1311,10 @@ async fn download_response(
     let bytes_downloaded = downloader.download_body(response).await?;
 
     if args.quiet == 0 {
-        eprintln!("Done. {} downloaded.", format_size(bytes_downloaded + downloader.resumed_from));
+        eprintln!(
+            "Done. {} downloaded.",
+            format_size(bytes_downloaded + downloader.resumed_from)
+        );
     }
 
     Ok(())
@@ -1343,11 +1468,16 @@ fn merge_default_options(args: Vec<String>, config: &Config) -> Vec<String> {
         return args;
     }
 
-    let (flags, positional): (Vec<_>, Vec<_>) = config.default_options.iter()
+    let (flags, positional): (Vec<_>, Vec<_>) = config
+        .default_options
+        .iter()
         .partition(|opt| opt.starts_with('-'));
 
     if !positional.is_empty() {
-        eprintln!("\x1b[33mWarning: Positional arguments in default_options are ignored: {:?}\x1b[0m", positional);
+        eprintln!(
+            "\x1b[33mWarning: Positional arguments in default_options are ignored: {:?}\x1b[0m",
+            positional
+        );
         eprintln!("Only flags (starting with -) can be used in default_options.");
         eprintln!("For default URLs, use --base-url or environment variables instead.");
     }
@@ -1381,25 +1511,25 @@ fn handle_error(error: QuicpulseError, traceback: bool) -> ExitStatus {
             } else {
                 error!(error = %e, "Request error");
             }
-        },
+        }
         QuicpulseError::Ssl(msg) => {
             error!(error = %msg, "TLS error");
-        },
+        }
         QuicpulseError::Connection(msg) => {
             error!(error = %msg, "Connection error");
-        },
+        }
         QuicpulseError::Timeout(secs) => {
             error!(timeout_secs = secs, "Operation timed out");
-        },
+        }
         QuicpulseError::Auth(msg) => {
             error!(error = %msg, "Authentication error");
-        },
+        }
         QuicpulseError::Config(msg) => {
             error!(error = %msg, "Configuration error");
-        },
+        }
         QuicpulseError::Parse(msg) => {
             error!(error = %msg, "Parse error");
-        },
+        }
         _ => {
             error!(error = %error, "Error occurred");
         }
@@ -1417,8 +1547,8 @@ fn handle_error(error: QuicpulseError, traceback: bool) -> ExitStatus {
 }
 
 fn prompt_auth_if_needed(args: &mut Args, host: &str) -> Result<(), QuicpulseError> {
-    use crate::cli::args::AuthType;
     use crate::auth::Netrc;
+    use crate::cli::args::AuthType;
 
     if args.auth.is_none() && !args.ignore_netrc {
         if let Some(netrc) = Netrc::load() {
@@ -1539,7 +1669,8 @@ fn generate_manpage() {
 
     let cmd = Args::command();
     let man = clap_mangen::Man::new(cmd);
-    man.render(&mut std::io::stdout()).expect("Failed to generate man page");
+    man.render(&mut std::io::stdout())
+        .expect("Failed to generate man page");
 }
 
 fn process_response_body(
@@ -1575,8 +1706,8 @@ fn process_response_body(
 
             if matches!(proc_opts.pretty, PrettyOption::All | PrettyOption::Format) {
                 // Format JSON with indentation
-                let formatted = serde_json::to_string_pretty(&json)
-                    .unwrap_or_else(|_| json.to_string());
+                let formatted =
+                    serde_json::to_string_pretty(&json).unwrap_or_else(|_| json.to_string());
                 if let Some(fmt) = formatter {
                     return Ok(fmt.format_json(&formatted));
                 }
@@ -1592,7 +1723,12 @@ fn process_response_body(
         }
     }
 
-    Ok(format_response_body(body, content_type, proc_opts, formatter))
+    Ok(format_response_body(
+        body,
+        content_type,
+        proc_opts,
+        formatter,
+    ))
 }
 
 async fn print_response_with_body(
@@ -1602,7 +1738,8 @@ async fn print_response_with_body(
 ) -> Result<String, QuicpulseError> {
     let status = response.status();
     let headers = response.headers().clone();
-    let content_type = headers.get("content-type")
+    let content_type = headers
+        .get("content-type")
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
@@ -1684,9 +1821,17 @@ async fn print_response_with_body(
     // Write through pager if enabled
     if pager_config.enabled && !output_buffer.is_empty() {
         let mut stdout = std::io::stdout();
-        if let Err(e) = write_with_pager(&mut stdout, &output_buffer, &pager_config, env.stdout_isatty) {
+        if let Err(e) = write_with_pager(
+            &mut stdout,
+            &output_buffer,
+            &pager_config,
+            env.stdout_isatty,
+        ) {
             // Fallback to direct output if pager fails
-            eprintln!("Warning: Pager failed ({}), falling back to direct output", e);
+            eprintln!(
+                "Warning: Pager failed ({}), falling back to direct output",
+                e
+            );
             print!("{}", output_buffer);
         }
     }
@@ -1723,7 +1868,7 @@ async fn handle_unix_socket_request(
             _ => {
                 let encoded = base64::Engine::encode(
                     &base64::engine::general_purpose::STANDARD,
-                    auth_str.as_bytes()
+                    auth_str.as_bytes(),
                 );
                 format!("Basic {}", encoded)
             }
@@ -1735,7 +1880,9 @@ async fn handle_unix_socket_request(
     let body: Option<Vec<u8>> = if processed.has_data {
         if args.form {
             // Form-encoded body
-            let form_data: Vec<String> = processed.items.iter()
+            let form_data: Vec<String> = processed
+                .items
+                .iter()
                 .filter_map(|item| {
                     if let crate::input::InputItem::DataField { key, value } = item {
                         Some(format!("{}={}", form_urlencode(key), form_urlencode(value)))
@@ -1744,7 +1891,10 @@ async fn handle_unix_socket_request(
                     }
                 })
                 .collect();
-            headers.push(("Content-Type".to_string(), "application/x-www-form-urlencoded".to_string()));
+            headers.push((
+                "Content-Type".to_string(),
+                "application/x-www-form-urlencoded".to_string(),
+            ));
             Some(form_data.join("&").into_bytes())
         } else {
             // JSON body
@@ -1792,8 +1942,19 @@ async fn handle_unix_socket_request(
     let request_start = std::time::Instant::now();
 
     // Print request if verbose or print-request-body
-    if args.verbose > 0 || args.print.as_ref().map(|p| p.contains('H') || p.contains('h')).unwrap_or(false) {
-        eprintln!("{} {} (via Unix socket {})", processed.method, path, socket_path.display());
+    if args.verbose > 0
+        || args
+            .print
+            .as_ref()
+            .map(|p| p.contains('H') || p.contains('h'))
+            .unwrap_or(false)
+    {
+        eprintln!(
+            "{} {} (via Unix socket {})",
+            processed.method,
+            path,
+            socket_path.display()
+        );
         for (name, value) in &headers {
             eprintln!("{}: {}", name, value);
         }
@@ -1814,7 +1975,8 @@ async fn handle_unix_socket_request(
         &headers,
         body.as_deref(),
         timeout,
-    ).await?;
+    )
+    .await?;
 
     let response_time = request_start.elapsed();
 
@@ -1830,7 +1992,10 @@ async fn handle_unix_socket_request(
 
     // Print status line and headers
     if output_opts.response_headers {
-        let status_line = format!("{} {} {}", response.http_version, response.status, response.status_text);
+        let status_line = format!(
+            "{} {} {}",
+            response.http_version, response.status, response.status_text
+        );
 
         let mut headers_str = status_line;
         headers_str.push('\n');
@@ -1853,16 +2018,21 @@ async fn handle_unix_socket_request(
     if output_opts.response_body {
         if let Ok(body_str) = response.text() {
             let content_type = response.content_type().unwrap_or("text/plain");
-            let base_mime = content_type.split(';').next().unwrap_or(content_type).trim();
+            let base_mime = content_type
+                .split(';')
+                .next()
+                .unwrap_or(content_type)
+                .trim();
             let is_json = base_mime == "application/json" || base_mime.contains("json");
 
             let output = if is_json {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_str) {
-                    let formatted = if matches!(proc_opts.pretty, PrettyOption::All | PrettyOption::Format) {
-                        serde_json::to_string_pretty(&json).unwrap_or_else(|_| body_str.clone())
-                    } else {
-                        json.to_string()
-                    };
+                    let formatted =
+                        if matches!(proc_opts.pretty, PrettyOption::All | PrettyOption::Format) {
+                            serde_json::to_string_pretty(&json).unwrap_or_else(|_| body_str.clone())
+                        } else {
+                            json.to_string()
+                        };
 
                     if let Some(ref fmt) = formatter {
                         fmt.format_json(&formatted)
@@ -1903,7 +2073,9 @@ async fn handle_http_file(
     path: &std::path::Path,
     env: &Environment,
 ) -> Result<ExitStatus, QuicpulseError> {
-    use crate::devexp::http_file::{parse_http_file, parse_variables, request_to_args, list_requests};
+    use crate::devexp::http_file::{
+        list_requests, parse_http_file, parse_variables, request_to_args,
+    };
 
     // List mode - just show the requests
     if args.http_list {
@@ -1928,8 +2100,7 @@ async fn handle_http_file(
     }
 
     // Parse variables from the file content
-    let content = std::fs::read_to_string(path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
     let variables = parse_variables(&content);
 
     // Filter requests if --http-request is specified
@@ -1944,9 +2115,11 @@ async fn handle_http_file(
         } else {
             // Filter by name (case-insensitive substring match)
             let filter_lower = request_filter.to_lowercase();
-            let matched: Vec<_> = requests.iter()
+            let matched: Vec<_> = requests
+                .iter()
                 .filter(|r| {
-                    r.name.as_ref()
+                    r.name
+                        .as_ref()
                         .map(|n| n.to_lowercase().contains(&filter_lower))
                         .unwrap_or(false)
                 })
@@ -2053,14 +2226,26 @@ fn merge_curl_args(cli_args: Args, curl_args: Args) -> Args {
 
         // Network options
         follow: cli_args.follow || curl_args.follow,
-        max_redirects: if cli_args.max_redirects != 30 { cli_args.max_redirects } else { curl_args.max_redirects },
+        max_redirects: if cli_args.max_redirects != 30 {
+            cli_args.max_redirects
+        } else {
+            curl_args.max_redirects
+        },
         timeout: cli_args.timeout.or(curl_args.timeout),
-        verify: if cli_args.verify != "yes" { cli_args.verify } else { curl_args.verify },
+        verify: if cli_args.verify != "yes" {
+            cli_args.verify
+        } else {
+            curl_args.verify
+        },
         cert: cli_args.cert.or(curl_args.cert),
         cert_key: cli_args.cert_key.or(curl_args.cert_key),
 
         // Proxy
-        proxy: if cli_args.proxy.is_empty() { curl_args.proxy } else { cli_args.proxy },
+        proxy: if cli_args.proxy.is_empty() {
+            curl_args.proxy
+        } else {
+            cli_args.proxy
+        },
 
         // Output
         verbose: cli_args.verbose.max(curl_args.verbose),
@@ -2122,8 +2307,8 @@ fn expand_args_variables(mut args: Args, env_vars: &EnvVars) -> Result<Args, Qui
 
 /// Run the built-in mock server
 async fn run_mock_server(args: &Args) -> Result<ExitStatus, QuicpulseError> {
-    use crate::mock::{MockServerConfig, MockServer};
-    use crate::mock::routes::{RouteConfig, HttpMethod, ResponseConfig};
+    use crate::mock::routes::{HttpMethod, ResponseConfig, RouteConfig};
+    use crate::mock::{MockServer, MockServerConfig};
 
     // Load config from file if specified
     let mut config = if let Some(ref config_path) = args.mock_config {
@@ -2145,13 +2330,16 @@ async fn run_mock_server(args: &Args) -> Result<ExitStatus, QuicpulseError> {
     // Parse latency if specified
     if let Some(ref latency) = args.mock_latency {
         if let Some((min_str, max_str)) = latency.split_once('-') {
-            let min: u64 = min_str.parse()
-                .map_err(|_| QuicpulseError::Argument(format!("Invalid latency min: {}", min_str)))?;
-            let max: u64 = max_str.parse()
-                .map_err(|_| QuicpulseError::Argument(format!("Invalid latency max: {}", max_str)))?;
+            let min: u64 = min_str.parse().map_err(|_| {
+                QuicpulseError::Argument(format!("Invalid latency min: {}", min_str))
+            })?;
+            let max: u64 = max_str.parse().map_err(|_| {
+                QuicpulseError::Argument(format!("Invalid latency max: {}", max_str))
+            })?;
             config.latency = Some((min, max));
         } else {
-            let ms: u64 = latency.parse()
+            let ms: u64 = latency
+                .parse()
                 .map_err(|_| QuicpulseError::Argument(format!("Invalid latency: {}", latency)))?;
             config.latency = Some((ms, ms));
         }
@@ -2161,9 +2349,10 @@ async fn run_mock_server(args: &Args) -> Result<ExitStatus, QuicpulseError> {
     for route_arg in &args.mock_routes {
         let parts: Vec<&str> = route_arg.splitn(3, ':').collect();
         if parts.len() < 2 {
-            return Err(QuicpulseError::Argument(
-                format!("Invalid route format '{}'. Expected METHOD:PATH or METHOD:PATH:BODY", route_arg)
-            ));
+            return Err(QuicpulseError::Argument(format!(
+                "Invalid route format '{}'. Expected METHOD:PATH or METHOD:PATH:BODY",
+                route_arg
+            )));
         }
 
         let method = match parts[0].to_uppercase().as_str() {
@@ -2173,7 +2362,12 @@ async fn run_mock_server(args: &Args) -> Result<ExitStatus, QuicpulseError> {
             "DELETE" => HttpMethod::Delete,
             "PATCH" => HttpMethod::Patch,
             "*" => HttpMethod::Any,
-            _ => return Err(QuicpulseError::Argument(format!("Unknown HTTP method: {}", parts[0]))),
+            _ => {
+                return Err(QuicpulseError::Argument(format!(
+                    "Unknown HTTP method: {}",
+                    parts[0]
+                )))
+            }
         };
 
         let path = parts[1].to_string();
@@ -2356,7 +2550,10 @@ async fn handle_plugin_update(args: &Args) -> Result<ExitStatus, QuicpulseError>
     let mut checked = 0;
 
     for plugin in &plugins {
-        print!("  {} v{}... ", plugin.manifest.name, plugin.manifest.version);
+        print!(
+            "  {} v{}... ",
+            plugin.manifest.name, plugin.manifest.version
+        );
 
         // Check if there's a newer version in the registry
         match registry.get(&plugin.manifest.name).await {

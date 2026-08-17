@@ -2,24 +2,32 @@
 //!
 //! Provides HTTP cookie parsing and building utilities.
 
-use rquickjs::{Ctx, Object, Function};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let cookie = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create cookie object: {}", e)))?;
 
-    cookie.set("parse", Function::new(ctx.clone(), cookie_parse)?)
+    cookie
+        .set("parse", Function::new(ctx.clone(), cookie_parse)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    cookie.set("parse_set_cookie", Function::new(ctx.clone(), cookie_parse_set_cookie)?)
+    cookie
+        .set(
+            "parse_set_cookie",
+            Function::new(ctx.clone(), cookie_parse_set_cookie)?,
+        )
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    cookie.set("build", Function::new(ctx.clone(), cookie_build)?)
+    cookie
+        .set("build", Function::new(ctx.clone(), cookie_build)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    cookie.set("get", Function::new(ctx.clone(), cookie_get)?)
+    cookie
+        .set("get", Function::new(ctx.clone(), cookie_get)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("cookie", cookie)
+    globals
+        .set("cookie", cookie)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set cookie global: {}", e)))?;
 
     Ok(())
@@ -50,8 +58,14 @@ fn cookie_parse_set_cookie(header: String) -> String {
     // First part is name=value
     if let Some(first) = parts.first() {
         if let Some((name, value)) = first.split_once('=') {
-            result.insert("name".to_string(), serde_json::Value::String(name.trim().to_string()));
-            result.insert("value".to_string(), serde_json::Value::String(value.trim().to_string()));
+            result.insert(
+                "name".to_string(),
+                serde_json::Value::String(name.trim().to_string()),
+            );
+            result.insert(
+                "value".to_string(),
+                serde_json::Value::String(value.trim().to_string()),
+            );
         }
     }
 

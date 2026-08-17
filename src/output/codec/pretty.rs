@@ -61,11 +61,14 @@ impl PrettyCodec {
         let ss = &*SYNTAX_SET;
         let ts = &*THEME_SET;
 
-        let syntax = ss.find_syntax_by_name(&self.syntax_name)
+        let syntax = ss
+            .find_syntax_by_name(&self.syntax_name)
             .or_else(|| ss.find_syntax_by_extension(&self.syntax_name.to_lowercase()))
             .unwrap_or_else(|| ss.find_syntax_plain_text());
 
-        let theme = ts.themes.get(&self.theme_name)
+        let theme = ts
+            .themes
+            .get(&self.theme_name)
             .or_else(|| ts.themes.get("base16-ocean.dark"))
             .ok_or_else(|| StreamError::highlight("No theme available"))?;
 
@@ -87,11 +90,14 @@ impl PrettyCodec {
         let ss = &*SYNTAX_SET;
         let ts = &*THEME_SET;
 
-        let syntax = ss.find_syntax_by_name(&self.syntax_name)
+        let syntax = ss
+            .find_syntax_by_name(&self.syntax_name)
             .or_else(|| ss.find_syntax_by_extension(&self.syntax_name.to_lowercase()))
             .unwrap_or_else(|| ss.find_syntax_plain_text());
 
-        let theme = ts.themes.get(&self.theme_name)
+        let theme = ts
+            .themes
+            .get(&self.theme_name)
             .or_else(|| ts.themes.get("base16-ocean.dark"))
             .ok_or_else(|| StreamError::highlight("No theme available"))?;
 

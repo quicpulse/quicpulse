@@ -2,12 +2,12 @@
 //!
 //! Supports both OpenAPI 2.0 (Swagger) and OpenAPI 3.x formats.
 
+use crate::errors::QuicpulseError;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use crate::errors::QuicpulseError;
 
 /// Maximum spec file size (16 MB)
 const MAX_SPEC_FILE_SIZE: u64 = 16 * 1024 * 1024;
@@ -191,22 +191,24 @@ pub struct OAuthFlow {
 /// Parse an OpenAPI specification from a file
 pub fn parse_spec(path: &Path) -> Result<OpenApiSpec, QuicpulseError> {
     // Check file size
-    let metadata = fs::metadata(path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = fs::metadata(path).map_err(|e| QuicpulseError::Io(e))?;
 
     if metadata.len() > MAX_SPEC_FILE_SIZE {
         return Err(QuicpulseError::Argument(format!(
             "OpenAPI spec file too large: {} bytes (max {} bytes)",
-            metadata.len(), MAX_SPEC_FILE_SIZE
+            metadata.len(),
+            MAX_SPEC_FILE_SIZE
         )));
     }
 
     // Read file content
-    let content = fs::read_to_string(path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
 
     // Detect format and parse
-    let value: Value = if path.extension().map_or(false, |e| e == "yaml" || e == "yml") {
+    let value: Value = if path
+        .extension()
+        .map_or(false, |e| e == "yaml" || e == "yml")
+    {
         serde_yaml::from_str(&content)
             .map_err(|e| QuicpulseError::Argument(format!("Failed to parse YAML: {}", e)))?
     } else if path.extension().map_or(false, |e| e == "json") {
@@ -226,26 +228,30 @@ pub fn parse_spec(path: &Path) -> Result<OpenApiSpec, QuicpulseError> {
         parse_swagger_2(&value)
     } else {
         Err(QuicpulseError::Argument(
-            "Unknown spec format: missing 'openapi' or 'swagger' field".to_string()
+            "Unknown spec format: missing 'openapi' or 'swagger' field".to_string(),
         ))
     }
 }
 
 /// Parse OpenAPI 3.x specification
 fn parse_openapi_3(value: &Value) -> Result<OpenApiSpec, QuicpulseError> {
-    let info = value.get("info")
+    let info = value
+        .get("info")
         .ok_or_else(|| QuicpulseError::Argument("Missing 'info' field".to_string()))?;
 
-    let title = info.get("title")
+    let title = info
+        .get("title")
         .and_then(|v| v.as_str())
         .unwrap_or("Untitled API")
         .to_string();
 
-    let description = info.get("description")
+    let description = info
+        .get("description")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let version = info.get("version")
+    let version = info
+        .get("version")
         .and_then(|v| v.as_str())
         .unwrap_or("1.0.0")
         .to_string();
@@ -258,7 +264,9 @@ fn parse_openapi_3(value: &Value) -> Result<OpenApiSpec, QuicpulseError> {
 
     // Parse security schemes
     let security_schemes = parse_security_schemes_v3(
-        value.get("components").and_then(|c| c.get("securitySchemes"))
+        value
+            .get("components")
+            .and_then(|c| c.get("securitySchemes")),
     );
 
     // Parse global security
@@ -281,19 +289,23 @@ fn parse_openapi_3(value: &Value) -> Result<OpenApiSpec, QuicpulseError> {
 
 /// Parse Swagger 2.0 specification
 fn parse_swagger_2(value: &Value) -> Result<OpenApiSpec, QuicpulseError> {
-    let info = value.get("info")
+    let info = value
+        .get("info")
         .ok_or_else(|| QuicpulseError::Argument("Missing 'info' field".to_string()))?;
 
-    let title = info.get("title")
+    let title = info
+        .get("title")
         .and_then(|v| v.as_str())
         .unwrap_or("Untitled API")
         .to_string();
 
-    let description = info.get("description")
+    let description = info
+        .get("description")
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let version = info.get("version")
+    let version = info
+        .get("version")
         .and_then(|v| v.as_str())
         .unwrap_or("1.0.0")
         .to_string();
@@ -335,52 +347,74 @@ fn parse_servers_v3(servers: Option<&Value>) -> Vec<Server> {
         }];
     };
 
-    servers.iter().filter_map(|s| {
-        let url = s.get("url")?.as_str()?.to_string();
-        let description = s.get("description").and_then(|d| d.as_str()).map(|s| s.to_string());
+    servers
+        .iter()
+        .filter_map(|s| {
+            let url = s.get("url")?.as_str()?.to_string();
+            let description = s
+                .get("description")
+                .and_then(|d| d.as_str())
+                .map(|s| s.to_string());
 
-        let mut variables = HashMap::new();
-        if let Some(vars) = s.get("variables").and_then(|v| v.as_object()) {
-            for (name, var) in vars {
-                if let Some(default) = var.get("default").and_then(|d| d.as_str()) {
-                    variables.insert(name.clone(), ServerVariable {
-                        default: default.to_string(),
-                        description: var.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-                        enum_values: var.get("enum")
-                            .and_then(|e| e.as_array())
-                            .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-                            .unwrap_or_default(),
-                    });
+            let mut variables = HashMap::new();
+            if let Some(vars) = s.get("variables").and_then(|v| v.as_object()) {
+                for (name, var) in vars {
+                    if let Some(default) = var.get("default").and_then(|d| d.as_str()) {
+                        variables.insert(
+                            name.clone(),
+                            ServerVariable {
+                                default: default.to_string(),
+                                description: var
+                                    .get("description")
+                                    .and_then(|d| d.as_str())
+                                    .map(|s| s.to_string()),
+                                enum_values: var
+                                    .get("enum")
+                                    .and_then(|e| e.as_array())
+                                    .map(|arr| {
+                                        arr.iter()
+                                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                                            .collect()
+                                    })
+                                    .unwrap_or_default(),
+                            },
+                        );
+                    }
                 }
             }
-        }
 
-        Some(Server { url, description, variables })
-    }).collect()
+            Some(Server {
+                url,
+                description,
+                variables,
+            })
+        })
+        .collect()
 }
 
 /// Parse servers from Swagger 2.0
 fn parse_servers_v2(value: &Value) -> Vec<Server> {
-    let host = value.get("host")
+    let host = value
+        .get("host")
         .and_then(|h| h.as_str())
         .unwrap_or("localhost");
 
-    let base_path = value.get("basePath")
-        .and_then(|b| b.as_str())
-        .unwrap_or("");
+    let base_path = value.get("basePath").and_then(|b| b.as_str()).unwrap_or("");
 
-    let schemes = value.get("schemes")
+    let schemes = value
+        .get("schemes")
         .and_then(|s| s.as_array())
         .map(|arr| arr.iter().filter_map(|v| v.as_str()).collect::<Vec<_>>())
         .unwrap_or_else(|| vec!["http"]);
 
-    schemes.into_iter().map(|scheme| {
-        Server {
+    schemes
+        .into_iter()
+        .map(|scheme| Server {
             url: format!("{}://{}{}", scheme, host, base_path),
             description: None,
             variables: HashMap::new(),
-        }
-    }).collect()
+        })
+        .collect()
 }
 
 /// Parse schemas from OpenAPI 3.x components
@@ -389,9 +423,10 @@ fn parse_schemas_v3(schemas: Option<&Value>) -> HashMap<String, Schema> {
         return HashMap::new();
     };
 
-    schemas.iter().map(|(name, schema)| {
-        (name.clone(), parse_schema(schema))
-    }).collect()
+    schemas
+        .iter()
+        .map(|(name, schema)| (name.clone(), parse_schema(schema)))
+        .collect()
 }
 
 /// Parse schemas from Swagger 2.0 definitions
@@ -409,13 +444,28 @@ fn parse_schema(value: &Value) -> Schema {
         return schema;
     }
 
-    schema.schema_type = value.get("type").and_then(|t| t.as_str()).map(|s| s.to_string());
-    schema.format = value.get("format").and_then(|f| f.as_str()).map(|s| s.to_string());
-    schema.description = value.get("description").and_then(|d| d.as_str()).map(|s| s.to_string());
+    schema.schema_type = value
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|s| s.to_string());
+    schema.format = value
+        .get("format")
+        .and_then(|f| f.as_str())
+        .map(|s| s.to_string());
+    schema.description = value
+        .get("description")
+        .and_then(|d| d.as_str())
+        .map(|s| s.to_string());
     schema.example = value.get("example").cloned();
     schema.default = value.get("default").cloned();
-    schema.nullable = value.get("nullable").and_then(|n| n.as_bool()).unwrap_or(false);
-    schema.pattern = value.get("pattern").and_then(|p| p.as_str()).map(|s| s.to_string());
+    schema.nullable = value
+        .get("nullable")
+        .and_then(|n| n.as_bool())
+        .unwrap_or(false);
+    schema.pattern = value
+        .get("pattern")
+        .and_then(|p| p.as_str())
+        .map(|s| s.to_string());
     schema.minimum = value.get("minimum").and_then(|m| m.as_f64());
     schema.maximum = value.get("maximum").and_then(|m| m.as_f64());
     schema.min_length = value.get("minLength").and_then(|m| m.as_u64());
@@ -435,7 +485,8 @@ fn parse_schema(value: &Value) -> Schema {
 
     // Parse required fields
     if let Some(required) = value.get("required").and_then(|r| r.as_array()) {
-        schema.required = required.iter()
+        schema.required = required
+            .iter()
             .filter_map(|v| v.as_str().map(|s| s.to_string()))
             .collect();
     }
@@ -454,19 +505,40 @@ fn parse_security_schemes_v3(schemes: Option<&Value>) -> HashMap<String, Securit
         return HashMap::new();
     };
 
-    schemes.iter().filter_map(|(name, scheme)| {
-        let scheme_type = scheme.get("type")?.as_str()?.to_string();
+    schemes
+        .iter()
+        .filter_map(|(name, scheme)| {
+            let scheme_type = scheme.get("type")?.as_str()?.to_string();
 
-        Some((name.clone(), SecurityScheme {
-            scheme_type,
-            description: scheme.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-            name: scheme.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()),
-            location: scheme.get("in").and_then(|i| i.as_str()).map(|s| s.to_string()),
-            scheme: scheme.get("scheme").and_then(|s| s.as_str()).map(|s| s.to_string()),
-            bearer_format: scheme.get("bearerFormat").and_then(|b| b.as_str()).map(|s| s.to_string()),
-            flows: parse_oauth_flows(scheme.get("flows")),
-        }))
-    }).collect()
+            Some((
+                name.clone(),
+                SecurityScheme {
+                    scheme_type,
+                    description: scheme
+                        .get("description")
+                        .and_then(|d| d.as_str())
+                        .map(|s| s.to_string()),
+                    name: scheme
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|s| s.to_string()),
+                    location: scheme
+                        .get("in")
+                        .and_then(|i| i.as_str())
+                        .map(|s| s.to_string()),
+                    scheme: scheme
+                        .get("scheme")
+                        .and_then(|s| s.as_str())
+                        .map(|s| s.to_string()),
+                    bearer_format: scheme
+                        .get("bearerFormat")
+                        .and_then(|b| b.as_str())
+                        .map(|s| s.to_string()),
+                    flows: parse_oauth_flows(scheme.get("flows")),
+                },
+            ))
+        })
+        .collect()
 }
 
 /// Parse security schemes from Swagger 2.0
@@ -475,27 +547,45 @@ fn parse_security_schemes_v2(definitions: Option<&Value>) -> HashMap<String, Sec
         return HashMap::new();
     };
 
-    defs.iter().filter_map(|(name, def)| {
-        let def_type = def.get("type")?.as_str()?;
+    defs.iter()
+        .filter_map(|(name, def)| {
+            let def_type = def.get("type")?.as_str()?;
 
-        // Convert Swagger 2.0 types to OpenAPI 3.x types
-        let scheme_type = match def_type {
-            "basic" => "http".to_string(),
-            "apiKey" => "apiKey".to_string(),
-            "oauth2" => "oauth2".to_string(),
-            other => other.to_string(),
-        };
+            // Convert Swagger 2.0 types to OpenAPI 3.x types
+            let scheme_type = match def_type {
+                "basic" => "http".to_string(),
+                "apiKey" => "apiKey".to_string(),
+                "oauth2" => "oauth2".to_string(),
+                other => other.to_string(),
+            };
 
-        Some((name.clone(), SecurityScheme {
-            scheme_type,
-            description: def.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-            name: def.get("name").and_then(|n| n.as_str()).map(|s| s.to_string()),
-            location: def.get("in").and_then(|i| i.as_str()).map(|s| s.to_string()),
-            scheme: if def_type == "basic" { Some("basic".to_string()) } else { None },
-            bearer_format: None,
-            flows: None, // Swagger 2.0 OAuth is different, simplified here
-        }))
-    }).collect()
+            Some((
+                name.clone(),
+                SecurityScheme {
+                    scheme_type,
+                    description: def
+                        .get("description")
+                        .and_then(|d| d.as_str())
+                        .map(|s| s.to_string()),
+                    name: def
+                        .get("name")
+                        .and_then(|n| n.as_str())
+                        .map(|s| s.to_string()),
+                    location: def
+                        .get("in")
+                        .and_then(|i| i.as_str())
+                        .map(|s| s.to_string()),
+                    scheme: if def_type == "basic" {
+                        Some("basic".to_string())
+                    } else {
+                        None
+                    },
+                    bearer_format: None,
+                    flows: None, // Swagger 2.0 OAuth is different, simplified here
+                },
+            ))
+        })
+        .collect()
 }
 
 /// Parse OAuth flows
@@ -524,9 +614,18 @@ fn parse_oauth_flow(flow: Option<&Value>) -> Option<OAuthFlow> {
     }
 
     Some(OAuthFlow {
-        authorization_url: flow.get("authorizationUrl").and_then(|u| u.as_str()).map(|s| s.to_string()),
-        token_url: flow.get("tokenUrl").and_then(|u| u.as_str()).map(|s| s.to_string()),
-        refresh_url: flow.get("refreshUrl").and_then(|u| u.as_str()).map(|s| s.to_string()),
+        authorization_url: flow
+            .get("authorizationUrl")
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string()),
+        token_url: flow
+            .get("tokenUrl")
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string()),
+        refresh_url: flow
+            .get("refreshUrl")
+            .and_then(|u| u.as_str())
+            .map(|s| s.to_string()),
         scopes,
     })
 }
@@ -537,21 +636,32 @@ fn parse_security_requirements(security: Option<&Value>) -> Vec<HashMap<String, 
         return Vec::new();
     };
 
-    security.iter().filter_map(|req| {
-        let obj = req.as_object()?;
-        let mut result = HashMap::new();
-        for (name, scopes) in obj {
-            let scope_vec = scopes.as_array()
-                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
-                .unwrap_or_default();
-            result.insert(name.clone(), scope_vec);
-        }
-        Some(result)
-    }).collect()
+    security
+        .iter()
+        .filter_map(|req| {
+            let obj = req.as_object()?;
+            let mut result = HashMap::new();
+            for (name, scopes) in obj {
+                let scope_vec = scopes
+                    .as_array()
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                result.insert(name.clone(), scope_vec);
+            }
+            Some(result)
+        })
+        .collect()
 }
 
 /// Parse paths/endpoints from OpenAPI 3.x
-fn parse_paths_v3(paths: Option<&Value>, schemas: &HashMap<String, Schema>) -> Result<Vec<Endpoint>, QuicpulseError> {
+fn parse_paths_v3(
+    paths: Option<&Value>,
+    schemas: &HashMap<String, Schema>,
+) -> Result<Vec<Endpoint>, QuicpulseError> {
     let Some(paths) = paths.and_then(|p| p.as_object()) else {
         return Ok(Vec::new());
     };
@@ -560,7 +670,9 @@ fn parse_paths_v3(paths: Option<&Value>, schemas: &HashMap<String, Schema>) -> R
 
     for (path, path_item) in paths {
         // Skip path-level parameters for now
-        let methods = ["get", "post", "put", "patch", "delete", "head", "options", "trace"];
+        let methods = [
+            "get", "post", "put", "patch", "delete", "head", "options", "trace",
+        ];
 
         for method in methods {
             if let Some(operation) = path_item.get(method) {
@@ -574,7 +686,10 @@ fn parse_paths_v3(paths: Option<&Value>, schemas: &HashMap<String, Schema>) -> R
 }
 
 /// Parse paths/endpoints from Swagger 2.0
-fn parse_paths_v2(paths: Option<&Value>, schemas: &HashMap<String, Schema>) -> Result<Vec<Endpoint>, QuicpulseError> {
+fn parse_paths_v2(
+    paths: Option<&Value>,
+    schemas: &HashMap<String, Schema>,
+) -> Result<Vec<Endpoint>, QuicpulseError> {
     let Some(paths) = paths.and_then(|p| p.as_object()) else {
         return Ok(Vec::new());
     };
@@ -596,25 +711,39 @@ fn parse_paths_v2(paths: Option<&Value>, schemas: &HashMap<String, Schema>) -> R
 }
 
 /// Parse an operation from OpenAPI 3.x
-fn parse_operation_v3(method: &str, path: &str, operation: &Value, _schemas: &HashMap<String, Schema>) -> Result<Endpoint, QuicpulseError> {
-    let operation_id = operation.get("operationId")
+fn parse_operation_v3(
+    method: &str,
+    path: &str,
+    operation: &Value,
+    _schemas: &HashMap<String, Schema>,
+) -> Result<Endpoint, QuicpulseError> {
+    let operation_id = operation
+        .get("operationId")
         .and_then(|o| o.as_str())
         .map(|s| s.to_string());
 
-    let summary = operation.get("summary")
+    let summary = operation
+        .get("summary")
         .and_then(|s| s.as_str())
         .map(|s| s.to_string());
 
-    let description = operation.get("description")
+    let description = operation
+        .get("description")
         .and_then(|d| d.as_str())
         .map(|s| s.to_string());
 
-    let tags = operation.get("tags")
+    let tags = operation
+        .get("tags")
         .and_then(|t| t.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
-    let deprecated = operation.get("deprecated")
+    let deprecated = operation
+        .get("deprecated")
         .and_then(|d| d.as_bool())
         .unwrap_or(false);
 
@@ -641,8 +770,14 @@ fn parse_operation_v3(method: &str, path: &str, operation: &Value, _schemas: &Ha
     let request_body = operation.get("requestBody").map(|rb| {
         let content = parse_content_v3(rb.get("content"));
         RequestBody {
-            description: rb.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-            required: rb.get("required").and_then(|r| r.as_bool()).unwrap_or(false),
+            description: rb
+                .get("description")
+                .and_then(|d| d.as_str())
+                .map(|s| s.to_string()),
+            required: rb
+                .get("required")
+                .and_then(|r| r.as_bool())
+                .unwrap_or(false),
             content,
         }
     });
@@ -671,25 +806,39 @@ fn parse_operation_v3(method: &str, path: &str, operation: &Value, _schemas: &Ha
 }
 
 /// Parse an operation from Swagger 2.0
-fn parse_operation_v2(method: &str, path: &str, operation: &Value, _schemas: &HashMap<String, Schema>) -> Result<Endpoint, QuicpulseError> {
-    let operation_id = operation.get("operationId")
+fn parse_operation_v2(
+    method: &str,
+    path: &str,
+    operation: &Value,
+    _schemas: &HashMap<String, Schema>,
+) -> Result<Endpoint, QuicpulseError> {
+    let operation_id = operation
+        .get("operationId")
         .and_then(|o| o.as_str())
         .map(|s| s.to_string());
 
-    let summary = operation.get("summary")
+    let summary = operation
+        .get("summary")
         .and_then(|s| s.as_str())
         .map(|s| s.to_string());
 
-    let description = operation.get("description")
+    let description = operation
+        .get("description")
         .and_then(|d| d.as_str())
         .map(|s| s.to_string());
 
-    let tags = operation.get("tags")
+    let tags = operation
+        .get("tags")
         .and_then(|t| t.as_array())
-        .map(|arr| arr.iter().filter_map(|v| v.as_str().map(|s| s.to_string())).collect())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
         .unwrap_or_default();
 
-    let deprecated = operation.get("deprecated")
+    let deprecated = operation
+        .get("deprecated")
         .and_then(|d| d.as_bool())
         .unwrap_or(false);
 
@@ -707,14 +856,23 @@ fn parse_operation_v2(method: &str, path: &str, operation: &Value, _schemas: &Ha
                 // Convert to request body
                 let schema = param.get("schema").map(|s| parse_schema(s));
                 let mut content = HashMap::new();
-                content.insert("application/json".to_string(), MediaType {
-                    schema,
-                    example: param.get("example").cloned(),
-                    examples: HashMap::new(),
-                });
+                content.insert(
+                    "application/json".to_string(),
+                    MediaType {
+                        schema,
+                        example: param.get("example").cloned(),
+                        examples: HashMap::new(),
+                    },
+                );
                 request_body = Some(RequestBody {
-                    description: param.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-                    required: param.get("required").and_then(|r| r.as_bool()).unwrap_or(false),
+                    description: param
+                        .get("description")
+                        .and_then(|d| d.as_str())
+                        .map(|s| s.to_string()),
+                    required: param
+                        .get("required")
+                        .and_then(|r| r.as_bool())
+                        .unwrap_or(false),
                     content,
                 });
             } else {
@@ -760,8 +918,14 @@ fn parse_parameter_v3(param: &Value) -> Option<Parameter> {
 
     Some(Parameter {
         name,
-        description: param.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-        required: param.get("required").and_then(|r| r.as_bool()).unwrap_or(false),
+        description: param
+            .get("description")
+            .and_then(|d| d.as_str())
+            .map(|s| s.to_string()),
+        required: param
+            .get("required")
+            .and_then(|r| r.as_bool())
+            .unwrap_or(false),
         schema: param.get("schema").map(|s| parse_schema(s)),
         example: param.get("example").cloned(),
     })
@@ -773,8 +937,14 @@ fn parse_parameter_v2(param: &Value) -> Option<Parameter> {
 
     // In Swagger 2.0, schema info is inline
     let mut schema = Schema::default();
-    schema.schema_type = param.get("type").and_then(|t| t.as_str()).map(|s| s.to_string());
-    schema.format = param.get("format").and_then(|f| f.as_str()).map(|s| s.to_string());
+    schema.schema_type = param
+        .get("type")
+        .and_then(|t| t.as_str())
+        .map(|s| s.to_string());
+    schema.format = param
+        .get("format")
+        .and_then(|f| f.as_str())
+        .map(|s| s.to_string());
     schema.minimum = param.get("minimum").and_then(|m| m.as_f64());
     schema.maximum = param.get("maximum").and_then(|m| m.as_f64());
     if let Some(enum_arr) = param.get("enum").and_then(|e| e.as_array()) {
@@ -783,10 +953,22 @@ fn parse_parameter_v2(param: &Value) -> Option<Parameter> {
 
     Some(Parameter {
         name,
-        description: param.get("description").and_then(|d| d.as_str()).map(|s| s.to_string()),
-        required: param.get("required").and_then(|r| r.as_bool()).unwrap_or(false),
-        schema: if schema.schema_type.is_some() { Some(schema) } else { None },
-        example: param.get("example").cloned()
+        description: param
+            .get("description")
+            .and_then(|d| d.as_str())
+            .map(|s| s.to_string()),
+        required: param
+            .get("required")
+            .and_then(|r| r.as_bool())
+            .unwrap_or(false),
+        schema: if schema.schema_type.is_some() {
+            Some(schema)
+        } else {
+            None
+        },
+        example: param
+            .get("example")
+            .cloned()
             .or_else(|| param.get("x-example").cloned()),
     })
 }
@@ -797,17 +979,21 @@ fn parse_content_v3(content: Option<&Value>) -> HashMap<String, MediaType> {
         return HashMap::new();
     };
 
-    content.iter().map(|(media_type, media_obj)| {
-        let mt = MediaType {
-            schema: media_obj.get("schema").map(|s| parse_schema(s)),
-            example: media_obj.get("example").cloned(),
-            examples: media_obj.get("examples")
-                .and_then(|e| e.as_object())
-                .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-                .unwrap_or_default(),
-        };
-        (media_type.clone(), mt)
-    }).collect()
+    content
+        .iter()
+        .map(|(media_type, media_obj)| {
+            let mt = MediaType {
+                schema: media_obj.get("schema").map(|s| parse_schema(s)),
+                example: media_obj.get("example").cloned(),
+                examples: media_obj
+                    .get("examples")
+                    .and_then(|e| e.as_object())
+                    .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+                    .unwrap_or_default(),
+            };
+            (media_type.clone(), mt)
+        })
+        .collect()
 }
 
 /// Parse responses from OpenAPI 3.x
@@ -816,25 +1002,36 @@ fn parse_responses_v3(responses: Option<&Value>) -> HashMap<String, Response> {
         return HashMap::new();
     };
 
-    responses.iter().filter_map(|(status, resp)| {
-        let description = resp.get("description")
-            .and_then(|d| d.as_str())
-            .unwrap_or("")
-            .to_string();
+    responses
+        .iter()
+        .filter_map(|(status, resp)| {
+            let description = resp
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("")
+                .to_string();
 
-        let content = parse_content_v3(resp.get("content"));
+            let content = parse_content_v3(resp.get("content"));
 
-        let mut headers = HashMap::new();
-        if let Some(header_obj) = resp.get("headers").and_then(|h| h.as_object()) {
-            for (name, header) in header_obj {
-                if let Some(param) = parse_parameter_v3(header) {
-                    headers.insert(name.clone(), param);
+            let mut headers = HashMap::new();
+            if let Some(header_obj) = resp.get("headers").and_then(|h| h.as_object()) {
+                for (name, header) in header_obj {
+                    if let Some(param) = parse_parameter_v3(header) {
+                        headers.insert(name.clone(), param);
+                    }
                 }
             }
-        }
 
-        Some((status.clone(), Response { description, content, headers }))
-    }).collect()
+            Some((
+                status.clone(),
+                Response {
+                    description,
+                    content,
+                    headers,
+                },
+            ))
+        })
+        .collect()
 }
 
 /// Parse responses from Swagger 2.0
@@ -843,30 +1040,41 @@ fn parse_responses_v2(responses: Option<&Value>) -> HashMap<String, Response> {
         return HashMap::new();
     };
 
-    responses.iter().filter_map(|(status, resp)| {
-        let description = resp.get("description")
-            .and_then(|d| d.as_str())
-            .unwrap_or("")
-            .to_string();
+    responses
+        .iter()
+        .filter_map(|(status, resp)| {
+            let description = resp
+                .get("description")
+                .and_then(|d| d.as_str())
+                .unwrap_or("")
+                .to_string();
 
-        // In Swagger 2.0, schema is directly under the response
-        let mut content = HashMap::new();
-        if let Some(schema) = resp.get("schema") {
-            content.insert("application/json".to_string(), MediaType {
-                schema: Some(parse_schema(schema)),
-                example: resp.get("examples")
-                    .and_then(|e| e.get("application/json"))
-                    .cloned(),
-                examples: HashMap::new(),
-            });
-        }
+            // In Swagger 2.0, schema is directly under the response
+            let mut content = HashMap::new();
+            if let Some(schema) = resp.get("schema") {
+                content.insert(
+                    "application/json".to_string(),
+                    MediaType {
+                        schema: Some(parse_schema(schema)),
+                        example: resp
+                            .get("examples")
+                            .and_then(|e| e.get("application/json"))
+                            .cloned(),
+                        examples: HashMap::new(),
+                    },
+                );
+            }
 
-        Some((status.clone(), Response {
-            description,
-            content,
-            headers: HashMap::new(), // Simplified
-        }))
-    }).collect()
+            Some((
+                status.clone(),
+                Response {
+                    description,
+                    content,
+                    headers: HashMap::new(), // Simplified
+                },
+            ))
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -898,6 +1106,9 @@ mod tests {
         let value: Value = serde_json::from_str(json).unwrap();
         let schema = parse_schema(&value);
 
-        assert_eq!(schema.ref_path, Some("#/components/schemas/User".to_string()));
+        assert_eq!(
+            schema.ref_path,
+            Some("#/components/schemas/User".to_string())
+        );
     }
 }

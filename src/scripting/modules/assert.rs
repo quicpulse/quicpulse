@@ -22,10 +22,18 @@ pub fn module() -> Result<Module, ContextError> {
     module.function("lte", assert_lte).build()?;
 
     // HTTP-specific assertions
-    module.function("status_success", assert_status_success).build()?;
-    module.function("status_redirect", assert_status_redirect).build()?;
-    module.function("status_client_error", assert_status_client_error).build()?;
-    module.function("status_server_error", assert_status_server_error).build()?;
+    module
+        .function("status_success", assert_status_success)
+        .build()?;
+    module
+        .function("status_redirect", assert_status_redirect)
+        .build()?;
+    module
+        .function("status_client_error", assert_status_client_error)
+        .build()?;
+    module
+        .function("status_server_error", assert_status_server_error)
+        .build()?;
 
     // Soft assertions (return bool instead of panicking)
     module.function("check_eq", check_eq).build()?;
@@ -105,7 +113,10 @@ fn assert_lte(a: i64, b: i64) -> bool {
 /// Assert HTTP status is success (2xx)
 fn assert_status_success(status: i64) -> bool {
     if status < 200 || status >= 300 {
-        panic!("assertion failed: status {} is not a success status (2xx)", status);
+        panic!(
+            "assertion failed: status {} is not a success status (2xx)",
+            status
+        );
     }
     true
 }
@@ -113,7 +124,10 @@ fn assert_status_success(status: i64) -> bool {
 /// Assert HTTP status is redirect (3xx)
 fn assert_status_redirect(status: i64) -> bool {
     if status < 300 || status >= 400 {
-        panic!("assertion failed: status {} is not a redirect status (3xx)", status);
+        panic!(
+            "assertion failed: status {} is not a redirect status (3xx)",
+            status
+        );
     }
     true
 }
@@ -121,7 +135,10 @@ fn assert_status_redirect(status: i64) -> bool {
 /// Assert HTTP status is client error (4xx)
 fn assert_status_client_error(status: i64) -> bool {
     if status < 400 || status >= 500 {
-        panic!("assertion failed: status {} is not a client error status (4xx)", status);
+        panic!(
+            "assertion failed: status {} is not a client error status (4xx)",
+            status
+        );
     }
     true
 }
@@ -129,7 +146,10 @@ fn assert_status_client_error(status: i64) -> bool {
 /// Assert HTTP status is server error (5xx)
 fn assert_status_server_error(status: i64) -> bool {
     if status < 500 || status >= 600 {
-        panic!("assertion failed: status {} is not a server error status (5xx)", status);
+        panic!(
+            "assertion failed: status {} is not a server error status (5xx)",
+            status
+        );
     }
     true
 }

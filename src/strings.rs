@@ -47,8 +47,8 @@ mod tests {
     fn test_truncate_str() {
         assert_eq!(truncate_str("hello", 10), "hello");
         assert_eq!(truncate_str("hello world", 8), "hello...");
-        assert_eq!(truncate_str("hello", 3), "...");  // max_len <= 3 returns "..."
-        assert_eq!(truncate_str("hi", 5), "hi");      // shorter than max_len
+        assert_eq!(truncate_str("hello", 3), "..."); // max_len <= 3 returns "..."
+        assert_eq!(truncate_str("hi", 5), "hi"); // shorter than max_len
     }
 
     #[test]

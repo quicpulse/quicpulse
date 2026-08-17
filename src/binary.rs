@@ -32,7 +32,7 @@ mod tests {
     fn test_is_binary() {
         // Binary data: random bytes
         assert!(is_binary(&[0x89, 0x50, 0x4E, 0x47])); // PNG magic bytes
-        // Text data
+                                                       // Text data
         assert!(!is_binary(b"hello"));
         assert!(!is_binary(b"{ \"json\": true }"));
     }

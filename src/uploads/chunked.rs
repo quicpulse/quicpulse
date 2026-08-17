@@ -38,7 +38,7 @@ impl<R: Read> Iterator for ChunkedReader<R> {
         }
 
         let mut buffer = vec![0u8; self.chunk_size];
-        
+
         match self.reader.read(&mut buffer) {
             Ok(0) => {
                 self.finished = true;

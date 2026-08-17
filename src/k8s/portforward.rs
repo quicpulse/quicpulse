@@ -2,8 +2,8 @@
 //!
 //! Manages kubectl port-forward processes for transparent k8s:// URL handling.
 
-use crate::errors::QuicpulseError;
 use super::parser::K8sUrl;
+use crate::errors::QuicpulseError;
 use std::collections::HashMap;
 use std::net::TcpListener;
 use std::process::{Child, Command, Stdio};
@@ -74,7 +74,9 @@ impl PortForwardManager {
 
         // Check if we already have a port-forward
         {
-            let forwards = self.forwards.lock()
+            let forwards = self
+                .forwards
+                .lock()
                 .map_err(|e| QuicpulseError::Connection(format!("Lock error: {}", e)))?;
 
             if let Some(pf) = forwards.get(&key) {
@@ -90,7 +92,9 @@ impl PortForwardManager {
 
         // Store it
         {
-            let mut forwards = self.forwards.lock()
+            let mut forwards = self
+                .forwards
+                .lock()
                 .map_err(|e| QuicpulseError::Connection(format!("Lock error: {}", e)))?;
             forwards.insert(key, Arc::new(port_forward));
         }
@@ -126,7 +130,8 @@ fn create_port_forward(k8s_url: &K8sUrl) -> Result<PortForward, QuicpulseError> 
     let mut cmd = Command::new("kubectl");
     cmd.args([
         "port-forward",
-        "-n", &k8s_url.namespace,
+        "-n",
+        &k8s_url.namespace,
         &format!("svc/{}", k8s_url.service),
         &format!("{}:{}", local_port, k8s_url.port),
     ]);
@@ -135,10 +140,12 @@ fn create_port_forward(k8s_url: &K8sUrl) -> Result<PortForward, QuicpulseError> 
     cmd.stdout(Stdio::null());
     cmd.stderr(Stdio::piped());
 
-    let process = cmd.spawn()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to start kubectl port-forward. Is kubectl installed and in PATH? Error: {}", e
-        )))?;
+    let process = cmd.spawn().map_err(|e| {
+        QuicpulseError::Auth(format!(
+            "Failed to start kubectl port-forward. Is kubectl installed and in PATH? Error: {}",
+            e
+        ))
+    })?;
 
     // Wait a moment for port-forward to establish
     std::thread::sleep(Duration::from_millis(500));
@@ -168,7 +175,8 @@ fn find_available_port() -> Result<u16, QuicpulseError> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| QuicpulseError::Connection(format!("Failed to find available port: {}", e)))?;
 
-    let port = listener.local_addr()
+    let port = listener
+        .local_addr()
         .map_err(|e| QuicpulseError::Connection(format!("Failed to get local address: {}", e)))?
         .port();
 

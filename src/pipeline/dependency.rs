@@ -2,9 +2,9 @@
 //!
 //! Handles `depends_on` field in workflow steps to ensure correct execution order.
 
-use std::collections::{HashMap, HashSet, VecDeque};
-use crate::errors::QuicpulseError;
 use super::workflow::WorkflowStep;
+use crate::errors::QuicpulseError;
+use std::collections::{HashMap, HashSet, VecDeque};
 
 /// Result of dependency resolution
 #[derive(Debug)]
@@ -29,7 +29,8 @@ pub fn resolve_dependencies(steps: &[&WorkflowStep]) -> Result<DependencyOrder, 
     }
 
     // Build name -> index mapping
-    let name_to_idx: HashMap<&str, usize> = steps.iter()
+    let name_to_idx: HashMap<&str, usize> = steps
+        .iter()
         .enumerate()
         .map(|(i, s)| (s.name.as_str(), i))
         .collect();
@@ -41,7 +42,8 @@ pub fn resolve_dependencies(steps: &[&WorkflowStep]) -> Result<DependencyOrder, 
         for step in steps {
             if !seen.insert(&step.name) {
                 return Err(QuicpulseError::Argument(format!(
-                    "Duplicate step name in workflow: {}", step.name
+                    "Duplicate step name in workflow: {}",
+                    step.name
                 )));
             }
         }
@@ -116,7 +118,8 @@ pub fn resolve_dependencies(steps: &[&WorkflowStep]) -> Result<DependencyOrder, 
     // Check for cycles
     if order.len() != steps.len() {
         // Find steps in the cycle
-        let in_cycle: Vec<&str> = steps.iter()
+        let in_cycle: Vec<&str> = steps
+            .iter()
             .enumerate()
             .filter(|(i, _)| !order.contains(i))
             .map(|(_, s)| s.name.as_str())
@@ -227,9 +230,7 @@ mod tests {
 
     #[test]
     fn test_missing_dependency() {
-        let steps = vec![
-            make_step("a", vec!["nonexistent"]),
-        ];
+        let steps = vec![make_step("a", vec!["nonexistent"])];
         let refs: Vec<&WorkflowStep> = steps.iter().collect();
 
         let result = resolve_dependencies(&refs);
@@ -240,10 +241,7 @@ mod tests {
 
     #[test]
     fn test_duplicate_step_names() {
-        let steps = vec![
-            make_step("a", vec![]),
-            make_step("a", vec![]),
-        ];
+        let steps = vec![make_step("a", vec![]), make_step("a", vec![])];
         let refs: Vec<&WorkflowStep> = steps.iter().collect();
 
         let result = resolve_dependencies(&refs);

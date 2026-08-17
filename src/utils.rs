@@ -4,13 +4,15 @@
 //! backward compatibility. New code should import from the specific modules.
 
 // Re-export from specialized modules for backward compatibility
-pub use crate::signals::{was_interrupted, set_interrupted, reset_interrupted};
-pub use crate::binary::{is_binary, format_bytes};
-pub use crate::cookies::{split_cookies, parse_set_cookie_header, ExpiredCookie, is_cookie_expired, current_timestamp};
+pub use crate::binary::{format_bytes, is_binary};
+pub use crate::cookies::{
+    current_timestamp, is_cookie_expired, parse_set_cookie_header, split_cookies, ExpiredCookie,
+};
 pub use crate::fs::{get_filename_from_content_disposition, sanitize_filename};
 pub use crate::json::load_json_preserve_order;
-pub use crate::mime::{parse_content_type_header, get_content_type};
-pub use crate::strings::{truncate_str, is_version_greater};
+pub use crate::mime::{get_content_type, parse_content_type_header};
+pub use crate::signals::{reset_interrupted, set_interrupted, was_interrupted};
+pub use crate::strings::{is_version_greater, truncate_str};
 
 use std::net::IpAddr;
 use url::Url;
@@ -71,7 +73,10 @@ mod tests {
     #[test]
     fn test_url_as_host() {
         assert_eq!(url_as_host("https://example.com/path"), "example.com");
-        assert_eq!(url_as_host("https://user:pass@example.com:8080/"), "example.com:8080");
+        assert_eq!(
+            url_as_host("https://user:pass@example.com:8080/"),
+            "example.com:8080"
+        );
     }
 
     #[test]

@@ -6,7 +6,10 @@ pub enum DownloadStatus {
     /// Not started
     Pending,
     /// Currently in progress
-    InProgress { bytes_downloaded: u64, total_bytes: Option<u64> },
+    InProgress {
+        bytes_downloaded: u64,
+        total_bytes: Option<u64>,
+    },
     /// Completed successfully
     Completed { total_bytes: u64 },
     /// Failed with error
@@ -27,7 +30,10 @@ impl DownloadStatus {
     /// Get progress as percentage (0-100)
     pub fn progress_percent(&self) -> Option<f64> {
         match self {
-            DownloadStatus::InProgress { bytes_downloaded, total_bytes: Some(total) } => {
+            DownloadStatus::InProgress {
+                bytes_downloaded,
+                total_bytes: Some(total),
+            } => {
                 if *total > 0 {
                     Some((*bytes_downloaded as f64 / *total as f64) * 100.0)
                 } else {

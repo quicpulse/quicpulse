@@ -1,15 +1,15 @@
 //! WebSocket stream/listen mode implementation
 
-use std::io::BufRead;
 use futures::{SinkExt, StreamExt};
+use std::io::BufRead;
 use tokio_tungstenite::tungstenite::protocol::Message;
 
-use crate::errors::QuicpulseError;
-use crate::status::ExitStatus;
-use crate::output::terminal::{self, colors, RESET};
 use super::client::WsClient;
-use super::codec::{format_text_message, format_binary_message};
+use super::codec::{format_binary_message, format_text_message};
 use super::types::{WsMessage, WsOptions};
+use crate::errors::QuicpulseError;
+use crate::output::terminal::{self, colors, RESET};
+use crate::status::ExitStatus;
 
 /// Print a received WebSocket message with colors
 pub fn print_message(msg: &WsMessage, options: &WsOptions) {
@@ -19,9 +19,10 @@ pub fn print_message(msg: &WsMessage, options: &WsOptions) {
             // Try to colorize JSON if it looks like JSON
             if text.trim().starts_with('{') || text.trim().starts_with('[') {
                 if let Ok(json) = serde_json::from_str::<serde_json::Value>(text) {
-                    let pretty = serde_json::to_string_pretty(&json).unwrap_or_else(|_| formatted.clone());
+                    let pretty =
+                        serde_json::to_string_pretty(&json).unwrap_or_else(|_| formatted.clone());
                     let formatter = crate::output::formatters::ColorFormatter::new(
-                        crate::output::formatters::ColorStyle::Auto
+                        crate::output::formatters::ColorStyle::Auto,
                     );
                     println!("{}", formatter.format_json(&pretty));
                     return;
@@ -35,14 +36,22 @@ pub fn print_message(msg: &WsMessage, options: &WsOptions) {
         }
         WsMessage::Ping(data) => {
             if !data.is_empty() {
-                eprintln!("{} {:?}", terminal::protocol::ws_label("ping"), String::from_utf8_lossy(data));
+                eprintln!(
+                    "{} {:?}",
+                    terminal::protocol::ws_label("ping"),
+                    String::from_utf8_lossy(data)
+                );
             } else {
                 eprintln!("{}", terminal::protocol::ws_label("ping"));
             }
         }
         WsMessage::Pong(data) => {
             if !data.is_empty() {
-                eprintln!("{} {:?}", terminal::protocol::ws_label("pong"), String::from_utf8_lossy(data));
+                eprintln!(
+                    "{} {:?}",
+                    terminal::protocol::ws_label("pong"),
+                    String::from_utf8_lossy(data)
+                );
             } else {
                 eprintln!("{}", terminal::protocol::ws_label("pong"));
             }
@@ -58,8 +67,14 @@ pub fn print_message(msg: &WsMessage, options: &WsOptions) {
                 if reason.is_empty() {
                     eprintln!("{} code={}", label, code_color);
                 } else {
-                    eprintln!("{} code={} reason={}{}{}", label, code_color,
-                        terminal::fg(colors::WHITE), reason, RESET);
+                    eprintln!(
+                        "{} code={} reason={}{}{}",
+                        label,
+                        code_color,
+                        terminal::fg(colors::WHITE),
+                        reason,
+                        RESET
+                    );
                 }
             } else if !reason.is_empty() {
                 eprintln!("{} {}", label, reason);

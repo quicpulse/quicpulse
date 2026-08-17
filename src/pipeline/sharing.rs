@@ -32,14 +32,29 @@ pub struct WorkflowMeta {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type")]
 pub enum WorkflowSource {
-    Local { path: PathBuf },
-    Remote { url: String, id: String },
-    GitHub { owner: String, repo: String, path: String },
-    Gist { id: String, filename: String },
+    Local {
+        path: PathBuf,
+    },
+    Remote {
+        url: String,
+        id: String,
+    },
+    GitHub {
+        owner: String,
+        repo: String,
+        path: String,
+    },
+    Gist {
+        id: String,
+        filename: String,
+    },
 }
 
 /// Handle workflow sharing commands
-pub async fn handle_workflow_commands(args: &Args, env: &Environment) -> Result<Option<ExitStatus>, QuicpulseError> {
+pub async fn handle_workflow_commands(
+    args: &Args,
+    env: &Environment,
+) -> Result<Option<ExitStatus>, QuicpulseError> {
     // Handle --workflow-list
     if args.workflow_list {
         list_workflows(args, env).await?;
@@ -80,7 +95,8 @@ async fn list_workflows(args: &Args, env: &Environment) -> Result<(), QuicpulseE
             let path = entry.path();
             if is_workflow_file(&path) {
                 found = true;
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown");
 
@@ -103,7 +119,10 @@ async fn list_workflows(args: &Args, env: &Environment) -> Result<(), QuicpulseE
             println!("  (no workflows found)");
         }
     } else {
-        println!("  (workflows directory not found: {})", workflows_dir.display());
+        println!(
+            "  (workflows directory not found: {})",
+            workflows_dir.display()
+        );
     }
 
     // Check current directory too
@@ -116,7 +135,8 @@ async fn list_workflows(args: &Args, env: &Environment) -> Result<(), QuicpulseE
             let path = entry.path();
             if is_workflow_file(&path) {
                 found_local = true;
-                let name = path.file_name()
+                let name = path
+                    .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown");
                 println!("  \x1b[36m{}\x1b[0m", name);
@@ -137,7 +157,11 @@ async fn list_workflows(args: &Args, env: &Environment) -> Result<(), QuicpulseE
 }
 
 /// Search for workflows in remote registries
-async fn search_workflows(query: &str, _args: &Args, _env: &Environment) -> Result<(), QuicpulseError> {
+async fn search_workflows(
+    query: &str,
+    _args: &Args,
+    _env: &Environment,
+) -> Result<(), QuicpulseError> {
     println!("\x1b[1mSearching for: {}\x1b[0m\n", query);
 
     // Search GitHub for workflow files
@@ -153,13 +177,19 @@ async fn search_workflows(query: &str, _args: &Args, _env: &Environment) -> Resu
             if let Some(items) = json.get("items").and_then(|v| v.as_array()) {
                 if items.is_empty() {
                     println!("No workflows found matching '{}'", query);
-                    println!("\n\x1b[90mTip: Try searching with different keywords or check:\x1b[0m");
+                    println!(
+                        "\n\x1b[90mTip: Try searching with different keywords or check:\x1b[0m"
+                    );
                     println!("\x1b[90m  https://github.com/topics/quicpulse-workflow\x1b[0m");
                 } else {
                     println!("Found {} workflow(s):\n", items.len());
                     for item in items.iter().take(10) {
-                        let name = item.get("name").and_then(|v| v.as_str()).unwrap_or("unknown");
-                        let repo = item.get("repository")
+                        let name = item
+                            .get("name")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown");
+                        let repo = item
+                            .get("repository")
                             .and_then(|r| r.get("full_name"))
                             .and_then(|v| v.as_str())
                             .unwrap_or("unknown");
@@ -192,7 +222,11 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
     let (content, filename) = if source.starts_with("http://") || source.starts_with("https://") {
         // Direct URL
         let content = fetch_text(source).await?;
-        let filename = source.split('/').last().unwrap_or("workflow.yaml").to_string();
+        let filename = source
+            .split('/')
+            .last()
+            .unwrap_or("workflow.yaml")
+            .to_string();
         (content, filename)
     } else if source.contains('/') {
         // GitHub shorthand: owner/repo/path or owner/repo
@@ -212,11 +246,15 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
             );
 
             let content = fetch_text(&url).await?;
-            let filename = path.split('/').last().unwrap_or("workflow.yaml").to_string();
+            let filename = path
+                .split('/')
+                .last()
+                .unwrap_or("workflow.yaml")
+                .to_string();
             (content, filename)
         } else {
             return Err(QuicpulseError::Argument(
-                "Invalid source format. Use: URL, owner/repo, or owner/repo/path".to_string()
+                "Invalid source format. Use: URL, owner/repo, or owner/repo/path".to_string(),
             ));
         }
     } else {
@@ -226,7 +264,8 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
 
         if let Some(files) = json.get("files").and_then(|f| f.as_object()) {
             if let Some((filename, file_obj)) = files.iter().next() {
-                let content = file_obj.get("content")
+                let content = file_obj
+                    .get("content")
                     .and_then(|c| c.as_str())
                     .unwrap_or("")
                     .to_string();
@@ -246,7 +285,10 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
     let target_path = workflows_dir.join(&filename);
     std::fs::write(&target_path, &content).map_err(QuicpulseError::Io)?;
 
-    println!("\x1b[32mSuccess!\x1b[0m Workflow saved to: {}", target_path.display());
+    println!(
+        "\x1b[32mSuccess!\x1b[0m Workflow saved to: {}",
+        target_path.display()
+    );
 
     if args.verbose > 0 {
         // Try to parse and show info
@@ -260,7 +302,10 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
         }
     }
 
-    println!("\n\x1b[90mRun with: quicpulse --run {}\x1b[0m", target_path.display());
+    println!(
+        "\n\x1b[90mRun with: quicpulse --run {}\x1b[0m",
+        target_path.display()
+    );
 
     Ok(())
 }
@@ -269,12 +314,14 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
 async fn push_workflow(path: &Path, args: &Args, _env: &Environment) -> Result<(), QuicpulseError> {
     if !path.exists() {
         return Err(QuicpulseError::Argument(format!(
-            "Workflow file not found: {}", path.display()
+            "Workflow file not found: {}",
+            path.display()
         )));
     }
 
     let content = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
-    let filename = path.file_name()
+    let filename = path
+        .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("workflow.yaml");
 
@@ -286,7 +333,9 @@ async fn push_workflow(path: &Path, args: &Args, _env: &Environment) -> Result<(
         ))?;
 
     let extracted_desc = extract_workflow_description(&content);
-    let description = args.workflow_description.as_deref()
+    let description = args
+        .workflow_description
+        .as_deref()
         .or_else(|| extracted_desc.as_deref())
         .unwrap_or("QuicPulse workflow");
 
@@ -305,10 +354,14 @@ async fn push_workflow(path: &Path, args: &Args, _env: &Environment) -> Result<(
 
     println!("Creating gist...");
 
-    let registry = args.workflow_registry.as_deref().unwrap_or(DEFAULT_REGISTRY);
+    let registry = args
+        .workflow_registry
+        .as_deref()
+        .unwrap_or(DEFAULT_REGISTRY);
 
     let client = reqwest::Client::new();
-    let resp = client.post(registry)
+    let resp = client
+        .post(registry)
         .header("Authorization", format!("token {}", token))
         .header("User-Agent", "QuicPulse")
         .header("Accept", "application/vnd.github.v3+json")
@@ -325,14 +378,21 @@ async fn push_workflow(path: &Path, args: &Args, _env: &Environment) -> Result<(
         println!("\n\x1b[32mSuccess!\x1b[0m Workflow published.");
         println!("  URL: {}", html_url);
         println!("  ID: {}", id);
-        println!("  Visibility: {}", if is_public { "public" } else { "private" });
+        println!(
+            "  Visibility: {}",
+            if is_public { "public" } else { "private" }
+        );
 
-        println!("\n\x1b[90mOthers can pull with: quicpulse --workflow-pull {}\x1b[0m", id);
+        println!(
+            "\n\x1b[90mOthers can pull with: quicpulse --workflow-pull {}\x1b[0m",
+            id
+        );
     } else {
         let status = resp.status();
         let text = resp.text().await.unwrap_or_default();
         return Err(QuicpulseError::Argument(format!(
-            "Failed to create gist: {} - {}", status, text
+            "Failed to create gist: {} - {}",
+            status, text
         )));
     }
 
@@ -384,7 +444,8 @@ fn extract_workflow_description(content: &str) -> Option<String> {
 /// Fetch JSON from URL
 async fn fetch_json(url: &str) -> Result<serde_json::Value, QuicpulseError> {
     let client = reqwest::Client::new();
-    let resp = client.get(url)
+    let resp = client
+        .get(url)
         .header("User-Agent", "QuicPulse")
         .header("Accept", "application/json")
         .send()
@@ -393,7 +454,8 @@ async fn fetch_json(url: &str) -> Result<serde_json::Value, QuicpulseError> {
 
     if !resp.status().is_success() {
         return Err(QuicpulseError::Argument(format!(
-            "HTTP error: {}", resp.status()
+            "HTTP error: {}",
+            resp.status()
         )));
     }
 
@@ -403,7 +465,8 @@ async fn fetch_json(url: &str) -> Result<serde_json::Value, QuicpulseError> {
 /// Fetch text from URL
 async fn fetch_text(url: &str) -> Result<String, QuicpulseError> {
     let client = reqwest::Client::new();
-    let resp = client.get(url)
+    let resp = client
+        .get(url)
         .header("User-Agent", "QuicPulse")
         .send()
         .await
@@ -411,7 +474,9 @@ async fn fetch_text(url: &str) -> Result<String, QuicpulseError> {
 
     if !resp.status().is_success() {
         return Err(QuicpulseError::Argument(format!(
-            "HTTP error: {} - {}", resp.status(), url
+            "HTTP error: {} - {}",
+            resp.status(),
+            url
         )));
     }
 

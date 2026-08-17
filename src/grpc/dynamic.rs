@@ -4,10 +4,12 @@
 //! conversion to/from protobuf wire format using prost-reflect for proper
 //! schema-based encoding/decoding.
 
-use bytes::{Bytes, Buf, BufMut};
+use bytes::{Buf, BufMut, Bytes};
 use prost::Message;
-use prost_reflect::{DescriptorPool, DynamicMessage, MessageDescriptor, FieldDescriptor, Kind, Value, ReflectMessage};
-use serde_json::{Value as JsonValue, Map as JsonMap, Number as JsonNumber};
+use prost_reflect::{
+    DescriptorPool, DynamicMessage, FieldDescriptor, Kind, MessageDescriptor, ReflectMessage, Value,
+};
+use serde_json::{Map as JsonMap, Number as JsonNumber, Value as JsonValue};
 use std::path::Path;
 use std::sync::Arc;
 
@@ -30,21 +32,23 @@ impl GrpcSchema {
             .map_err(|e| QuicpulseError::Parse(format!("Failed to compile proto file: {}", e)))?;
 
         // Create descriptor pool
-        let pool = DescriptorPool::from_file_descriptor_set(file_descriptor_set)
-            .map_err(|e| QuicpulseError::Parse(format!("Failed to create descriptor pool: {}", e)))?;
+        let pool = DescriptorPool::from_file_descriptor_set(file_descriptor_set).map_err(|e| {
+            QuicpulseError::Parse(format!("Failed to create descriptor pool: {}", e))
+        })?;
 
-        Ok(Self { pool: Arc::new(pool) })
+        Ok(Self {
+            pool: Arc::new(pool),
+        })
     }
 
     /// Create a new schema from proto content string
     pub fn from_proto_content(content: &str, filename: &str) -> Result<Self, QuicpulseError> {
         let unique_id = uuid::Uuid::new_v4();
         let unique_filename = format!("{}_{}", unique_id, filename);
-        
+
         let temp_dir = std::env::temp_dir();
         let temp_path = temp_dir.join(&unique_filename);
-        std::fs::write(&temp_path, content)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        std::fs::write(&temp_path, content).map_err(|e| QuicpulseError::Io(e))?;
 
         let result = Self::from_proto_file(&temp_path);
         let _ = std::fs::remove_file(&temp_path);
@@ -52,11 +56,16 @@ impl GrpcSchema {
     }
 
     /// Create from a file descriptor set (binary compiled proto)
-    pub fn from_file_descriptor_set(fds: prost_types::FileDescriptorSet) -> Result<Self, QuicpulseError> {
-        let pool = DescriptorPool::from_file_descriptor_set(fds)
-            .map_err(|e| QuicpulseError::Parse(format!("Failed to create descriptor pool: {}", e)))?;
+    pub fn from_file_descriptor_set(
+        fds: prost_types::FileDescriptorSet,
+    ) -> Result<Self, QuicpulseError> {
+        let pool = DescriptorPool::from_file_descriptor_set(fds).map_err(|e| {
+            QuicpulseError::Parse(format!("Failed to create descriptor pool: {}", e))
+        })?;
 
-        Ok(Self { pool: Arc::new(pool) })
+        Ok(Self {
+            pool: Arc::new(pool),
+        })
     }
 
     /// Get the descriptor pool
@@ -66,7 +75,8 @@ impl GrpcSchema {
 
     /// List all services in the schema
     pub fn list_services(&self) -> Vec<String> {
-        self.pool.services()
+        self.pool
+            .services()
             .map(|s| s.full_name().to_string())
             .collect()
     }
@@ -74,23 +84,29 @@ impl GrpcSchema {
     /// List methods for a service
     pub fn list_methods(&self, service_name: &str) -> Vec<String> {
         if let Some(service) = self.pool.get_service_by_name(service_name) {
-            service.methods()
-                .map(|m| m.name().to_string())
-                .collect()
+            service.methods().map(|m| m.name().to_string()).collect()
         } else {
             Vec::new()
         }
     }
 
     /// Get the input message descriptor for a method
-    pub fn get_method_input(&self, service_name: &str, method_name: &str) -> Option<MessageDescriptor> {
+    pub fn get_method_input(
+        &self,
+        service_name: &str,
+        method_name: &str,
+    ) -> Option<MessageDescriptor> {
         let service = self.pool.get_service_by_name(service_name)?;
         let method = service.methods().find(|m| m.name() == method_name)?;
         Some(method.input())
     }
 
     /// Get the output message descriptor for a method
-    pub fn get_method_output(&self, service_name: &str, method_name: &str) -> Option<MessageDescriptor> {
+    pub fn get_method_output(
+        &self,
+        service_name: &str,
+        method_name: &str,
+    ) -> Option<MessageDescriptor> {
         let service = self.pool.get_service_by_name(service_name)?;
         let method = service.methods().find(|m| m.name() == method_name)?;
         Some(method.output())
@@ -102,9 +118,14 @@ impl GrpcSchema {
     }
 
     /// Encode a JSON value to protobuf bytes using the schema
-    pub fn encode_message(&self, message_name: &str, json: &JsonValue) -> Result<Bytes, QuicpulseError> {
-        let descriptor = self.get_message(message_name)
-            .ok_or_else(|| QuicpulseError::Parse(format!("Message type not found: {}", message_name)))?;
+    pub fn encode_message(
+        &self,
+        message_name: &str,
+        json: &JsonValue,
+    ) -> Result<Bytes, QuicpulseError> {
+        let descriptor = self.get_message(message_name).ok_or_else(|| {
+            QuicpulseError::Parse(format!("Message type not found: {}", message_name))
+        })?;
 
         let msg = json_to_dynamic_message(&descriptor, json)?;
         let mut buf = Vec::new();
@@ -115,9 +136,15 @@ impl GrpcSchema {
     }
 
     /// Encode using method input type
-    pub fn encode_request(&self, service: &str, method: &str, json: &JsonValue) -> Result<Bytes, QuicpulseError> {
-        let descriptor = self.get_method_input(service, method)
-            .ok_or_else(|| QuicpulseError::Parse(format!("Method not found: {}/{}", service, method)))?;
+    pub fn encode_request(
+        &self,
+        service: &str,
+        method: &str,
+        json: &JsonValue,
+    ) -> Result<Bytes, QuicpulseError> {
+        let descriptor = self.get_method_input(service, method).ok_or_else(|| {
+            QuicpulseError::Parse(format!("Method not found: {}/{}", service, method))
+        })?;
 
         let msg = json_to_dynamic_message(&descriptor, json)?;
         let mut buf = Vec::new();
@@ -128,9 +155,14 @@ impl GrpcSchema {
     }
 
     /// Decode protobuf bytes to JSON using the schema
-    pub fn decode_message(&self, message_name: &str, data: &[u8]) -> Result<JsonValue, QuicpulseError> {
-        let descriptor = self.get_message(message_name)
-            .ok_or_else(|| QuicpulseError::Parse(format!("Message type not found: {}", message_name)))?;
+    pub fn decode_message(
+        &self,
+        message_name: &str,
+        data: &[u8],
+    ) -> Result<JsonValue, QuicpulseError> {
+        let descriptor = self.get_message(message_name).ok_or_else(|| {
+            QuicpulseError::Parse(format!("Message type not found: {}", message_name))
+        })?;
 
         let msg = DynamicMessage::decode(descriptor, data)
             .map_err(|e| QuicpulseError::Parse(format!("Failed to decode message: {}", e)))?;
@@ -139,9 +171,15 @@ impl GrpcSchema {
     }
 
     /// Decode using method output type
-    pub fn decode_response(&self, service: &str, method: &str, data: &[u8]) -> Result<JsonValue, QuicpulseError> {
-        let descriptor = self.get_method_output(service, method)
-            .ok_or_else(|| QuicpulseError::Parse(format!("Method not found: {}/{}", service, method)))?;
+    pub fn decode_response(
+        &self,
+        service: &str,
+        method: &str,
+        data: &[u8],
+    ) -> Result<JsonValue, QuicpulseError> {
+        let descriptor = self.get_method_output(service, method).ok_or_else(|| {
+            QuicpulseError::Parse(format!("Method not found: {}/{}", service, method))
+        })?;
 
         let msg = DynamicMessage::decode(descriptor, data)
             .map_err(|e| QuicpulseError::Parse(format!("Failed to decode response: {}", e)))?;
@@ -159,14 +197,24 @@ impl GrpcSchema {
             let output_msg = method.output();
             let input = input_msg.full_name().to_string();
             let output_type = output_msg.full_name().to_string();
-            let stream_prefix = if method.is_client_streaming() { "stream " } else { "" };
-            let stream_suffix = if method.is_server_streaming() { "stream " } else { "" };
+            let stream_prefix = if method.is_client_streaming() {
+                "stream "
+            } else {
+                ""
+            };
+            let stream_suffix = if method.is_server_streaming() {
+                "stream "
+            } else {
+                ""
+            };
 
             output.push_str(&format!(
                 "  rpc {}({}{}) returns ({}{});\n",
                 method.name(),
-                stream_prefix, input,
-                stream_suffix, output_type
+                stream_prefix,
+                input,
+                stream_suffix,
+                output_type
             ));
         }
 
@@ -234,7 +282,11 @@ fn format_message_descriptor(msg: &MessageDescriptor, indent: usize) -> String {
 
         output.push_str(&format!(
             "{}{}{} {} = {};\n",
-            field_indent, repeated, type_name, field.name(), field.number()
+            field_indent,
+            repeated,
+            type_name,
+            field.name(),
+            field.number()
         ));
     }
 
@@ -272,7 +324,10 @@ fn format_field_type(field: &FieldDescriptor) -> String {
 
 /// Convert JSON to a DynamicMessage
 /// Bug #9 fix: Now tracks depth to prevent stack overflow from deeply nested messages
-fn json_to_dynamic_message(descriptor: &MessageDescriptor, json: &JsonValue) -> Result<DynamicMessage, QuicpulseError> {
+fn json_to_dynamic_message(
+    descriptor: &MessageDescriptor,
+    json: &JsonValue,
+) -> Result<DynamicMessage, QuicpulseError> {
     json_to_dynamic_message_with_depth(descriptor, json, 0)
 }
 
@@ -319,7 +374,8 @@ fn json_to_proto_value_with_depth(
     // Handle repeated fields
     if field.is_list() {
         if let JsonValue::Array(arr) = json {
-            let values: Result<Vec<Value>, _> = arr.iter()
+            let values: Result<Vec<Value>, _> = arr
+                .iter()
                 .map(|v| json_to_proto_scalar_with_depth(field, v, depth))
                 .collect();
             return Ok(Value::List(values?));
@@ -335,12 +391,15 @@ fn json_to_proto_value_with_depth(
         if let JsonValue::Object(obj) = json {
             let map_entry = field.kind();
             if let Kind::Message(entry_desc) = map_entry {
-                let key_field = entry_desc.get_field_by_name("key")
-                    .ok_or_else(|| QuicpulseError::Parse("Invalid map entry: missing key field".to_string()))?;
-                let value_field = entry_desc.get_field_by_name("value")
-                    .ok_or_else(|| QuicpulseError::Parse("Invalid map entry: missing value field".to_string()))?;
+                let key_field = entry_desc.get_field_by_name("key").ok_or_else(|| {
+                    QuicpulseError::Parse("Invalid map entry: missing key field".to_string())
+                })?;
+                let value_field = entry_desc.get_field_by_name("value").ok_or_else(|| {
+                    QuicpulseError::Parse("Invalid map entry: missing value field".to_string())
+                })?;
 
-                let entries: Result<Vec<(prost_reflect::MapKey, Value)>, QuicpulseError> = obj.iter()
+                let entries: Result<Vec<(prost_reflect::MapKey, Value)>, QuicpulseError> = obj
+                    .iter()
                     .map(|(k, v)| {
                         let key = json_string_to_map_key(&key_field, k)?;
                         let value = json_to_proto_scalar_with_depth(&value_field, v, depth)?;
@@ -357,35 +416,54 @@ fn json_to_proto_value_with_depth(
 }
 
 /// Convert a JSON string to a map key
-fn json_string_to_map_key(field: &FieldDescriptor, s: &str) -> Result<prost_reflect::MapKey, QuicpulseError> {
+fn json_string_to_map_key(
+    field: &FieldDescriptor,
+    s: &str,
+) -> Result<prost_reflect::MapKey, QuicpulseError> {
     match field.kind() {
         Kind::Int32 | Kind::Sint32 | Kind::Sfixed32 => {
-            let v: i32 = s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid int32 map key: {}", s)))?;
+            let v: i32 = s
+                .parse()
+                .map_err(|_| QuicpulseError::Parse(format!("Invalid int32 map key: {}", s)))?;
             Ok(prost_reflect::MapKey::I32(v))
         }
         Kind::Int64 | Kind::Sint64 | Kind::Sfixed64 => {
-            let v: i64 = s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid int64 map key: {}", s)))?;
+            let v: i64 = s
+                .parse()
+                .map_err(|_| QuicpulseError::Parse(format!("Invalid int64 map key: {}", s)))?;
             Ok(prost_reflect::MapKey::I64(v))
         }
         Kind::Uint32 | Kind::Fixed32 => {
-            let v: u32 = s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid uint32 map key: {}", s)))?;
+            let v: u32 = s
+                .parse()
+                .map_err(|_| QuicpulseError::Parse(format!("Invalid uint32 map key: {}", s)))?;
             Ok(prost_reflect::MapKey::U32(v))
         }
         Kind::Uint64 | Kind::Fixed64 => {
-            let v: u64 = s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid uint64 map key: {}", s)))?;
+            let v: u64 = s
+                .parse()
+                .map_err(|_| QuicpulseError::Parse(format!("Invalid uint64 map key: {}", s)))?;
             Ok(prost_reflect::MapKey::U64(v))
         }
         Kind::Bool => {
-            let v: bool = s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid bool map key: {}", s)))?;
+            let v: bool = s
+                .parse()
+                .map_err(|_| QuicpulseError::Parse(format!("Invalid bool map key: {}", s)))?;
             Ok(prost_reflect::MapKey::Bool(v))
         }
         Kind::String => Ok(prost_reflect::MapKey::String(s.to_string())),
-        _ => Err(QuicpulseError::Parse(format!("Unsupported map key type: {:?}", field.kind()))),
+        _ => Err(QuicpulseError::Parse(format!(
+            "Unsupported map key type: {:?}",
+            field.kind()
+        ))),
     }
 }
 
 /// Convert a JSON value to a scalar proto value
-fn json_to_proto_scalar(field: &FieldDescriptor, json: &JsonValue) -> Result<Value, QuicpulseError> {
+fn json_to_proto_scalar(
+    field: &FieldDescriptor,
+    json: &JsonValue,
+) -> Result<Value, QuicpulseError> {
     json_to_proto_scalar_with_depth(field, json, 0)
 }
 
@@ -440,11 +518,10 @@ fn json_to_proto_scalar_with_depth(
         }
         Kind::Enum(enum_desc) => {
             let v = match json {
-                JsonValue::String(s) => {
-                    enum_desc.get_value_by_name(s)
-                        .map(|e| e.number())
-                        .unwrap_or(0)
-                }
+                JsonValue::String(s) => enum_desc
+                    .get_value_by_name(s)
+                    .map(|e| e.number())
+                    .unwrap_or(0),
                 JsonValue::Number(n) => n.as_i64().unwrap_or(0) as i32,
                 _ => 0,
             };
@@ -456,7 +533,9 @@ fn json_to_proto_scalar_with_depth(
 fn json_to_f64(json: &JsonValue) -> Result<f64, QuicpulseError> {
     match json {
         JsonValue::Number(n) => Ok(n.as_f64().unwrap_or(0.0)),
-        JsonValue::String(s) => s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid number: {}", s))),
+        JsonValue::String(s) => s
+            .parse()
+            .map_err(|_| QuicpulseError::Parse(format!("Invalid number: {}", s))),
         _ => Ok(0.0),
     }
 }
@@ -464,7 +543,9 @@ fn json_to_f64(json: &JsonValue) -> Result<f64, QuicpulseError> {
 fn json_to_i64(json: &JsonValue) -> Result<i64, QuicpulseError> {
     match json {
         JsonValue::Number(n) => Ok(n.as_i64().unwrap_or(0)),
-        JsonValue::String(s) => s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid integer: {}", s))),
+        JsonValue::String(s) => s
+            .parse()
+            .map_err(|_| QuicpulseError::Parse(format!("Invalid integer: {}", s))),
         _ => Ok(0),
     }
 }
@@ -472,7 +553,9 @@ fn json_to_i64(json: &JsonValue) -> Result<i64, QuicpulseError> {
 fn json_to_u64(json: &JsonValue) -> Result<u64, QuicpulseError> {
     match json {
         JsonValue::Number(n) => Ok(n.as_u64().unwrap_or(0)),
-        JsonValue::String(s) => s.parse().map_err(|_| QuicpulseError::Parse(format!("Invalid unsigned integer: {}", s))),
+        JsonValue::String(s) => s
+            .parse()
+            .map_err(|_| QuicpulseError::Parse(format!("Invalid unsigned integer: {}", s))),
         _ => Ok(0),
     }
 }
@@ -511,12 +594,13 @@ fn json_to_bytes(json: &JsonValue) -> Result<Vec<u8>, QuicpulseError> {
             });
 
             if is_likely_base64 {
-                base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s)
-                    .map_err(|e| QuicpulseError::Parse(format!(
+                base64::Engine::decode(&base64::engine::general_purpose::STANDARD, s).map_err(|e| {
+                    QuicpulseError::Parse(format!(
                         "Invalid base64 for bytes field: {}. \
                         Bytes fields require base64-encoded strings or array of numbers.",
                         e
-                    )))
+                    ))
+                })
             } else {
                 // String contains non-base64 characters, likely intended as raw text
                 // Return an error to inform the user about the expected format
@@ -527,8 +611,13 @@ fn json_to_bytes(json: &JsonValue) -> Result<Vec<u8>, QuicpulseError> {
             }
         }
         JsonValue::Array(arr) => {
-            let bytes: Result<Vec<u8>, _> = arr.iter()
-                .map(|v| v.as_u64().map(|n| n as u8).ok_or_else(|| QuicpulseError::Parse("Invalid byte value".to_string())))
+            let bytes: Result<Vec<u8>, _> = arr
+                .iter()
+                .map(|v| {
+                    v.as_u64()
+                        .map(|n| n as u8)
+                        .ok_or_else(|| QuicpulseError::Parse("Invalid byte value".to_string()))
+                })
                 .collect();
             bytes
         }
@@ -559,25 +648,20 @@ fn proto_value_to_json(value: &Value) -> JsonValue {
         Value::I64(n) => JsonValue::Number(JsonNumber::from(*n)),
         Value::U32(n) => JsonValue::Number(JsonNumber::from(*n)),
         Value::U64(n) => JsonValue::Number(JsonNumber::from(*n)),
-        Value::F32(f) => {
-            JsonNumber::from_f64(*f as f64)
-                .map(JsonValue::Number)
-                .unwrap_or(JsonValue::Null)
-        }
-        Value::F64(f) => {
-            JsonNumber::from_f64(*f)
-                .map(JsonValue::Number)
-                .unwrap_or(JsonValue::Null)
-        }
+        Value::F32(f) => JsonNumber::from_f64(*f as f64)
+            .map(JsonValue::Number)
+            .unwrap_or(JsonValue::Null),
+        Value::F64(f) => JsonNumber::from_f64(*f)
+            .map(JsonValue::Number)
+            .unwrap_or(JsonValue::Null),
         Value::String(s) => JsonValue::String(s.clone()),
-        Value::Bytes(b) => {
-            JsonValue::String(base64::Engine::encode(&base64::engine::general_purpose::STANDARD, b))
-        }
+        Value::Bytes(b) => JsonValue::String(base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            b,
+        )),
         Value::EnumNumber(n) => JsonValue::Number(JsonNumber::from(*n)),
         Value::Message(m) => dynamic_message_to_json(m),
-        Value::List(list) => {
-            JsonValue::Array(list.iter().map(proto_value_to_json).collect())
-        }
+        Value::List(list) => JsonValue::Array(list.iter().map(proto_value_to_json).collect()),
         Value::Map(map) => {
             let mut obj = JsonMap::new();
             for (k, v) in map {
@@ -608,7 +692,10 @@ pub fn decode_to_json_schemaless(data: &[u8]) -> Result<JsonValue, QuicpulseErro
 }
 
 /// Internal function with depth tracking to prevent stack overflow
-fn decode_to_json_schemaless_with_depth(data: &[u8], depth: usize) -> Result<JsonValue, QuicpulseError> {
+fn decode_to_json_schemaless_with_depth(
+    data: &[u8],
+    depth: usize,
+) -> Result<JsonValue, QuicpulseError> {
     if depth > MAX_DECODE_DEPTH {
         return Err(QuicpulseError::Parse(format!(
             "Maximum recursion depth ({}) exceeded in protobuf decoding",
@@ -634,7 +721,8 @@ fn decode_to_json_schemaless_with_depth(data: &[u8], depth: usize) -> Result<Jso
         let field_name = format!("field_{}", field_num);
 
         let value = match wire_type {
-            0 => { // Varint
+            0 => {
+                // Varint
                 let (v, bytes_read) = read_varint(&data[pos..])?;
                 pos += bytes_read;
                 if v <= i64::MAX as u64 {
@@ -643,52 +731,59 @@ fn decode_to_json_schemaless_with_depth(data: &[u8], depth: usize) -> Result<Jso
                     JsonValue::String(v.to_string())
                 }
             }
-            1 => { // Fixed64
+            1 => {
+                // Fixed64
                 if pos + 8 > data.len() {
                     return Err(QuicpulseError::Parse("Unexpected end of data".to_string()));
                 }
-                let v = u64::from_le_bytes(data[pos..pos+8].try_into().unwrap());
+                let v = u64::from_le_bytes(data[pos..pos + 8].try_into().unwrap());
                 pos += 8;
                 JsonValue::Number(JsonNumber::from(v))
             }
-            2 => { // Length-delimited
+            2 => {
+                // Length-delimited
                 let (len, bytes_read) = read_varint(&data[pos..])?;
                 pos += bytes_read;
                 let len = len as usize;
                 if pos + len > data.len() {
                     return Err(QuicpulseError::Parse("Unexpected end of data".to_string()));
                 }
-                let bytes = &data[pos..pos+len];
+                let bytes = &data[pos..pos + len];
                 pos += len;
 
                 // Try to interpret as string
                 if let Ok(s) = std::str::from_utf8(bytes) {
-                    if s.chars().all(|c| !c.is_control() || c == '\n' || c == '\r' || c == '\t') {
+                    if s.chars()
+                        .all(|c| !c.is_control() || c == '\n' || c == '\r' || c == '\t')
+                    {
                         JsonValue::String(s.to_string())
                     } else {
                         // Try nested message with depth limit
-                        decode_to_json_schemaless_with_depth(bytes, depth + 1).unwrap_or_else(|_| {
-                            JsonValue::String(base64::Engine::encode(
-                                &base64::engine::general_purpose::STANDARD,
-                                bytes
-                            ))
-                        })
+                        decode_to_json_schemaless_with_depth(bytes, depth + 1).unwrap_or_else(
+                            |_| {
+                                JsonValue::String(base64::Engine::encode(
+                                    &base64::engine::general_purpose::STANDARD,
+                                    bytes,
+                                ))
+                            },
+                        )
                     }
                 } else {
                     // Try nested message with depth limit
                     decode_to_json_schemaless_with_depth(bytes, depth + 1).unwrap_or_else(|_| {
                         JsonValue::String(base64::Engine::encode(
                             &base64::engine::general_purpose::STANDARD,
-                            bytes
+                            bytes,
                         ))
                     })
                 }
             }
-            5 => { // Fixed32
+            5 => {
+                // Fixed32
                 if pos + 4 > data.len() {
                     return Err(QuicpulseError::Parse("Unexpected end of data".to_string()));
                 }
-                let v = u32::from_le_bytes(data[pos..pos+4].try_into().unwrap());
+                let v = u32::from_le_bytes(data[pos..pos + 4].try_into().unwrap());
                 pos += 4;
                 JsonValue::Number(JsonNumber::from(v))
             }
@@ -722,7 +817,9 @@ fn read_varint(data: &[u8]) -> Result<(u64, usize), QuicpulseError> {
 
     loop {
         if pos >= data.len() {
-            return Err(QuicpulseError::Parse("Unexpected end of varint".to_string()));
+            return Err(QuicpulseError::Parse(
+                "Unexpected end of varint".to_string(),
+            ));
         }
 
         let byte = data[pos];
@@ -774,7 +871,11 @@ impl tonic::codec::Encoder for RawEncoder {
     type Item = RawMessage;
     type Error = tonic::Status;
 
-    fn encode(&mut self, item: Self::Item, dst: &mut tonic::codec::EncodeBuf<'_>) -> Result<(), Self::Error> {
+    fn encode(
+        &mut self,
+        item: Self::Item,
+        dst: &mut tonic::codec::EncodeBuf<'_>,
+    ) -> Result<(), Self::Error> {
         dst.put_slice(&item.0);
         Ok(())
     }
@@ -788,7 +889,10 @@ impl tonic::codec::Decoder for RawDecoder {
     type Item = RawMessage;
     type Error = tonic::Status;
 
-    fn decode(&mut self, src: &mut tonic::codec::DecodeBuf<'_>) -> Result<Option<Self::Item>, Self::Error> {
+    fn decode(
+        &mut self,
+        src: &mut tonic::codec::DecodeBuf<'_>,
+    ) -> Result<Option<Self::Item>, Self::Error> {
         let len = src.remaining();
         if len == 0 {
             return Ok(Some(RawMessage(Bytes::new())));
@@ -856,11 +960,15 @@ mod tests {
             "count": 42
         });
 
-        let encoded = schema.encode_request("test.Greeter", "SayHello", &request_json).unwrap();
+        let encoded = schema
+            .encode_request("test.Greeter", "SayHello", &request_json)
+            .unwrap();
         assert!(!encoded.is_empty());
 
         // Decode it back (as the input type since we're testing roundtrip)
-        let decoded = schema.decode_message("test.HelloRequest", &encoded).unwrap();
+        let decoded = schema
+            .decode_message("test.HelloRequest", &encoded)
+            .unwrap();
         assert_eq!(decoded["name"], "World");
         assert_eq!(decoded["count"], 42);
     }

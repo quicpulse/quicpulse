@@ -2,11 +2,11 @@
 
 mod common;
 
-use common::{http, http_error, fixtures, ExitStatus};
+use common::{fixtures, http, http_error, ExitStatus};
 use std::path::PathBuf;
 use tempfile::TempDir;
-use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn fixture_path(name: &str) -> PathBuf {
     fixtures::fixture_path(name)
@@ -22,8 +22,9 @@ fn test_plugin_list_empty() {
     let temp_dir = TempDir::new().unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     // Should succeed but show no plugins
@@ -55,14 +56,18 @@ hooks:
     std::fs::write(plugin_dir.join("plugin.sh"), script).unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("test-plugin") || output.contains("1.0.0"),
-        "Should list plugin. output: {}", output);
+    assert!(
+        output.contains("test-plugin") || output.contains("1.0.0"),
+        "Should list plugin. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -74,21 +79,25 @@ fn test_plugin_discover_multiple() {
         let plugin_dir = temp_dir.path().join(name);
         std::fs::create_dir_all(&plugin_dir).unwrap();
 
-        let manifest = format!(r#"
+        let manifest = format!(
+            r#"
 name: {}
 version: "1.0.0"
 plugin_type: binary
 entry: plugin.sh
 hooks:
   - pre_request
-"#, name);
+"#,
+            name
+        );
         std::fs::write(plugin_dir.join("plugin.yaml"), manifest).unwrap();
         std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{}'").unwrap();
     }
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -109,19 +118,24 @@ fn test_plugin_yaml_manifest() {
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
     // YAML manifest
-    std::fs::write(plugin_dir.join("plugin.yaml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.yaml"),
+        r#"
 name: yaml-plugin
 version: "1.0.0"
 plugin_type: binary
 entry: plugin.sh
 hooks:
   - pre_request
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{}'").unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -134,18 +148,23 @@ fn test_plugin_json_manifest() {
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
     // JSON manifest
-    std::fs::write(plugin_dir.join("plugin.json"), r#"{
+    std::fs::write(
+        plugin_dir.join("plugin.json"),
+        r#"{
     "name": "json-plugin",
     "version": "1.0.0",
     "plugin_type": "binary",
     "entry": "plugin.sh",
     "hooks": ["pre_request"]
-}"#).unwrap();
+}"#,
+    )
+    .unwrap();
     std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{}'").unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -158,18 +177,23 @@ fn test_plugin_toml_manifest() {
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
     // TOML manifest
-    std::fs::write(plugin_dir.join("plugin.toml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.toml"),
+        r#"
 name = "toml-plugin"
 version = "1.0.0"
 plugin_type = "binary"
 entry = "plugin.sh"
 hooks = ["pre_request"]
-"#).unwrap();
+"#,
+    )
+    .unwrap();
     std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{}'").unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -183,17 +207,17 @@ hooks = ["pre_request"]
 fn test_plugin_search() {
     // Plugin search requires network (registry)
     // This test just verifies the flag is accepted
-    let response = http_error(&[
-        "--plugin-search", "http-utils",
-        "--offline"
-    ]);
+    let response = http_error(&["--plugin-search", "http-utils", "--offline"]);
 
     // Should accept the flag (may fail due to offline/network)
-    assert!(response.exit_status == ExitStatus::Error ||
-            response.stderr.contains("search") ||
-            response.stderr.contains("registry") ||
-            response.stderr.contains("offline"),
-        "Should handle search. stderr: {}", response.stderr);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || response.stderr.contains("search")
+            || response.stderr.contains("registry")
+            || response.stderr.contains("offline"),
+        "Should handle search. stderr: {}",
+        response.stderr
+    );
 }
 
 // =============================================================================
@@ -202,9 +226,7 @@ fn test_plugin_search() {
 
 #[test]
 fn test_plugin_install_nonexistent() {
-    let response = http_error(&[
-        "--plugin-install", "nonexistent-plugin-xyz"
-    ]);
+    let response = http_error(&["--plugin-install", "nonexistent-plugin-xyz"]);
 
     // Should fail for nonexistent plugin
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -212,9 +234,7 @@ fn test_plugin_install_nonexistent() {
 
 #[test]
 fn test_plugin_uninstall_nonexistent() {
-    let response = http_error(&[
-        "--plugin-uninstall", "nonexistent-plugin-xyz"
-    ]);
+    let response = http_error(&["--plugin-uninstall", "nonexistent-plugin-xyz"]);
 
     // Should fail for nonexistent plugin
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -231,14 +251,18 @@ async fn test_plugin_binary_execution() {
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
     // Create manifest
-    std::fs::write(plugin_dir.join("plugin.yaml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.yaml"),
+        r#"
 name: exec-plugin
 version: "1.0.0"
 plugin_type: binary
 entry: plugin.sh
 hooks:
   - pre_request
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     // Create executable plugin that adds a header
     let script = r#"#!/bin/bash
@@ -267,16 +291,20 @@ echo '{"continue_processing": true, "add_headers": {"X-Plugin-Executed": "true"}
 
     // Run with plugin
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin", "exec-plugin",
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin",
+        "exec-plugin",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     // Plugin should have been discovered and possibly executed
-    assert!(response.exit_status == ExitStatus::Success ||
-            response.stderr.contains("plugin"),
-        "Should handle plugin. stderr: {}", response.stderr);
+    assert!(
+        response.exit_status == ExitStatus::Success || response.stderr.contains("plugin"),
+        "Should handle plugin. stderr: {}",
+        response.stderr
+    );
 }
 
 // =============================================================================
@@ -289,19 +317,28 @@ fn test_plugin_pre_request_hook() {
     let plugin_dir = temp_dir.path().join("pre-req-plugin");
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
-    std::fs::write(plugin_dir.join("plugin.yaml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.yaml"),
+        r#"
 name: pre-req-plugin
 version: "1.0.0"
 plugin_type: binary
 entry: plugin.sh
 hooks:
   - pre_request
-"#).unwrap();
-    std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{\"continue_processing\": true}'").unwrap();
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        plugin_dir.join("plugin.sh"),
+        "#!/bin/bash\necho '{\"continue_processing\": true}'",
+    )
+    .unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -313,19 +350,28 @@ fn test_plugin_post_response_hook() {
     let plugin_dir = temp_dir.path().join("post-resp-plugin");
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
-    std::fs::write(plugin_dir.join("plugin.yaml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.yaml"),
+        r#"
 name: post-resp-plugin
 version: "1.0.0"
 plugin_type: binary
 entry: plugin.sh
 hooks:
   - post_response
-"#).unwrap();
-    std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{\"continue_processing\": true}'").unwrap();
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        plugin_dir.join("plugin.sh"),
+        "#!/bin/bash\necho '{\"continue_processing\": true}'",
+    )
+    .unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -337,7 +383,9 @@ fn test_plugin_multiple_hooks() {
     let plugin_dir = temp_dir.path().join("multi-hook-plugin");
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
-    std::fs::write(plugin_dir.join("plugin.yaml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.yaml"),
+        r#"
 name: multi-hook-plugin
 version: "1.0.0"
 plugin_type: binary
@@ -346,12 +394,19 @@ hooks:
   - pre_request
   - post_response
   - on_error
-"#).unwrap();
-    std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{\"continue_processing\": true}'").unwrap();
+"#,
+    )
+    .unwrap();
+    std::fs::write(
+        plugin_dir.join("plugin.sh"),
+        "#!/bin/bash\necho '{\"continue_processing\": true}'",
+    )
+    .unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -368,18 +423,23 @@ fn test_plugin_missing_entry_point() {
     std::fs::create_dir_all(&plugin_dir).unwrap();
 
     // Manifest references non-existent entry point
-    std::fs::write(plugin_dir.join("plugin.yaml"), r#"
+    std::fs::write(
+        plugin_dir.join("plugin.yaml"),
+        r#"
 name: no-entry-plugin
 version: "1.0.0"
 plugin_type: binary
 entry: nonexistent.sh
 hooks:
   - pre_request
-"#).unwrap();
+"#,
+    )
+    .unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     // Should skip invalid plugin or report error
@@ -396,8 +456,9 @@ fn test_plugin_invalid_manifest() {
     std::fs::write(plugin_dir.join("plugin.yaml"), "invalid: yaml: [").unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     // Should skip invalid plugin
@@ -418,17 +479,21 @@ fn test_fixture_plugin_discovery() {
     }
 
     let response = http(&[
-        "--plugin-dir", plugin_path.to_str().unwrap(),
-        "--plugin-list"
+        "--plugin-dir",
+        plugin_path.to_str().unwrap(),
+        "--plugin-list",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should find the test-plugin from fixtures
-    assert!(output.contains("test-plugin") ||
-            output.contains("plugin") ||
-            output.contains("No plugins"),
-        "Should list plugins. output: {}", output);
+    assert!(
+        output.contains("test-plugin")
+            || output.contains("plugin")
+            || output.contains("No plugins"),
+        "Should list plugins. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -443,14 +508,21 @@ async fn test_plugin_selective_enable() {
     for name in &["plugin-a", "plugin-b"] {
         let plugin_dir = temp_dir.path().join(name);
         std::fs::create_dir_all(&plugin_dir).unwrap();
-        std::fs::write(plugin_dir.join("plugin.yaml"), format!(r#"
+        std::fs::write(
+            plugin_dir.join("plugin.yaml"),
+            format!(
+                r#"
 name: {}
 version: "1.0.0"
 plugin_type: binary
 entry: plugin.sh
 hooks:
   - pre_request
-"#, name)).unwrap();
+"#,
+                name
+            ),
+        )
+        .unwrap();
         std::fs::write(plugin_dir.join("plugin.sh"), "#!/bin/bash\necho '{}'").unwrap();
     }
 
@@ -463,16 +535,20 @@ hooks:
 
     // Only enable plugin-a
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin", "plugin-a",
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin",
+        "plugin-a",
         "GET",
-        &format!("{}/test", mock_server.uri())
+        &format!("{}/test", mock_server.uri()),
     ]);
 
     // Should only run plugin-a
-    assert!(response.exit_status == ExitStatus::Success ||
-            response.stderr.contains("plugin"),
-        "Should handle selective plugin. stderr: {}", response.stderr);
+    assert!(
+        response.exit_status == ExitStatus::Success || response.stderr.contains("plugin"),
+        "Should handle selective plugin. stderr: {}",
+        response.stderr
+    );
 }
 
 // =============================================================================
@@ -484,14 +560,18 @@ fn test_plugin_update_none_installed() {
     let temp_dir = TempDir::new().unwrap();
 
     let response = http(&[
-        "--plugin-dir", temp_dir.path().to_str().unwrap(),
-        "--plugin-update"
+        "--plugin-dir",
+        temp_dir.path().to_str().unwrap(),
+        "--plugin-update",
     ]);
 
     // With no plugins, update should succeed or indicate nothing to update
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Success ||
-            output.contains("No plugins") ||
-            output.contains("update"),
-        "Should handle update. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Success
+            || output.contains("No plugins")
+            || output.contains("update"),
+        "Should handle update. output: {}",
+        output
+    );
 }

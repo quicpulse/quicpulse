@@ -3,10 +3,11 @@
 //! Provides cryptographic hash functions, HMAC, and other
 //! security-related utilities for scripts.
 
-use rune::{ContextError, Module};
+use hmac::{Hmac, KeyInit, Mac};
+use rand::{Rng, RngExt};
 use rune::alloc::String as RuneString;
-use sha2::{Sha256, Sha512, Digest};
-use hmac::{Hmac, Mac};
+use rune::{ContextError, Module};
+use sha2::{Digest, Sha256, Sha512};
 
 type HmacSha256 = Hmac<Sha256>;
 type HmacSha512 = Hmac<Sha512>;
@@ -24,11 +25,15 @@ pub fn module() -> Result<Module, ContextError> {
     // HMAC functions
     module.function("hmac_sha256", hmac_sha256_hex).build()?;
     module.function("hmac_sha512", hmac_sha512_hex).build()?;
-    module.function("hmac_sha256_base64", hmac_sha256_base64).build()?;
+    module
+        .function("hmac_sha256_base64", hmac_sha256_base64)
+        .build()?;
 
     // Random functions
     module.function("random_hex", random_hex).build()?;
-    module.function("random_bytes_base64", random_bytes_base64).build()?;
+    module
+        .function("random_bytes_base64", random_bytes_base64)
+        .build()?;
     module.function("random_int", random_int).build()?;
     module.function("random_string", random_string).build()?;
     module.function("uuid_v4", uuid_v4).build()?;
@@ -68,7 +73,6 @@ fn md5_hex(input: &str) -> RuneString {
 
 /// Generate random bytes as hex string
 fn random_hex(count: i64) -> RuneString {
-    use rand::RngCore;
     let count = count.max(0) as usize;
     let mut bytes = vec![0u8; count];
     rand::rng().fill_bytes(&mut bytes);
@@ -90,7 +94,7 @@ fn uuid_v7() -> RuneString {
 
 /// Compute SHA-1 hash as hex string
 fn sha1_hex(input: &str) -> RuneString {
-    use sha1::{Sha1, Digest as Sha1Digest};
+    use sha1::{Digest as Sha1Digest, Sha1};
     let mut hasher = Sha1::new();
     hasher.update(input.as_bytes());
     let result = hasher.finalize();
@@ -100,8 +104,8 @@ fn sha1_hex(input: &str) -> RuneString {
 
 /// Compute HMAC-SHA256 and return as hex string
 fn hmac_sha256_hex(key: &str, message: &str) -> RuneString {
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(message.as_bytes());
     let result = mac.finalize();
     let hex = hex::encode(result.into_bytes());
@@ -110,8 +114,8 @@ fn hmac_sha256_hex(key: &str, message: &str) -> RuneString {
 
 /// Compute HMAC-SHA512 and return as hex string
 fn hmac_sha512_hex(key: &str, message: &str) -> RuneString {
-    let mut mac = HmacSha512::new_from_slice(key.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha512::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(message.as_bytes());
     let result = mac.finalize();
     let hex = hex::encode(result.into_bytes());
@@ -120,9 +124,9 @@ fn hmac_sha512_hex(key: &str, message: &str) -> RuneString {
 
 /// Compute HMAC-SHA256 and return as base64 string
 fn hmac_sha256_base64(key: &str, message: &str) -> RuneString {
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
-        .expect("HMAC can take key of any size");
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
+    let mut mac =
+        HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(message.as_bytes());
     let result = mac.finalize();
     let b64 = STANDARD.encode(result.into_bytes());
@@ -131,8 +135,7 @@ fn hmac_sha256_base64(key: &str, message: &str) -> RuneString {
 
 /// Generate random bytes as base64 string
 fn random_bytes_base64(count: i64) -> RuneString {
-    use rand::RngCore;
-    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
     let count = count.max(0) as usize;
     let mut bytes = vec![0u8; count];
     rand::rng().fill_bytes(&mut bytes);
@@ -142,7 +145,6 @@ fn random_bytes_base64(count: i64) -> RuneString {
 
 /// Generate a random integer in range [min, max]
 fn random_int(min: i64, max: i64) -> i64 {
-    use rand::Rng;
     let (min, max) = if min > max { (max, min) } else { (min, max) };
     let mut rng = rand::rng();
     rng.random_range(min..=max)
@@ -150,7 +152,6 @@ fn random_int(min: i64, max: i64) -> i64 {
 
 /// Generate a random alphanumeric string of given length
 fn random_string(length: i64) -> RuneString {
-    use rand::Rng;
     let length = length.max(0) as usize;
     let chars: String = rand::rng()
         .sample_iter(&rand::distr::Alphanumeric)

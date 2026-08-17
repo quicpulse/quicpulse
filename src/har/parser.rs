@@ -2,13 +2,13 @@
 //!
 //! Loads and parses HAR files from disk or stdin.
 
+use super::types::Har;
+use crate::errors::QuicpulseError;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use std::sync::RwLock;
-use std::collections::HashMap;
-use once_cell::sync::Lazy;
-use crate::errors::QuicpulseError;
-use super::types::Har;
 
 /// Bug #50 fix: Cache for compiled regex patterns to avoid recompilation
 /// Uses RwLock to allow concurrent reads with occasional writes
@@ -29,9 +29,7 @@ pub fn load_har(path: &Path) -> Result<Har, QuicpulseError> {
     }
 
     // Check file size
-    let metadata = fs::metadata(path).map_err(|e| {
-        QuicpulseError::Io(e)
-    })?;
+    let metadata = fs::metadata(path).map_err(|e| QuicpulseError::Io(e))?;
 
     if metadata.len() > MAX_HAR_FILE_SIZE {
         return Err(QuicpulseError::Parse(format!(
@@ -42,9 +40,8 @@ pub fn load_har(path: &Path) -> Result<Har, QuicpulseError> {
     }
 
     // Read file
-    let content = fs::read_to_string(path).map_err(|e| {
-        QuicpulseError::Parse(format!("Failed to read HAR file: {}", e))
-    })?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| QuicpulseError::Parse(format!("Failed to read HAR file: {}", e)))?;
 
     // Parse JSON
     parse_har(&content)
@@ -52,9 +49,8 @@ pub fn load_har(path: &Path) -> Result<Har, QuicpulseError> {
 
 /// Parse HAR from JSON string
 pub fn parse_har(json: &str) -> Result<Har, QuicpulseError> {
-    serde_json::from_str(json).map_err(|e| {
-        QuicpulseError::Parse(format!("Invalid HAR format: {}", e))
-    })
+    serde_json::from_str(json)
+        .map_err(|e| QuicpulseError::Parse(format!("Invalid HAR format: {}", e)))
 }
 
 /// Get or compile a cached regex pattern
@@ -68,9 +64,8 @@ fn get_cached_regex(pattern: &str) -> Result<regex::Regex, QuicpulseError> {
     }
 
     // Not in cache, compile and store (write lock)
-    let regex = regex::Regex::new(pattern).map_err(|e| {
-        QuicpulseError::Parse(format!("Invalid filter pattern: {}", e))
-    })?;
+    let regex = regex::Regex::new(pattern)
+        .map_err(|e| QuicpulseError::Parse(format!("Invalid filter pattern: {}", e)))?;
 
     if let Ok(mut cache) = REGEX_CACHE.write() {
         // Limit cache size to prevent unbounded growth
@@ -88,9 +83,9 @@ fn get_cached_regex(pattern: &str) -> Result<regex::Regex, QuicpulseError> {
 pub fn filter_entries(har: &mut Har, pattern: &str) -> Result<(), QuicpulseError> {
     let regex = get_cached_regex(pattern)?;
 
-    har.log.entries.retain(|entry| {
-        regex.is_match(&entry.request.url)
-    });
+    har.log
+        .entries
+        .retain(|entry| regex.is_match(&entry.request.url));
 
     Ok(())
 }
@@ -214,7 +209,8 @@ mod tests {
                     }
                 ]
             }
-        }"#.to_string()
+        }"#
+        .to_string()
     }
 
     #[test]

@@ -2,10 +2,10 @@
 //!
 //! Provides XML parsing and conversion utilities.
 
-use rquickjs::{Ctx, Object, Function};
-use quick_xml::Reader;
-use quick_xml::events::Event;
 use crate::errors::QuicpulseError;
+use quick_xml::events::Event;
+use quick_xml::Reader;
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
@@ -21,7 +21,8 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     xml.set("get_text", Function::new(ctx.clone(), xml_get_text)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("xml", xml)
+    globals
+        .set("xml", xml)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set xml global: {}", e)))?;
 
     Ok(())
@@ -65,7 +66,10 @@ fn xml_to_json_value(xml_str: &str) -> Result<serde_json::Value, String> {
                                 root = Some(serde_json::Value::Object(wrapper));
                             }
                         } else {
-                            obj.insert("#text".to_string(), serde_json::Value::String(current_text.trim().to_string()));
+                            obj.insert(
+                                "#text".to_string(),
+                                serde_json::Value::String(current_text.trim().to_string()),
+                            );
                             let value = serde_json::Value::Object(obj);
                             if let Some((_, parent)) = stack.last_mut() {
                                 add_to_object(parent, &name, value);
@@ -137,7 +141,11 @@ fn xml_to_json_value(xml_str: &str) -> Result<serde_json::Value, String> {
     root.ok_or_else(|| "Empty XML document".to_string())
 }
 
-fn add_to_object(obj: &mut serde_json::Map<String, serde_json::Value>, key: &str, value: serde_json::Value) {
+fn add_to_object(
+    obj: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    value: serde_json::Value,
+) {
     if let Some(existing) = obj.get_mut(key) {
         // Convert to array if needed
         match existing {

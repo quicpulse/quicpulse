@@ -2,13 +2,13 @@
 //!
 //! Provides cryptographic functions matching Rune's crypto module.
 
-use rquickjs::{Ctx, Object, Function};
-use sha2::{Sha256, Sha512, Digest};
+use hmac::{Hmac, KeyInit, Mac};
+use rand::{Rng, RngExt};
+use rquickjs::{Ctx, Function, Object};
 use sha1::Sha1;
-use hmac::{Hmac, Mac};
-use uuid::Uuid;
-use rand::Rng;
+use sha2::{Digest, Sha256, Sha512};
 use std::time::{SystemTime, UNIX_EPOCH};
+use uuid::Uuid;
 
 use crate::errors::QuicpulseError;
 
@@ -21,46 +21,68 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
         .map_err(|e| QuicpulseError::Script(format!("Failed to create crypto object: {}", e)))?;
 
     // Hash functions
-    crypto.set("sha256_hex", Function::new(ctx.clone(), sha256_hex)?)
+    crypto
+        .set("sha256_hex", Function::new(ctx.clone(), sha256_hex)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("sha512_hex", Function::new(ctx.clone(), sha512_hex)?)
+    crypto
+        .set("sha512_hex", Function::new(ctx.clone(), sha512_hex)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("sha1_hex", Function::new(ctx.clone(), sha1_hex)?)
+    crypto
+        .set("sha1_hex", Function::new(ctx.clone(), sha1_hex)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("md5_hex", Function::new(ctx.clone(), md5_hex)?)
+    crypto
+        .set("md5_hex", Function::new(ctx.clone(), md5_hex)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
     // HMAC functions
-    crypto.set("hmac_sha256", Function::new(ctx.clone(), hmac_sha256)?)
+    crypto
+        .set("hmac_sha256", Function::new(ctx.clone(), hmac_sha256)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("hmac_sha512", Function::new(ctx.clone(), hmac_sha512)?)
+    crypto
+        .set("hmac_sha512", Function::new(ctx.clone(), hmac_sha512)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("hmac_sha256_base64", Function::new(ctx.clone(), hmac_sha256_base64)?)
+    crypto
+        .set(
+            "hmac_sha256_base64",
+            Function::new(ctx.clone(), hmac_sha256_base64)?,
+        )
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
     // Random functions
-    crypto.set("random_hex", Function::new(ctx.clone(), random_hex)?)
+    crypto
+        .set("random_hex", Function::new(ctx.clone(), random_hex)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("random_bytes_base64", Function::new(ctx.clone(), random_bytes_base64)?)
+    crypto
+        .set(
+            "random_bytes_base64",
+            Function::new(ctx.clone(), random_bytes_base64)?,
+        )
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("random_int", Function::new(ctx.clone(), random_int)?)
+    crypto
+        .set("random_int", Function::new(ctx.clone(), random_int)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("random_string", Function::new(ctx.clone(), random_string)?)
+    crypto
+        .set("random_string", Function::new(ctx.clone(), random_string)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
     // UUID functions
-    crypto.set("uuid_v4", Function::new(ctx.clone(), uuid_v4)?)
+    crypto
+        .set("uuid_v4", Function::new(ctx.clone(), uuid_v4)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("uuid_v7", Function::new(ctx.clone(), uuid_v7)?)
+    crypto
+        .set("uuid_v7", Function::new(ctx.clone(), uuid_v7)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
     // Timestamp functions
-    crypto.set("timestamp", Function::new(ctx.clone(), timestamp)?)
+    crypto
+        .set("timestamp", Function::new(ctx.clone(), timestamp)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    crypto.set("timestamp_ms", Function::new(ctx.clone(), timestamp_ms)?)
+    crypto
+        .set("timestamp_ms", Function::new(ctx.clone(), timestamp_ms)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("crypto", crypto)
+    globals
+        .set("crypto", crypto)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set crypto global: {}", e)))?;
 
     Ok(())
@@ -90,23 +112,23 @@ fn md5_hex(input: String) -> String {
 }
 
 fn hmac_sha256(key: String, message: String) -> String {
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(message.as_bytes());
     hex::encode(mac.finalize().into_bytes())
 }
 
 fn hmac_sha512(key: String, message: String) -> String {
-    let mut mac = HmacSha512::new_from_slice(key.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha512::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(message.as_bytes());
     hex::encode(mac.finalize().into_bytes())
 }
 
 fn hmac_sha256_base64(key: String, message: String) -> String {
     use base64::Engine;
-    let mut mac = HmacSha256::new_from_slice(key.as_bytes())
-        .expect("HMAC can take key of any size");
+    let mut mac =
+        HmacSha256::new_from_slice(key.as_bytes()).expect("HMAC can take key of any size");
     mac.update(message.as_bytes());
     base64::engine::general_purpose::STANDARD.encode(mac.finalize().into_bytes())
 }

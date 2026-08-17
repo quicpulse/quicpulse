@@ -4,12 +4,6 @@
 //! - 0: Success
 //! - 1: Any error (network, HTTP errors with --check-status, timeouts, etc.)
 //! - 130: User interrupted (Ctrl+C, standard SIGINT exit code)
-//!
-//! This is a clean room design that follows standard Unix practices rather than
-//! using application-specific exit codes for different error types. Users who
-//! need to distinguish between HTTP 4xx vs 5xx errors can use --check-status
-//! combined with shell conditionals and response inspection.
-
 use std::process::{ExitCode, Termination};
 
 /// Exit status codes following standard Unix conventions.

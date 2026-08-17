@@ -197,7 +197,8 @@ fn increment(key: &str) -> i64 {
     let key_string = key.to_string();
     let result = AtomicI64::new(0);
 
-    STORE.entry(key_string.clone())
+    STORE
+        .entry(key_string.clone())
         .and_modify(|v| {
             if let JsonValue::Number(n) = v {
                 let current = n.as_i64().unwrap_or(0);
@@ -228,7 +229,8 @@ fn decrement(key: &str) -> i64 {
     let key_string = key.to_string();
     let result = AtomicI64::new(0);
 
-    STORE.entry(key_string.clone())
+    STORE
+        .entry(key_string.clone())
         .and_modify(|v| {
             if let JsonValue::Number(n) = v {
                 let current = n.as_i64().unwrap_or(0);
@@ -251,11 +253,11 @@ fn decrement(key: &str) -> i64 {
 
 /// Push a value onto a list (stored as JSON array)
 fn list_push(key: &str, value: &str) {
-    let value_json = serde_json::from_str(value)
-        .unwrap_or(JsonValue::String(value.to_string()));
+    let value_json = serde_json::from_str(value).unwrap_or(JsonValue::String(value.to_string()));
 
     // Use entry API for atomic update
-    STORE.entry(key.to_string())
+    STORE
+        .entry(key.to_string())
         .and_modify(|v| {
             if let JsonValue::Array(arr) = v {
                 arr.push(value_json.clone());

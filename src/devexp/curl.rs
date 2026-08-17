@@ -3,8 +3,8 @@
 //! Converts QuicPulse requests to equivalent curl commands for sharing
 //! and debugging.
 
-use crate::cli::Args;
 use crate::cli::parser::ProcessedArgs;
+use crate::cli::Args;
 use crate::input::InputItem;
 
 /// Generate an equivalent curl command from the request
@@ -144,9 +144,7 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Option<String> {
     }
 
     // Collect data items
-    let data_items: Vec<&InputItem> = processed.items.iter()
-        .filter(|i| i.is_data())
-        .collect();
+    let data_items: Vec<&InputItem> = processed.items.iter().filter(|i| i.is_data()).collect();
 
     if data_items.is_empty() {
         return None;
@@ -154,19 +152,16 @@ fn build_body(args: &Args, processed: &ProcessedArgs) -> Option<String> {
 
     if args.form {
         // URL-encoded form data
-        let pairs: Vec<String> = data_items.iter()
-            .filter_map(|item| {
-                match item {
-                    InputItem::DataField { key, value } => {
-                        Some(format!("{}={}", percent_encode(key), percent_encode(value)))
-                    }
-                    InputItem::DataFieldFile { key, path } => {
-                        std::fs::read_to_string(path).ok().map(|v| {
-                            format!("{}={}", percent_encode(key), percent_encode(v.trim()))
-                        })
-                    }
-                    _ => None,
+        let pairs: Vec<String> = data_items
+            .iter()
+            .filter_map(|item| match item {
+                InputItem::DataField { key, value } => {
+                    Some(format!("{}={}", percent_encode(key), percent_encode(value)))
                 }
+                InputItem::DataFieldFile { key, path } => std::fs::read_to_string(path)
+                    .ok()
+                    .map(|v| format!("{}={}", percent_encode(key), percent_encode(v.trim()))),
+                _ => None,
             })
             .collect();
         Some(pairs.join("&"))
@@ -193,15 +188,16 @@ fn build_json_body(items: &[&InputItem]) -> Option<String> {
             }
             InputItem::DataFieldFile { key, path } => {
                 let content = std::fs::read_to_string(path).unwrap_or_default();
-                (key.clone(), serde_json::Value::String(content.trim().to_string()))
+                (
+                    key.clone(),
+                    serde_json::Value::String(content.trim().to_string()),
+                )
             }
-            InputItem::JsonField { key, value } => {
-                (key.clone(), value.clone())
-            }
+            InputItem::JsonField { key, value } => (key.clone(), value.clone()),
             InputItem::JsonFieldFile { key, path } => {
                 let content = std::fs::read_to_string(path).unwrap_or_default();
-                let json_val = serde_json::from_str(&content)
-                    .unwrap_or(serde_json::Value::String(content));
+                let json_val =
+                    serde_json::from_str(&content).unwrap_or(serde_json::Value::String(content));
                 (key.clone(), json_val)
             }
             _ => continue,
@@ -216,9 +212,30 @@ fn build_json_body(items: &[&InputItem]) -> Option<String> {
 fn shell_escape(s: &str) -> String {
     // Check if escaping is needed
     let needs_escaping = s.chars().any(|c| {
-        matches!(c, ' ' | '\'' | '"' | '\\' | '$' | '`' | '!' | '*' | '?' |
-                    '[' | ']' | '{' | '}' | '(' | ')' | '<' | '>' | '|' |
-                    '&' | ';' | '\n' | '\t')
+        matches!(
+            c,
+            ' ' | '\''
+                | '"'
+                | '\\'
+                | '$'
+                | '`'
+                | '!'
+                | '*'
+                | '?'
+                | '['
+                | ']'
+                | '{'
+                | '}'
+                | '('
+                | ')'
+                | '<'
+                | '>'
+                | '|'
+                | '&'
+                | ';'
+                | '\n'
+                | '\t'
+        )
     });
 
     if !needs_escaping && !s.is_empty() {
@@ -264,7 +281,7 @@ pub fn format_curl_pretty(cmd: &str) -> String {
         } else if !in_string && c == 'c' && cmd.starts_with("curl") && result.is_empty() {
             // "curl" command
             result.push_str("\x1b[1;33mcurl\x1b[0m"); // Bold yellow
-            // Skip "url"
+                                                      // Skip "url"
             chars.next(); // u
             chars.next(); // r
             chars.next(); // l

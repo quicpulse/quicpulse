@@ -97,7 +97,9 @@ fn tokenize_curl(cmd: &str) -> Result<Vec<String>, QuicpulseError> {
     }
 
     if in_single_quote || in_double_quote {
-        return Err(QuicpulseError::Parse("Unterminated quote in curl command".to_string()));
+        return Err(QuicpulseError::Parse(
+            "Unterminated quote in curl command".to_string(),
+        ));
     }
 
     Ok(tokens)
@@ -120,7 +122,10 @@ fn parse_tokens(tokens: &[String]) -> Result<ParsedCurl, QuicpulseError> {
             // Handle combined short flags like -sSL
             if token.starts_with('-') && !token.starts_with("--") && token.len() > 2 {
                 // Check if it's a combined flag (all characters are valid short flags without args)
-                let flags_without_args = ['s', 'S', 'L', 'v', 'k', 'I', 'i', 'O', 'J', 'f', 'g', 'G', 'N', '0', '1', '2', '3', '4', '6'];
+                let flags_without_args = [
+                    's', 'S', 'L', 'v', 'k', 'I', 'i', 'O', 'J', 'f', 'g', 'G', 'N', '0', '1', '2',
+                    '3', '4', '6',
+                ];
                 let rest = &token[1..];
                 let all_flags = rest.chars().all(|c| flags_without_args.contains(&c));
 
@@ -135,7 +140,7 @@ fn parse_tokens(tokens: &[String]) -> Result<ParsedCurl, QuicpulseError> {
                             'I' => parsed.head_only = true,
                             'i' => parsed.include_headers = true,
                             'O' | 'J' => {} // Output to file (handled separately)
-                            'f' => {} // Fail silently
+                            'f' => {}       // Fail silently
                             'g' | 'G' | 'N' => {} // Globbing, GET mode, no buffering
                             '0' => parsed.http_version = Some("1.0".to_string()),
                             '1' | '2' | '3' | '4' | '6' => {} // HTTP version and IP version
@@ -360,7 +365,10 @@ fn parse_tokens(tokens: &[String]) -> Result<ParsedCurl, QuicpulseError> {
                 opt if opt.starts_with('-') && opt.len() == 2 => {
                     // Single char flag that might have an argument
                     let flag_char = opt.chars().nth(1).unwrap_or('_');
-                    let flags_with_args = ['o', 'O', 'T', 'u', 'A', 'e', 'b', 'c', 'x', 'd', 'F', 'H', 'm', 'E', 'r', 'w'];
+                    let flags_with_args = [
+                        'o', 'O', 'T', 'u', 'A', 'e', 'b', 'c', 'x', 'd', 'F', 'H', 'm', 'E', 'r',
+                        'w',
+                    ];
                     if flags_with_args.contains(&flag_char) && i + 1 < tokens.len() {
                         i += 1;
                     }
@@ -451,7 +459,10 @@ pub fn curl_to_args(parsed: ParsedCurl) -> Result<Args, QuicpulseError> {
             if let Ok(content) = std::fs::read_to_string(file_path) {
                 args.raw = Some(content);
             } else {
-                return Err(QuicpulseError::Parse(format!("Cannot read file: {}", file_path)));
+                return Err(QuicpulseError::Parse(format!(
+                    "Cannot read file: {}",
+                    file_path
+                )));
             }
         } else {
             // Form-encoded data
@@ -568,7 +579,10 @@ mod tests {
             "curl -H 'Content-Type: application/json' -H 'Accept: application/json' https://example.com"
         ).unwrap();
         assert_eq!(parsed.headers.len(), 2);
-        assert_eq!(parsed.headers[0], ("Content-Type".to_string(), "application/json".to_string()));
+        assert_eq!(
+            parsed.headers[0],
+            ("Content-Type".to_string(), "application/json".to_string())
+        );
     }
 
     #[test]
@@ -587,9 +601,9 @@ mod tests {
 
     #[test]
     fn test_bearer_token() {
-        let parsed = parse_curl_command(
-            "curl -H 'Authorization: Bearer token123' https://example.com"
-        ).unwrap();
+        let parsed =
+            parse_curl_command("curl -H 'Authorization: Bearer token123' https://example.com")
+                .unwrap();
         assert_eq!(parsed.bearer_token, Some("token123".to_string()));
     }
 
@@ -613,7 +627,17 @@ mod tests {
 
     #[test]
     fn test_tokenize_quotes() {
-        let tokens = tokenize_curl(r#"curl -H 'Content-Type: application/json' "https://example.com""#).unwrap();
-        assert_eq!(tokens, vec!["curl", "-H", "Content-Type: application/json", "https://example.com"]);
+        let tokens =
+            tokenize_curl(r#"curl -H 'Content-Type: application/json' "https://example.com""#)
+                .unwrap();
+        assert_eq!(
+            tokens,
+            vec![
+                "curl",
+                "-H",
+                "Content-Type: application/json",
+                "https://example.com"
+            ]
+        );
     }
 }

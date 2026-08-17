@@ -2,7 +2,7 @@
 
 use std::io::{self, Write};
 
-use crate::output::formatters::{ColorFormatter, ColorStyle, JsonFormatterOptions, format_json};
+use crate::output::formatters::{format_json, ColorFormatter, ColorStyle, JsonFormatterOptions};
 
 /// Output options controlling what to display
 #[derive(Debug, Clone)]
@@ -90,9 +90,11 @@ impl OutputOptions {
 
     /// Check if any output is enabled
     pub fn any(&self) -> bool {
-        self.request_headers || self.request_body || 
-        self.response_headers || self.response_body || 
-        self.metadata
+        self.request_headers
+            || self.request_body
+            || self.response_headers
+            || self.response_body
+            || self.metadata
     }
 }
 
@@ -146,9 +148,9 @@ pub fn write_response<W: Write>(
         } else {
             headers.to_string()
         };
-        
+
         writer.write_all(formatted_headers.as_bytes())?;
-        
+
         if output_opts.response_body && !body.is_empty() {
             writer.write_all(b"\n")?;
         }
@@ -172,7 +174,9 @@ fn format_body(body: &str, content_type: Option<&str>, opts: &ProcessingOptions)
     if base_mime == "application/json" || base_mime.ends_with("+json") {
         if matches!(opts.pretty, PrettyOption::All | PrettyOption::Format) {
             if let Ok(formatted) = format_json(body, &opts.json) {
-                let result = if opts.colors && matches!(opts.pretty, PrettyOption::All | PrettyOption::Colors) {
+                let result = if opts.colors
+                    && matches!(opts.pretty, PrettyOption::All | PrettyOption::Colors)
+                {
                     let formatter = ColorFormatter::new(opts.style.clone());
                     formatter.format_json(&formatted)
                 } else {

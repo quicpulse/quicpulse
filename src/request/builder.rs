@@ -9,9 +9,9 @@ use indexmap::IndexMap;
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{json, Value as JsonValue};
 
+use super::json::set_nested_value;
 use crate::errors::QuicpulseError;
 use crate::input::InputItem;
-use super::json::set_nested_value;
 
 /// Configured request ready to be sent
 #[derive(Debug, Clone)]
@@ -71,9 +71,11 @@ impl RequestConfig {
                     headers.entry(name).or_default().push(String::new());
                 }
                 InputItem::HeaderFile { name, path } => {
-                    let content = fs::read_to_string(&path)
-                        .map_err(QuicpulseError::Io)?;
-                    headers.entry(name).or_default().push(content.trim().to_string());
+                    let content = fs::read_to_string(&path).map_err(QuicpulseError::Io)?;
+                    headers
+                        .entry(name)
+                        .or_default()
+                        .push(content.trim().to_string());
                 }
 
                 // Query parameters
@@ -81,8 +83,7 @@ impl RequestConfig {
                     query_params.push((name, value));
                 }
                 InputItem::QueryParamFile { name, path } => {
-                    let content = fs::read_to_string(&path)
-                        .map_err(QuicpulseError::Io)?;
+                    let content = fs::read_to_string(&path).map_err(QuicpulseError::Io)?;
                     query_params.push((name, content.trim().to_string()));
                 }
 
@@ -95,8 +96,7 @@ impl RequestConfig {
                     }
                 }
                 InputItem::DataFieldFile { key, path } => {
-                    let content = fs::read_to_string(&path)
-                        .map_err(QuicpulseError::Io)?;
+                    let content = fs::read_to_string(&path).map_err(QuicpulseError::Io)?;
                     if is_json {
                         set_nested_value(&mut json_data, &key, JsonValue::String(content))?;
                     } else {
@@ -109,15 +109,19 @@ impl RequestConfig {
                     set_nested_value(&mut json_data, &key, value)?;
                 }
                 InputItem::JsonFieldFile { key, path } => {
-                    let content = fs::read_to_string(&path)
-                        .map_err(QuicpulseError::Io)?;
-                    let value: JsonValue = serde_json::from_str(&content)
-                        .map_err(QuicpulseError::Json)?;
+                    let content = fs::read_to_string(&path).map_err(QuicpulseError::Io)?;
+                    let value: JsonValue =
+                        serde_json::from_str(&content).map_err(QuicpulseError::Json)?;
                     set_nested_value(&mut json_data, &key, value)?;
                 }
 
                 // File uploads
-                InputItem::FileUpload { field, path, mime_type, filename } => {
+                InputItem::FileUpload {
+                    field,
+                    path,
+                    mime_type,
+                    filename,
+                } => {
                     files.push(FileField {
                         name: field,
                         path,
@@ -136,7 +140,12 @@ impl RequestConfig {
             // Note: form_data would need to be handled separately for multipart
             // For now, files take precedence
             Some(RequestBody::Multipart(fields))
-        } else if is_json && json_data.as_object().map(|m| !m.is_empty()).unwrap_or(false) {
+        } else if is_json
+            && json_data
+                .as_object()
+                .map(|m| !m.is_empty())
+                .unwrap_or(false)
+        {
             Some(RequestBody::Json(json_data))
         } else if !form_data.is_empty() {
             Some(RequestBody::Form(form_data))
@@ -169,11 +178,13 @@ impl RequestConfig {
     pub fn to_header_map(&self) -> Result<HeaderMap, QuicpulseError> {
         let mut map = HeaderMap::new();
         for (name, values) in &self.headers {
-            let header_name = HeaderName::try_from(name.as_str())
-                .map_err(|e| QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e)))?;
+            let header_name = HeaderName::try_from(name.as_str()).map_err(|e| {
+                QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e))
+            })?;
             for value in values {
-                let header_value = HeaderValue::try_from(value.as_str())
-                    .map_err(|e| QuicpulseError::Parse(format!("Invalid header value '{}': {}", value, e)))?;
+                let header_value = HeaderValue::try_from(value.as_str()).map_err(|e| {
+                    QuicpulseError::Parse(format!("Invalid header value '{}': {}", value, e))
+                })?;
                 map.append(header_name.clone(), header_value);
             }
         }
@@ -212,8 +223,14 @@ mod tests {
     #[test]
     fn test_build_json_request() {
         let items = vec![
-            InputItem::DataField { key: "name".to_string(), value: "John".to_string() },
-            InputItem::JsonField { key: "age".to_string(), value: json!(30) },
+            InputItem::DataField {
+                key: "name".to_string(),
+                value: "John".to_string(),
+            },
+            InputItem::JsonField {
+                key: "age".to_string(),
+                value: json!(30),
+            },
         ];
 
         let config = RequestConfig::from_items(items, true).unwrap();
@@ -230,8 +247,14 @@ mod tests {
     #[test]
     fn test_build_form_request() {
         let items = vec![
-            InputItem::DataField { key: "username".to_string(), value: "john".to_string() },
-            InputItem::DataField { key: "password".to_string(), value: "secret".to_string() },
+            InputItem::DataField {
+                key: "username".to_string(),
+                value: "john".to_string(),
+            },
+            InputItem::DataField {
+                key: "password".to_string(),
+                value: "secret".to_string(),
+            },
         ];
 
         let config = RequestConfig::from_items(items, false).unwrap();
@@ -248,25 +271,49 @@ mod tests {
     #[test]
     fn test_build_headers() {
         let items = vec![
-            InputItem::Header { name: "Content-Type".to_string(), value: "application/json".to_string() },
-            InputItem::Header { name: "X-Custom".to_string(), value: "value1".to_string() },
-            InputItem::Header { name: "X-Custom".to_string(), value: "value2".to_string() },
+            InputItem::Header {
+                name: "Content-Type".to_string(),
+                value: "application/json".to_string(),
+            },
+            InputItem::Header {
+                name: "X-Custom".to_string(),
+                value: "value1".to_string(),
+            },
+            InputItem::Header {
+                name: "X-Custom".to_string(),
+                value: "value2".to_string(),
+            },
         ];
 
         let config = RequestConfig::from_items(items, true).unwrap();
-        assert_eq!(config.headers.get("Content-Type"), Some(&vec!["application/json".to_string()]));
-        assert_eq!(config.headers.get("X-Custom"), Some(&vec!["value1".to_string(), "value2".to_string()]));
+        assert_eq!(
+            config.headers.get("Content-Type"),
+            Some(&vec!["application/json".to_string()])
+        );
+        assert_eq!(
+            config.headers.get("X-Custom"),
+            Some(&vec!["value1".to_string(), "value2".to_string()])
+        );
     }
 
     #[test]
     fn test_build_query_params() {
         let items = vec![
-            InputItem::QueryParam { name: "page".to_string(), value: "1".to_string() },
-            InputItem::QueryParam { name: "limit".to_string(), value: "10".to_string() },
+            InputItem::QueryParam {
+                name: "page".to_string(),
+                value: "1".to_string(),
+            },
+            InputItem::QueryParam {
+                name: "limit".to_string(),
+                value: "10".to_string(),
+            },
         ];
 
         let config = RequestConfig::from_items(items, true).unwrap();
         assert_eq!(config.query_params.len(), 2);
-        assert_eq!(config.query_params[0], ("page".to_string(), "1".to_string()));
+        assert_eq!(
+            config.query_params[0],
+            ("page".to_string(), "1".to_string())
+        );
     }
 }

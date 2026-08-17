@@ -43,7 +43,9 @@ pub mod dotenv;
 pub mod http_file;
 
 pub use codegen::generate_code;
-pub use curl::{generate_curl_command, format_curl_pretty};
+pub use curl::{format_curl_pretty, generate_curl_command};
 pub use curl_import::{import_curl, parse_curl_command, ParsedCurl};
-pub use dotenv::{EnvVars, has_variables};
-pub use http_file::{parse_http_file, parse_http_content, HttpRequest, request_to_args, list_requests};
+pub use dotenv::{has_variables, EnvVars};
+pub use http_file::{
+    list_requests, parse_http_content, parse_http_file, request_to_args, HttpRequest,
+};

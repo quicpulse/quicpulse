@@ -3,11 +3,11 @@
 //! Provides support for signing requests with AWS SigV4 for services like
 //! API Gateway, S3, Lambda, and other AWS APIs.
 
-use std::time::SystemTime;
+use crate::errors::QuicpulseError;
+use aws_credential_types::Credentials;
 use aws_sigv4::http_request::{sign, SignableBody, SignableRequest, SigningSettings};
 use aws_sigv4::sign::v4;
-use aws_credential_types::Credentials;
-use crate::errors::QuicpulseError;
+use std::time::SystemTime;
 
 /// AWS SigV4 configuration
 #[derive(Debug, Clone)]
@@ -58,15 +58,19 @@ impl AwsSigV4Config {
     pub fn from_env(region: String, service: String) -> Result<Self, QuicpulseError> {
         let access_key = std::env::var("AWS_ACCESS_KEY_ID")
             .or_else(|_| std::env::var("AWS_ACCESS_KEY"))
-            .map_err(|_| QuicpulseError::Argument(
-                "AWS_ACCESS_KEY_ID environment variable not set".to_string()
-            ))?;
+            .map_err(|_| {
+                QuicpulseError::Argument(
+                    "AWS_ACCESS_KEY_ID environment variable not set".to_string(),
+                )
+            })?;
 
         let secret_key = std::env::var("AWS_SECRET_ACCESS_KEY")
             .or_else(|_| std::env::var("AWS_SECRET_KEY"))
-            .map_err(|_| QuicpulseError::Argument(
-                "AWS_SECRET_ACCESS_KEY environment variable not set".to_string()
-            ))?;
+            .map_err(|_| {
+                QuicpulseError::Argument(
+                    "AWS_SECRET_ACCESS_KEY environment variable not set".to_string(),
+                )
+            })?;
 
         let session_token = std::env::var("AWS_SESSION_TOKEN").ok();
 
@@ -128,7 +132,11 @@ impl AwsSigV4Config {
             })
         } else if profile.has_credential_process() {
             // Credential process - run external command
-            Self::from_credential_process(profile.credential_process.as_ref().unwrap(), region, service)
+            Self::from_credential_process(
+                profile.credential_process.as_ref().unwrap(),
+                region,
+                service,
+            )
         } else {
             Err(QuicpulseError::Config(format!(
                 "AWS profile '{}' has no valid credentials source",
@@ -147,13 +155,9 @@ impl AwsSigV4Config {
 
         // Run the credential process
         let output = if cfg!(target_os = "windows") {
-            Command::new("cmd")
-                .args(["/C", command])
-                .output()
+            Command::new("cmd").args(["/C", command]).output()
         } else {
-            Command::new("sh")
-                .args(["-c", command])
-                .output()
+            Command::new("sh").args(["-c", command]).output()
         };
 
         let output = output.map_err(|e| {
@@ -168,23 +172,24 @@ impl AwsSigV4Config {
         }
 
         // Parse JSON output
-        let json: serde_json::Value = serde_json::from_slice(&output.stdout)
-            .map_err(|e| QuicpulseError::Config(format!(
-                "Failed to parse credential_process output: {}", e
-            )))?;
+        let json: serde_json::Value = serde_json::from_slice(&output.stdout).map_err(|e| {
+            QuicpulseError::Config(format!("Failed to parse credential_process output: {}", e))
+        })?;
 
         let access_key = json["AccessKeyId"]
             .as_str()
-            .ok_or_else(|| QuicpulseError::Config(
-                "credential_process output missing AccessKeyId".to_string()
-            ))?
+            .ok_or_else(|| {
+                QuicpulseError::Config("credential_process output missing AccessKeyId".to_string())
+            })?
             .to_string();
 
         let secret_key = json["SecretAccessKey"]
             .as_str()
-            .ok_or_else(|| QuicpulseError::Config(
-                "credential_process output missing SecretAccessKey".to_string()
-            ))?
+            .ok_or_else(|| {
+                QuicpulseError::Config(
+                    "credential_process output missing SecretAccessKey".to_string(),
+                )
+            })?
             .to_string();
 
         let session_token = json["SessionToken"].as_str().map(|s| s.to_string());
@@ -213,14 +218,17 @@ pub fn sign_request(
     unsigned_payload: bool,
 ) -> Result<Vec<(String, String)>, QuicpulseError> {
     // Parse URL
-    let parsed_url = url::Url::parse(url)
-        .map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
+    let parsed_url =
+        url::Url::parse(url).map_err(|e| QuicpulseError::Parse(format!("Invalid URL: {}", e)))?;
 
     // Build the request for signing
     let uri = format!(
         "{}{}",
         parsed_url.path(),
-        parsed_url.query().map(|q| format!("?{}", q)).unwrap_or_default()
+        parsed_url
+            .query()
+            .map(|q| format!("?{}", q))
+            .unwrap_or_default()
     );
 
     // Create credentials and convert to Identity
@@ -315,9 +323,12 @@ pub fn sign_request(
     let signable_request = SignableRequest::new(
         method,
         &uri,
-        header_map.iter().map(|(k, v)| (k.as_str(), v.to_str().unwrap_or(""))),
+        header_map
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or(""))),
         signable_body,
-    ).map_err(|e| QuicpulseError::Auth(format!("Failed to create signable request: {}", e)))?;
+    )
+    .map_err(|e| QuicpulseError::Auth(format!("Failed to create signable request: {}", e)))?;
 
     // Sign the request - convert to SigningParams enum
     let signing_output = sign(signable_request, &signing_params.into())
@@ -336,7 +347,10 @@ pub fn sign_request(
     // If they differ (e.g., due to different port handling), the signature will fail.
     if !computed_host.is_empty() {
         // Only add if not already present from signing_instructions
-        if !auth_headers.iter().any(|(k, _)| k.eq_ignore_ascii_case("host")) {
+        if !auth_headers
+            .iter()
+            .any(|(k, _)| k.eq_ignore_ascii_case("host"))
+        {
             auth_headers.push(("host".to_string(), computed_host));
         }
     }
@@ -346,7 +360,7 @@ pub fn sign_request(
 
 /// Compute SHA256 hash of data (for x-amz-content-sha256 header)
 pub fn sha256_hex(data: &[u8]) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(data);
     hex::encode(hasher.finalize())
@@ -362,7 +376,8 @@ mod tests {
             "AKID:SECRET",
             "us-east-1".to_string(),
             "execute-api".to_string(),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(config.access_key_id, "AKID");
         assert_eq!(config.secret_access_key, "SECRET");
@@ -375,7 +390,8 @@ mod tests {
             "AKID:SECRET:TOKEN",
             "us-west-2".to_string(),
             "s3".to_string(),
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(config.access_key_id, "AKID");
         assert_eq!(config.secret_access_key, "SECRET");
@@ -385,6 +401,9 @@ mod tests {
     #[test]
     fn test_sha256_hex() {
         let hash = sha256_hex(b"hello");
-        assert_eq!(hash, "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824");
+        assert_eq!(
+            hash,
+            "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+        );
     }
 }

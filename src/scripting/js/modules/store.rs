@@ -2,10 +2,10 @@
 //!
 //! Provides a global key-value store for sharing data between scripts.
 
-use rquickjs::{Ctx, Object, Function};
+use crate::errors::QuicpulseError;
 use dashmap::DashMap;
 use once_cell::sync::Lazy;
-use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
 
 // Global store shared across all script executions
 static STORE: Lazy<DashMap<String, serde_json::Value>> = Lazy::new(DashMap::new);
@@ -15,24 +15,33 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let store = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create store object: {}", e)))?;
 
-    store.set("get", Function::new(ctx.clone(), store_get)?)
+    store
+        .set("get", Function::new(ctx.clone(), store_get)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("set", Function::new(ctx.clone(), store_set)?)
+    store
+        .set("set", Function::new(ctx.clone(), store_set)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("delete", Function::new(ctx.clone(), store_delete)?)
+    store
+        .set("delete", Function::new(ctx.clone(), store_delete)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("has", Function::new(ctx.clone(), store_has)?)
+    store
+        .set("has", Function::new(ctx.clone(), store_has)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("keys", Function::new(ctx.clone(), store_keys)?)
+    store
+        .set("keys", Function::new(ctx.clone(), store_keys)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("clear", Function::new(ctx.clone(), store_clear)?)
+    store
+        .set("clear", Function::new(ctx.clone(), store_clear)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("incr", Function::new(ctx.clone(), store_incr)?)
+    store
+        .set("incr", Function::new(ctx.clone(), store_incr)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    store.set("decr", Function::new(ctx.clone(), store_decr)?)
+    store
+        .set("decr", Function::new(ctx.clone(), store_decr)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("store", store)
+    globals
+        .set("store", store)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set store global: {}", e)))?;
 
     Ok(())
@@ -50,8 +59,8 @@ fn store_get(key: String) -> Option<String> {
 }
 
 fn store_set(key: String, value: String) {
-    let json_value: serde_json::Value = serde_json::from_str(&value)
-        .unwrap_or(serde_json::Value::String(value));
+    let json_value: serde_json::Value =
+        serde_json::from_str(&value).unwrap_or(serde_json::Value::String(value));
     STORE.insert(key, json_value);
 }
 

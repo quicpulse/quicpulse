@@ -2,17 +2,17 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 
 mod pie_colors {
-    pub const GREY: u8 = 102;      // #7D7D7D -> 102
-    pub const AQUA: u8 = 109;      // #7A9EB5 -> 109
-    pub const PURPLE: u8 = 134;    // #9E54D6 -> 134
-    pub const ORANGE: u8 = 208;    // #F2913D -> 208
-    pub const RED: u8 = 167;       // #E34F45 -> 167
-    pub const BLUE: u8 = 68;       // #426BD1 -> 68
-    pub const PINK: u8 = 176;      // #DE85DE -> 176
-    pub const GREEN: u8 = 71;      // #63C27A -> 71
-    pub const YELLOW: u8 = 185;    // #CCCC3D -> 185
-    pub const WHITE: u8 = 255;     // #F5F5F0 -> 255
-    pub const PRIMARY: u8 = 250;   // bright white for dark terminals
+    pub const GREY: u8 = 102; // #7D7D7D -> 102
+    pub const AQUA: u8 = 109; // #7A9EB5 -> 109
+    pub const PURPLE: u8 = 134; // #9E54D6 -> 134
+    pub const ORANGE: u8 = 208; // #F2913D -> 208
+    pub const RED: u8 = 167; // #E34F45 -> 167
+    pub const BLUE: u8 = 68; // #426BD1 -> 68
+    pub const PINK: u8 = 176; // #DE85DE -> 176
+    pub const GREEN: u8 = 71; // #63C27A -> 71
+    pub const YELLOW: u8 = 185; // #CCCC3D -> 185
+    pub const WHITE: u8 = 255; // #F5F5F0 -> 255
+    pub const PRIMARY: u8 = 250; // bright white for dark terminals
 }
 
 /// ANSI escape code helpers
@@ -32,17 +32,13 @@ mod ansi {
 }
 
 /// Regex patterns for parsing HTTP headers
-static HTTP_REQUEST_LINE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^([A-Z]+)( +)([^ ]+)( +)(HTTP)(/)(\d+\.?\d*)$").unwrap()
-});
+static HTTP_REQUEST_LINE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^([A-Z]+)( +)([^ ]+)( +)(HTTP)(/)(\d+\.?\d*)$").unwrap());
 
-static HTTP_RESPONSE_LINE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^(HTTP)(/)([\d.]+)( +)(\d{3})( ?)(.*)$").unwrap()
-});
+static HTTP_RESPONSE_LINE: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"^(HTTP)(/)([\d.]+)( +)(\d{3})( ?)(.*)$").unwrap());
 
-static HTTP_HEADER_LINE: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"^([^:]+)(:)(.*)$").unwrap()
-});
+static HTTP_HEADER_LINE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^([^:]+)(:)(.*)$").unwrap());
 
 /// Available color styles
 #[derive(Debug, Clone, PartialEq)]
@@ -285,7 +281,7 @@ fn colorize_json(json: &str) -> String {
                 // Start of string
                 in_string = true;
                 let color = if expect_key {
-                    pie_colors::PINK  // Keys in pink
+                    pie_colors::PINK // Keys in pink
                 } else {
                     pie_colors::GREEN // String values in green
                 };
@@ -391,7 +387,13 @@ fn colorize_json(json: &str) -> String {
                 result.push(c);
                 // Consume rest of number
                 while let Some(&next) = chars.peek() {
-                    if next.is_ascii_digit() || next == '.' || next == 'e' || next == 'E' || next == '+' || next == '-' {
+                    if next.is_ascii_digit()
+                        || next == '.'
+                        || next == 'e'
+                        || next == 'E'
+                        || next == '+'
+                        || next == '-'
+                    {
                         result.push(chars.next().unwrap());
                     } else {
                         break;
@@ -438,7 +440,12 @@ fn colorize_xml(xml: &str) -> String {
                 // Check for tag name
                 let mut tag_name = String::new();
                 while let Some(&next) = chars.peek() {
-                    if next.is_alphanumeric() || next == '/' || next == '!' || next == '?' || next == '-' {
+                    if next.is_alphanumeric()
+                        || next == '/'
+                        || next == '!'
+                        || next == '?'
+                        || next == '-'
+                    {
                         tag_name.push(chars.next().unwrap());
                     } else {
                         break;

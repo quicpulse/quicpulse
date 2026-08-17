@@ -42,14 +42,20 @@ impl SchemaMapper {
             (Some("string"), Some("byte")) => "{random_bytes:16}".to_string(),
             (Some("string"), Some("binary")) => "{random_bytes:32}".to_string(),
             (Some("string"), Some("password")) => "{random_string:16}".to_string(),
-            (Some("string"), Some("phone")) => "+1-555-{random_int:100:999}-{random_int:1000:9999}".to_string(),
+            (Some("string"), Some("phone")) => {
+                "+1-555-{random_int:100:999}-{random_int:1000:9999}".to_string()
+            }
 
             // String with length constraints
             (Some("string"), _) => Self::string_with_constraints(schema),
 
             // Integer formats
-            (Some("integer"), Some("int32")) => Self::int_with_constraints(schema, i32::MIN as i64, i32::MAX as i64),
-            (Some("integer"), Some("int64")) => Self::int_with_constraints(schema, i64::MIN, i64::MAX),
+            (Some("integer"), Some("int32")) => {
+                Self::int_with_constraints(schema, i32::MIN as i64, i32::MAX as i64)
+            }
+            (Some("integer"), Some("int64")) => {
+                Self::int_with_constraints(schema, i64::MIN, i64::MAX)
+            }
             (Some("integer"), _) => Self::int_with_constraints(schema, 0, 1000),
 
             // Number formats
@@ -73,9 +79,7 @@ impl SchemaMapper {
 
     /// Convert enum values to a pick template
     fn enum_to_magic(values: &[Value]) -> String {
-        let options: Vec<String> = values.iter()
-            .map(|v| Self::value_to_string(v))
-            .collect();
+        let options: Vec<String> = values.iter().map(|v| Self::value_to_string(v)).collect();
         format!("{{pick:{}}}", options.join(","))
     }
 
@@ -214,16 +218,12 @@ impl SchemaMapper {
                     Value::Array(vec![])
                 }
             }
-            Some("string") => {
-                Value::String(Self::schema_to_magic(schema))
-            }
+            Some("string") => Value::String(Self::schema_to_magic(schema)),
             Some("integer") | Some("number") => {
                 // Return the magic template as a string - will be expanded later
                 Value::String(Self::schema_to_magic(schema))
             }
-            Some("boolean") => {
-                Value::String("{random_bool}".to_string())
-            }
+            Some("boolean") => Value::String("{random_bool}".to_string()),
             _ => Value::Null,
         }
     }
@@ -308,7 +308,10 @@ mod tests {
             ],
             ..Default::default()
         };
-        assert_eq!(SchemaMapper::schema_to_magic(&schema), "{pick:active,inactive}");
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&schema),
+            "{pick:active,inactive}"
+        );
     }
 
     #[test]

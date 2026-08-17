@@ -5,16 +5,16 @@
 //! - PKCE Extension (Proof Key for Code Exchange)
 //! - Device Authorization Flow (for headless/CLI devices)
 
+use super::oauth2::{CachedToken, TokenError, TokenResponse};
+use crate::errors::QuicpulseError;
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
+use rand::{Rng, RngExt};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::net::TcpListener;
 use std::time::{Duration, Instant};
-use rand::Rng;
-use serde::{Deserialize, Serialize};
-use sha2::{Sha256, Digest};
-use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
-use crate::errors::QuicpulseError;
-use super::oauth2::{CachedToken, TokenResponse, TokenError};
 
 /// OAuth 2.0 Authorization Code Flow Configuration
 #[derive(Debug, Clone)]
@@ -157,11 +157,12 @@ pub async fn authorization_code_flow(
     let port = redirect_url.port().unwrap_or(8080);
 
     // Start local server to receive callback
-    let listener = TcpListener::bind(format!("127.0.0.1:{}", port))
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let listener =
+        TcpListener::bind(format!("127.0.0.1:{}", port)).map_err(|e| QuicpulseError::Io(e))?;
 
     // Set a timeout for the listener
-    listener.set_nonblocking(false)
+    listener
+        .set_nonblocking(false)
         .map_err(|e| QuicpulseError::Io(e))?;
 
     // Print instructions
@@ -179,13 +180,13 @@ pub async fn authorization_code_flow(
     eprintln!("Waiting for callback on {}...", config.redirect_uri);
 
     // Wait for callback (with 5 minute timeout)
-    let (mut stream, _) = listener.accept()
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let (mut stream, _) = listener.accept().map_err(|e| QuicpulseError::Io(e))?;
 
     // Read the HTTP request
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
-    reader.read_line(&mut request_line)
+    reader
+        .read_line(&mut request_line)
         .map_err(|e| QuicpulseError::Io(e))?;
 
     // Parse the request to get the code and state
@@ -195,12 +196,17 @@ pub async fn authorization_code_flow(
     if received_state != state {
         // Send error response
         send_html_response(&mut stream, 400, "State mismatch - possible CSRF attack")?;
-        return Err(QuicpulseError::Auth("State mismatch in OAuth callback".to_string()));
+        return Err(QuicpulseError::Auth(
+            "State mismatch in OAuth callback".to_string(),
+        ));
     }
 
     // Send success response to browser
-    send_html_response(&mut stream, 200,
-        "<h1>✅ Authorization successful!</h1><p>You can close this window.</p>")?;
+    send_html_response(
+        &mut stream,
+        200,
+        "<h1>✅ Authorization successful!</h1><p>You can close this window.</p>",
+    )?;
 
     // Exchange code for tokens
     exchange_code_for_token(config, &code, pkce.as_ref()).await
@@ -222,17 +228,23 @@ fn parse_callback_request(request: &str) -> Result<(String, String), QuicpulseEr
 
     // Check for error response
     if let Some(error) = params.get("error") {
-        let desc = params.get("error_description")
+        let desc = params
+            .get("error_description")
             .map(|s| s.to_string())
             .unwrap_or_default();
-        return Err(QuicpulseError::Auth(format!("OAuth error: {} - {}", error, desc)));
+        return Err(QuicpulseError::Auth(format!(
+            "OAuth error: {} - {}",
+            error, desc
+        )));
     }
 
-    let code = params.get("code")
+    let code = params
+        .get("code")
         .ok_or_else(|| QuicpulseError::Auth("No code in callback".to_string()))?
         .to_string();
 
-    let state = params.get("state")
+    let state = params
+        .get("state")
         .ok_or_else(|| QuicpulseError::Auth("No state in callback".to_string()))?
         .to_string();
 
@@ -240,7 +252,11 @@ fn parse_callback_request(request: &str) -> Result<(String, String), QuicpulseEr
 }
 
 /// Send an HTML response to the browser
-fn send_html_response(stream: &mut std::net::TcpStream, status: u16, body: &str) -> Result<(), QuicpulseError> {
+fn send_html_response(
+    stream: &mut std::net::TcpStream,
+    status: u16,
+    body: &str,
+) -> Result<(), QuicpulseError> {
     let status_text = if status == 200 { "OK" } else { "Bad Request" };
     let response = format!(
         "HTTP/1.1 {} {}\r\n\
@@ -249,12 +265,15 @@ fn send_html_response(stream: &mut std::net::TcpStream, status: u16, body: &str)
          Connection: close\r\n\
          \r\n\
          <!DOCTYPE html><html><body>{}</body></html>",
-        status, status_text, body.len() + 47, body
+        status,
+        status_text,
+        body.len() + 47,
+        body
     );
-    stream.write_all(response.as_bytes())
+    stream
+        .write_all(response.as_bytes())
         .map_err(|e| QuicpulseError::Io(e))?;
-    stream.flush()
-        .map_err(|e| QuicpulseError::Io(e))
+    stream.flush().map_err(|e| QuicpulseError::Io(e))
 }
 
 /// Exchange authorization code for tokens
@@ -291,7 +310,9 @@ async fn exchange_code_for_token(
         .map_err(|e| QuicpulseError::Request(e))?;
 
     let status = response.status();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| QuicpulseError::Request(e))?;
 
     if !status.is_success() {
@@ -300,10 +321,14 @@ async fn exchange_code_for_token(
                 Some(desc) => format!("{}: {}", error.error, desc),
                 None => error.error,
             };
-            return Err(QuicpulseError::Auth(format!("Token exchange failed: {}", msg)));
+            return Err(QuicpulseError::Auth(format!(
+                "Token exchange failed: {}",
+                msg
+            )));
         }
         return Err(QuicpulseError::Auth(format!(
-            "Token exchange failed with status {}: {}", status, body
+            "Token exchange failed with status {}: {}",
+            status, body
         )));
     }
 
@@ -314,7 +339,11 @@ async fn exchange_code_for_token(
 
     Ok(CachedToken {
         access_token: token.access_token,
-        token_type: if token.token_type.is_empty() { "Bearer".to_string() } else { token.token_type },
+        token_type: if token.token_type.is_empty() {
+            "Bearer".to_string()
+        } else {
+            token.token_type
+        },
         obtained_at,
         expires_in: token.expires_in.map(Duration::from_secs),
         refresh_token: token.refresh_token,
@@ -330,9 +359,7 @@ pub async fn device_flow(config: &DeviceFlowConfig) -> Result<CachedToken, Quicp
     let client = reqwest::Client::new();
 
     // Step 1: Request device authorization
-    let mut params = vec![
-        ("client_id", config.client_id.clone()),
-    ];
+    let mut params = vec![("client_id", config.client_id.clone())];
 
     if !config.scopes.is_empty() {
         params.push(("scope", config.scopes.join(" ")));
@@ -347,17 +374,21 @@ pub async fn device_flow(config: &DeviceFlowConfig) -> Result<CachedToken, Quicp
         .map_err(|e| QuicpulseError::Request(e))?;
 
     let status = response.status();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| QuicpulseError::Request(e))?;
 
     if !status.is_success() {
         return Err(QuicpulseError::Auth(format!(
-            "Device authorization failed: {}", body
+            "Device authorization failed: {}",
+            body
         )));
     }
 
-    let device_auth: DeviceAuthResponse = serde_json::from_str(&body)
-        .map_err(|e| QuicpulseError::Auth(format!("Failed to parse device auth response: {}", e)))?;
+    let device_auth: DeviceAuthResponse = serde_json::from_str(&body).map_err(|e| {
+        QuicpulseError::Auth(format!("Failed to parse device auth response: {}", e))
+    })?;
 
     // Step 2: Display instructions to user
     eprintln!("\n🔐 OAuth 2.0 Device Authorization Flow\n");
@@ -377,7 +408,10 @@ pub async fn device_flow(config: &DeviceFlowConfig) -> Result<CachedToken, Quicp
         }
     }
 
-    eprintln!("Waiting for authorization (expires in {} seconds)...\n", device_auth.expires_in);
+    eprintln!(
+        "Waiting for authorization (expires in {} seconds)...\n",
+        device_auth.expires_in
+    );
 
     // Step 3: Poll for token
     poll_for_token(config, &device_auth).await
@@ -396,7 +430,9 @@ async fn poll_for_token(
     loop {
         // Check timeout
         if start.elapsed() > timeout {
-            return Err(QuicpulseError::Auth("Device authorization expired".to_string()));
+            return Err(QuicpulseError::Auth(
+                "Device authorization expired".to_string(),
+            ));
         }
 
         // Wait for interval
@@ -420,7 +456,9 @@ async fn poll_for_token(
             .map_err(|e| QuicpulseError::Request(e))?;
 
         let status = response.status();
-        let body = response.text().await
+        let body = response
+            .text()
+            .await
             .map_err(|e| QuicpulseError::Request(e))?;
 
         if status.is_success() {
@@ -432,7 +470,11 @@ async fn poll_for_token(
 
             return Ok(CachedToken {
                 access_token: token.access_token,
-                token_type: if token.token_type.is_empty() { "Bearer".to_string() } else { token.token_type },
+                token_type: if token.token_type.is_empty() {
+                    "Bearer".to_string()
+                } else {
+                    token.token_type
+                },
                 obtained_at,
                 expires_in: token.expires_in.map(Duration::from_secs),
                 refresh_token: token.refresh_token,
@@ -457,7 +499,9 @@ async fn poll_for_token(
                     return Err(QuicpulseError::Auth("Device code expired".to_string()));
                 }
                 "access_denied" => {
-                    return Err(QuicpulseError::Auth("User denied authorization".to_string()));
+                    return Err(QuicpulseError::Auth(
+                        "User denied authorization".to_string(),
+                    ));
                 }
                 _ => {
                     let msg = error.error_description.unwrap_or(error.error);

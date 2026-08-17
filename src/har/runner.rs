@@ -2,10 +2,10 @@
 //!
 //! Replays HTTP requests from HAR entries.
 
-use std::time::Duration;
-use reqwest::{Client, Method, Response};
-use crate::errors::QuicpulseError;
 use super::types::{Har, HarEntry, HarRequest};
+use crate::errors::QuicpulseError;
+use reqwest::{Client, Method, Response};
+use std::time::Duration;
 
 fn truncate_url(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
@@ -97,9 +97,7 @@ impl HarRunner {
             builder = builder.redirect(reqwest::redirect::Policy::none());
         }
 
-        let client = builder.build().map_err(|e| {
-            QuicpulseError::Request(e)
-        })?;
+        let client = builder.build().map_err(|e| QuicpulseError::Request(e))?;
 
         Ok(Self { client, options })
     }
@@ -155,17 +153,15 @@ impl HarRunner {
                     status_match: status as i32 == original_status,
                 }
             }
-            Err(e) => {
-                HarReplayResult {
-                    index,
-                    method: entry.request.method.clone(),
-                    url: entry.request.url.clone(),
-                    status: None,
-                    time_ms: start.elapsed().as_millis(),
-                    error: Some(e.to_string()),
-                    status_match: false,
-                }
-            }
+            Err(e) => HarReplayResult {
+                index,
+                method: entry.request.method.clone(),
+                url: entry.request.url.clone(),
+                status: None,
+                time_ms: start.elapsed().as_millis(),
+                error: Some(e.to_string()),
+                status_match: false,
+            },
         }
     }
 
@@ -192,7 +188,9 @@ impl HarRunner {
 
         // Add cookies
         if !har_request.cookies.is_empty() {
-            let cookie_str: String = har_request.cookies.iter()
+            let cookie_str: String = har_request
+                .cookies
+                .iter()
                 .map(|c| format!("{}={}", c.name, c.value))
                 .collect::<Vec<_>>()
                 .join("; ");
@@ -210,7 +208,10 @@ impl HarRunner {
                 }
             } else if let Some(ref params) = post_data.params {
                 // Check mime_type to determine form encoding
-                let is_multipart = post_data.mime_type.to_lowercase().contains("multipart/form-data");
+                let is_multipart = post_data
+                    .mime_type
+                    .to_lowercase()
+                    .contains("multipart/form-data");
 
                 if is_multipart {
                     // Build multipart form to preserve original encoding
@@ -229,7 +230,8 @@ impl HarRunner {
                                         Ok(p) => p,
                                         Err(_) => {
                                             // If mime_str fails, recreate the part without mime type
-                                            let mut new_part = reqwest::multipart::Part::text(value.clone());
+                                            let mut new_part =
+                                                reqwest::multipart::Part::text(value.clone());
                                             if let Some(ref filename) = param.file_name {
                                                 new_part = new_part.file_name(filename.clone());
                                             }
@@ -248,10 +250,9 @@ impl HarRunner {
                     request = request.multipart(form);
                 } else {
                     // URL-encoded form data
-                    let form_data: Vec<(String, String)> = params.iter()
-                        .filter_map(|p| {
-                            p.value.as_ref().map(|v| (p.name.clone(), v.clone()))
-                        })
+                    let form_data: Vec<(String, String)> = params
+                        .iter()
+                        .filter_map(|p| p.value.as_ref().map(|v| (p.name.clone(), v.clone())))
                         .collect();
                     request = request.form(&form_data);
                 }
@@ -270,7 +271,7 @@ const SKIP_HEADERS: &[&str] = &[
     "content-length",
     "accept-encoding",
     "transfer-encoding",
-    "cookie",  // Skip since we reconstruct from har_request.cookies to avoid duplication
+    "cookie", // Skip since we reconstruct from har_request.cookies to avoid duplication
     ":method",
     ":path",
     ":scheme",
@@ -289,8 +290,12 @@ pub fn format_replay_results(results: &[HarReplayResult]) -> String {
     writeln!(output, "{}\n", "=".repeat(80)).unwrap();
 
     // Results table
-    writeln!(output, "{:<5} {:<7} {:<40} {:<8} {:<10}",
-        "#", "Method", "URL", "Status", "Time").unwrap();
+    writeln!(
+        output,
+        "{:<5} {:<7} {:<40} {:<8} {:<10}",
+        "#", "Method", "URL", "Status", "Time"
+    )
+    .unwrap();
     writeln!(output, "{}", "-".repeat(80)).unwrap();
 
     let mut success_count = 0;
@@ -320,14 +325,12 @@ pub fn format_replay_results(results: &[HarReplayResult]) -> String {
 
         let match_indicator = if result.status_match { "✓" } else { " " };
 
-        writeln!(output, "{:<5} {:<7} {:<40} {:<8} {:<10} {}",
-            result.index,
-            result.method,
-            url_display,
-            status_display,
-            time_display,
-            match_indicator
-        ).unwrap();
+        writeln!(
+            output,
+            "{:<5} {:<7} {:<40} {:<8} {:<10} {}",
+            result.index, result.method, url_display, status_display, time_display, match_indicator
+        )
+        .unwrap();
 
         if let Some(ref error) = result.error {
             writeln!(output, "      Error: {}", error).unwrap();
@@ -340,10 +343,20 @@ pub fn format_replay_results(results: &[HarReplayResult]) -> String {
     writeln!(output, "  Total requests:  {}", results.len()).unwrap();
     writeln!(output, "  Successful:      {}", success_count).unwrap();
     writeln!(output, "  Failed:          {}", failure_count).unwrap();
-    writeln!(output, "  Status matches:  {} (same as original HAR)", match_count).unwrap();
+    writeln!(
+        output,
+        "  Status matches:  {} (same as original HAR)",
+        match_count
+    )
+    .unwrap();
     writeln!(output, "  Total time:      {}ms", total_time).unwrap();
     if !results.is_empty() {
-        writeln!(output, "  Avg time:        {}ms", total_time / results.len() as u128).unwrap();
+        writeln!(
+            output,
+            "  Avg time:        {}ms",
+            total_time / results.len() as u128
+        )
+        .unwrap();
     }
 
     output
@@ -359,20 +372,27 @@ pub fn format_har_list(har: &Har) -> String {
     writeln!(output, "HAR FILE ENTRIES").unwrap();
     writeln!(output, "{}\n", "=".repeat(80)).unwrap();
 
-    writeln!(output, "{:<5} {:<7} {:<50} {:<8} {:<10}",
-        "#", "Method", "URL", "Status", "Time").unwrap();
+    writeln!(
+        output,
+        "{:<5} {:<7} {:<50} {:<8} {:<10}",
+        "#", "Method", "URL", "Status", "Time"
+    )
+    .unwrap();
     writeln!(output, "{}", "-".repeat(80)).unwrap();
 
     for (idx, entry) in har.log.entries.iter().enumerate() {
         let url_display = truncate_url(&entry.request.url, 48);
 
-        writeln!(output, "{:<5} {:<7} {:<50} {:<8} {:.0}ms",
+        writeln!(
+            output,
+            "{:<5} {:<7} {:<50} {:<8} {:.0}ms",
             idx + 1,
             entry.request.method,
             url_display,
             entry.response.status,
             entry.time
-        ).unwrap();
+        )
+        .unwrap();
     }
 
     // Summary
@@ -408,7 +428,9 @@ pub fn select_requests_interactive(har: &Har) -> Result<Vec<usize>, QuicpulseErr
     io::stdout().flush().map_err(|e| QuicpulseError::Io(e))?;
 
     let mut input = String::new();
-    io::stdin().read_line(&mut input).map_err(|e| QuicpulseError::Io(e))?;
+    io::stdin()
+        .read_line(&mut input)
+        .map_err(|e| QuicpulseError::Io(e))?;
 
     let input = input.trim().to_lowercase();
 
@@ -428,7 +450,9 @@ pub fn select_requests_interactive(har: &Har) -> Result<Vec<usize>, QuicpulseErr
         .collect();
 
     if indices.is_empty() {
-        return Err(QuicpulseError::Parse("No valid request numbers entered".to_string()));
+        return Err(QuicpulseError::Parse(
+            "No valid request numbers entered".to_string(),
+        ));
     }
 
     Ok(indices)
@@ -439,23 +463,25 @@ pub fn parse_delay(s: &str) -> Result<Duration, QuicpulseError> {
     let s = s.trim().to_lowercase();
 
     if let Some(ms_str) = s.strip_suffix("ms") {
-        let ms: u64 = ms_str.trim().parse().map_err(|_| {
-            QuicpulseError::Parse(format!("Invalid delay: {}", s))
-        })?;
+        let ms: u64 = ms_str
+            .trim()
+            .parse()
+            .map_err(|_| QuicpulseError::Parse(format!("Invalid delay: {}", s)))?;
         return Ok(Duration::from_millis(ms));
     }
 
     if let Some(s_str) = s.strip_suffix('s') {
-        let secs: f64 = s_str.trim().parse().map_err(|_| {
-            QuicpulseError::Parse(format!("Invalid delay: {}", s))
-        })?;
+        let secs: f64 = s_str
+            .trim()
+            .parse()
+            .map_err(|_| QuicpulseError::Parse(format!("Invalid delay: {}", s)))?;
         return Ok(Duration::from_secs_f64(secs));
     }
 
     // Default: treat as milliseconds
-    let ms: u64 = s.parse().map_err(|_| {
-        QuicpulseError::Parse(format!("Invalid delay: {}", s))
-    })?;
+    let ms: u64 = s
+        .parse()
+        .map_err(|_| QuicpulseError::Parse(format!("Invalid delay: {}", s)))?;
     Ok(Duration::from_millis(ms))
 }
 

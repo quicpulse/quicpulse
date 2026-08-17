@@ -2,9 +2,9 @@
 //!
 //! Provides date/time utilities.
 
-use rquickjs::{Ctx, Object, Function};
-use chrono::{DateTime, Utc, Local, NaiveDateTime, TimeZone};
 use crate::errors::QuicpulseError;
+use chrono::{DateTime, Local, NaiveDateTime, TimeZone, Utc};
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
@@ -21,14 +21,18 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
     date.set("timestamp", Function::new(ctx.clone(), date_timestamp)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    date.set("from_timestamp", Function::new(ctx.clone(), date_from_timestamp)?)
-        .map_err(|e| QuicpulseError::Script(e.to_string()))?;
+    date.set(
+        "from_timestamp",
+        Function::new(ctx.clone(), date_from_timestamp)?,
+    )
+    .map_err(|e| QuicpulseError::Script(e.to_string()))?;
     date.set("iso", Function::new(ctx.clone(), date_iso)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
     date.set("rfc2822", Function::new(ctx.clone(), date_rfc2822)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("date", date)
+    globals
+        .set("date", date)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set date global: {}", e)))?;
 
     Ok(())

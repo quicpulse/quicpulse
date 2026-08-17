@@ -18,7 +18,8 @@ pub fn parse_content_type_header(header: &str) -> (String, HashMap<String, Strin
     match header.parse::<Mime>() {
         Ok(m) => {
             let mime_type = format!("{}/{}", m.type_(), m.subtype());
-            let params: HashMap<_, _> = m.params()
+            let params: HashMap<_, _> = m
+                .params()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect();
             (mime_type, params)
@@ -54,7 +55,10 @@ mod tests {
 
     #[test]
     fn test_get_content_type() {
-        assert_eq!(get_content_type("file.json"), Some("application/json".to_string()));
+        assert_eq!(
+            get_content_type("file.json"),
+            Some("application/json".to_string())
+        );
         assert_eq!(get_content_type("file.txt"), Some("text/plain".to_string()));
     }
 }

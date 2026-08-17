@@ -21,10 +21,10 @@ pub mod netrc;
 pub mod oauth2;
 pub mod oauth2_flows;
 
-pub use aws::{AwsSigV4Config, sign_request, sha256_hex};
+pub use aws::{sha256_hex, sign_request, AwsSigV4Config};
 pub use netrc::Netrc;
-pub use oauth2::{OAuth2Config, get_token, CachedToken, refresh_token};
+pub use oauth2::{get_token, refresh_token, CachedToken, OAuth2Config};
 pub use oauth2_flows::{
-    AuthCodeConfig, DeviceFlowConfig, PkceChallenge, OAuth2FlowType,
-    authorization_code_flow, device_flow,
+    authorization_code_flow, device_flow, AuthCodeConfig, DeviceFlowConfig, OAuth2FlowType,
+    PkceChallenge,
 };

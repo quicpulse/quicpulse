@@ -33,8 +33,7 @@ impl EncodedCodec {
 
     /// Create with specified encoding
     pub fn with_encoding(encoding_name: &str) -> Self {
-        let encoding = Encoding::for_label(encoding_name.as_bytes())
-            .unwrap_or(UTF_8);
+        let encoding = Encoding::for_label(encoding_name.as_bytes()).unwrap_or(UTF_8);
         Self {
             encoding,
             incomplete_line: String::new(),

@@ -14,19 +14,19 @@
 //! - **Built-in modules**: HTTP, JSON, crypto, encoding utilities
 //! - **Multi-language support**: Rune (default) and JavaScript via QuickJS
 
-pub mod runtime;
 pub mod context;
-pub mod modules;
 pub mod detection;
 pub mod engine;
+pub mod modules;
+pub mod runtime;
 
 #[cfg(feature = "javascript")]
 pub mod js;
 
-pub use runtime::{ScriptEngine, ScriptResult};
-pub use context::{ScriptContext, RequestData, ResponseData};
-pub use detection::{ScriptType, detect_script_type};
+pub use context::{RequestData, ResponseData, ScriptContext};
+pub use detection::{detect_script_type, ScriptType};
 pub use engine::MultiScriptEngine;
+pub use runtime::{ScriptEngine, ScriptResult};
 
 use crate::errors::QuicpulseError;
 use serde_json::Value as JsonValue;
@@ -71,8 +71,7 @@ impl CompiledScript {
 
     /// Load and compile a script from a file
     pub fn from_file(path: &Path, mode: ScriptMode) -> Result<Self, QuicpulseError> {
-        let source = std::fs::read_to_string(path)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        let source = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
         Self::new(&source, mode)
     }
 
@@ -82,7 +81,10 @@ impl CompiledScript {
     }
 
     /// Execute as a pre-request hook, returning modified request data
-    pub async fn execute_pre_request(&self, request: &mut RequestData) -> Result<(), QuicpulseError> {
+    pub async fn execute_pre_request(
+        &self,
+        request: &mut RequestData,
+    ) -> Result<(), QuicpulseError> {
         let mut ctx = ScriptContext::new();
         ctx.set_request(request.clone());
 
@@ -97,7 +99,10 @@ impl CompiledScript {
     }
 
     /// Execute as a post-response hook
-    pub async fn execute_post_response(&self, response: &mut ResponseData) -> Result<(), QuicpulseError> {
+    pub async fn execute_post_response(
+        &self,
+        response: &mut ResponseData,
+    ) -> Result<(), QuicpulseError> {
         let mut ctx = ScriptContext::new();
         ctx.set_response(response.clone());
 
@@ -118,7 +123,10 @@ impl CompiledScript {
     }
 
     /// Execute to extract a value
-    pub async fn execute_extract(&self, ctx: &mut ScriptContext) -> Result<JsonValue, QuicpulseError> {
+    pub async fn execute_extract(
+        &self,
+        ctx: &mut ScriptContext,
+    ) -> Result<JsonValue, QuicpulseError> {
         let result = self.execute(ctx).await?;
         result.as_json()
     }
@@ -135,7 +143,10 @@ impl CompiledScript {
 }
 
 /// Quick script execution without pre-compilation
-pub async fn run_script(source: &str, ctx: &mut ScriptContext) -> Result<ScriptResult, QuicpulseError> {
+pub async fn run_script(
+    source: &str,
+    ctx: &mut ScriptContext,
+) -> Result<ScriptResult, QuicpulseError> {
     let engine = ScriptEngine::new()?;
     engine.execute(source, ctx).await
 }
@@ -151,7 +162,10 @@ pub async fn run_assertion(source: &str, response: &ResponseData) -> Result<bool
 }
 
 /// Transform request with a script
-pub async fn transform_request(source: &str, request: &mut RequestData) -> Result<(), QuicpulseError> {
+pub async fn transform_request(
+    source: &str,
+    request: &mut RequestData,
+) -> Result<(), QuicpulseError> {
     let mut ctx = ScriptContext::new();
     ctx.set_request(request.clone());
 
@@ -166,7 +180,10 @@ pub async fn transform_request(source: &str, request: &mut RequestData) -> Resul
 }
 
 /// Transform response with a script
-pub async fn transform_response(source: &str, response: &mut ResponseData) -> Result<(), QuicpulseError> {
+pub async fn transform_response(
+    source: &str,
+    response: &mut ResponseData,
+) -> Result<(), QuicpulseError> {
     let mut ctx = ScriptContext::new();
     ctx.set_response(response.clone());
 
@@ -203,10 +220,7 @@ mod tests {
         };
 
         // Simple assertion that returns true
-        let result = run_assertion(
-            r#"pub fn main() { true }"#,
-            &response
-        ).await;
+        let result = run_assertion(r#"pub fn main() { true }"#, &response).await;
 
         assert!(result.is_ok());
         assert!(result.unwrap());

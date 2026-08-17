@@ -2,9 +2,9 @@
 //!
 //! Uses HDR Histogram for accurate latency percentile calculation.
 
+use hdrhistogram::Histogram;
 use std::collections::HashMap;
 use std::time::Duration;
-use hdrhistogram::Histogram;
 
 /// Latency statistics in milliseconds
 #[derive(Debug, Clone)]
@@ -87,8 +87,8 @@ const MAX_LATENCY_US: u64 = 300_000_000; // 5 minutes
 impl StatsCollector {
     /// Create a new stats collector
     pub fn new() -> Self {
-        let histogram = Histogram::new_with_bounds(1, MAX_LATENCY_US, 3)
-            .expect("Failed to create histogram");
+        let histogram =
+            Histogram::new_with_bounds(1, MAX_LATENCY_US, 3).expect("Failed to create histogram");
 
         Self {
             histogram,
@@ -155,9 +155,21 @@ impl StatsCollector {
         BenchmarkStats {
             successful_requests: self.successful,
             failed_requests: self.failed,
-            success_rate: if total > 0 { self.successful as f64 / total as f64 } else { 0.0 },
-            requests_per_second: if duration_secs > 0.0 { total as f64 / duration_secs } else { 0.0 },
-            bytes_per_second: if duration_secs > 0.0 { self.total_bytes as f64 / duration_secs } else { 0.0 },
+            success_rate: if total > 0 {
+                self.successful as f64 / total as f64
+            } else {
+                0.0
+            },
+            requests_per_second: if duration_secs > 0.0 {
+                total as f64 / duration_secs
+            } else {
+                0.0
+            },
+            bytes_per_second: if duration_secs > 0.0 {
+                self.total_bytes as f64 / duration_secs
+            } else {
+                0.0
+            },
             total_bytes: self.total_bytes,
             status_codes: self.status_codes,
             errors: self.errors,
@@ -189,7 +201,12 @@ mod tests {
         collector.record(Some(500), Duration::from_millis(50), 100, None);
 
         // Record an error
-        collector.record(None, Duration::from_millis(1000), 0, Some("Timeout".to_string()));
+        collector.record(
+            None,
+            Duration::from_millis(1000),
+            0,
+            Some("Timeout".to_string()),
+        );
 
         let stats = collector.finalize(Duration::from_secs(1));
 

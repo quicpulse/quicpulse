@@ -386,17 +386,14 @@ impl HarEntry {
     /// Get a short description of the entry for display
     pub fn short_description(&self) -> String {
         let url = truncate_url(&self.request.url, 60);
-        format!(
-            "{} {} → {}",
-            self.request.method,
-            url,
-            self.response.status
-        )
+        format!("{} {} → {}", self.request.method, url, self.response.status)
     }
 
     /// Get the content type from request headers
     pub fn content_type(&self) -> Option<String> {
-        self.request.headers.iter()
+        self.request
+            .headers
+            .iter()
             .find(|h| h.name.eq_ignore_ascii_case("content-type"))
             .map(|h| h.value.clone())
     }
@@ -415,7 +412,8 @@ impl HarRequest {
 
     /// Get header value by name (case-insensitive)
     pub fn get_header(&self, name: &str) -> Option<&str> {
-        self.headers.iter()
+        self.headers
+            .iter()
             .find(|h| h.name.eq_ignore_ascii_case(name))
             .map(|h| h.value.as_str())
     }

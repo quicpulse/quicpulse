@@ -60,10 +60,7 @@ impl ScriptType {
 /// 1. Explicit `type` field
 /// 2. File extension (if `file` is specified)
 /// 3. Default to Rune
-pub fn detect_script_type(
-    type_field: Option<&str>,
-    file_field: Option<&str>,
-) -> ScriptType {
+pub fn detect_script_type(type_field: Option<&str>, file_field: Option<&str>) -> ScriptType {
     // Priority 1: Explicit type field
     if let Some(t) = type_field {
         return ScriptType::from_str(t);
@@ -94,12 +91,21 @@ mod tests {
 
     #[test]
     fn test_from_extension() {
-        assert_eq!(ScriptType::from_extension("script.js"), ScriptType::JavaScript);
-        assert_eq!(ScriptType::from_extension("script.mjs"), ScriptType::JavaScript);
+        assert_eq!(
+            ScriptType::from_extension("script.js"),
+            ScriptType::JavaScript
+        );
+        assert_eq!(
+            ScriptType::from_extension("script.mjs"),
+            ScriptType::JavaScript
+        );
         assert_eq!(ScriptType::from_extension("script.rn"), ScriptType::Rune);
         assert_eq!(ScriptType::from_extension("script.rune"), ScriptType::Rune);
         assert_eq!(ScriptType::from_extension("script.txt"), ScriptType::Rune);
-        assert_eq!(ScriptType::from_extension("/path/to/file.js"), ScriptType::JavaScript);
+        assert_eq!(
+            ScriptType::from_extension("/path/to/file.js"),
+            ScriptType::JavaScript
+        );
     }
 
     #[test]
@@ -118,6 +124,9 @@ mod tests {
 
         // Default to Rune
         assert_eq!(detect_script_type(None, None), ScriptType::Rune);
-        assert_eq!(detect_script_type(None, Some("script.txt")), ScriptType::Rune);
+        assert_eq!(
+            detect_script_type(None, Some("script.txt")),
+            ScriptType::Rune
+        );
     }
 }

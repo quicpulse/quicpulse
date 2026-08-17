@@ -22,9 +22,12 @@ pub async fn get_gcp_access_token() -> Result<String, QuicpulseError> {
     let output = Command::new("gcloud")
         .args(["auth", "print-access-token"])
         .output()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to run gcloud CLI. Is gcloud installed and in PATH? Error: {}", e
-        )))?;
+        .map_err(|e| {
+            QuicpulseError::Auth(format!(
+                "Failed to run gcloud CLI. Is gcloud installed and in PATH? Error: {}",
+                e
+            ))
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -38,7 +41,7 @@ pub async fn get_gcp_access_token() -> Result<String, QuicpulseError> {
 
     if token.is_empty() {
         return Err(QuicpulseError::Auth(
-            "gcloud returned empty token. Run 'gcloud auth login' to authenticate.".to_string()
+            "gcloud returned empty token. Run 'gcloud auth login' to authenticate.".to_string(),
         ));
     }
 
@@ -57,9 +60,7 @@ pub async fn get_gcp_id_token(audience: &str) -> Result<String, QuicpulseError> 
     let output = Command::new("gcloud")
         .args(["auth", "print-identity-token", "--audiences", audience])
         .output()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to run gcloud CLI: {}", e
-        )))?;
+        .map_err(|e| QuicpulseError::Auth(format!("Failed to run gcloud CLI: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -73,7 +74,7 @@ pub async fn get_gcp_id_token(audience: &str) -> Result<String, QuicpulseError> 
 
     if token.is_empty() {
         return Err(QuicpulseError::Auth(
-            "gcloud returned empty ID token".to_string()
+            "gcloud returned empty ID token".to_string(),
         ));
     }
 
@@ -86,13 +87,11 @@ pub fn get_current_project() -> Result<String, QuicpulseError> {
     let output = Command::new("gcloud")
         .args(["config", "get-value", "project"])
         .output()
-        .map_err(|e| QuicpulseError::Auth(format!(
-            "Failed to get GCP project: {}", e
-        )))?;
+        .map_err(|e| QuicpulseError::Auth(format!("Failed to get GCP project: {}", e)))?;
 
     if !output.status.success() {
         return Err(QuicpulseError::Auth(
-            "No GCP project configured. Run 'gcloud config set project PROJECT_ID'".to_string()
+            "No GCP project configured. Run 'gcloud config set project PROJECT_ID'".to_string(),
         ));
     }
 
@@ -100,7 +99,7 @@ pub fn get_current_project() -> Result<String, QuicpulseError> {
 
     if project.is_empty() {
         return Err(QuicpulseError::Auth(
-            "No GCP project configured. Run 'gcloud config set project PROJECT_ID'".to_string()
+            "No GCP project configured. Run 'gcloud config set project PROJECT_ID'".to_string(),
         ));
     }
 

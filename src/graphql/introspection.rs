@@ -197,33 +197,42 @@ impl SchemaInfo {
         }
 
         // Check for data field
-        let data = response.get("data")
-            .ok_or_else(|| "Response missing 'data' field - introspection may be disabled".to_string())?;
+        let data = response.get("data").ok_or_else(|| {
+            "Response missing 'data' field - introspection may be disabled".to_string()
+        })?;
 
         // Handle null data (can happen when introspection is disabled)
         if data.is_null() {
-            return Err("Introspection returned null data - introspection may be disabled on this server".to_string());
+            return Err(
+                "Introspection returned null data - introspection may be disabled on this server"
+                    .to_string(),
+            );
         }
 
-        let schema = data.get("__schema")
-            .ok_or_else(|| "Response missing '__schema' field - not a valid introspection response".to_string())?;
+        let schema = data.get("__schema").ok_or_else(|| {
+            "Response missing '__schema' field - not a valid introspection response".to_string()
+        })?;
 
-        let query_type = schema.get("queryType")
+        let query_type = schema
+            .get("queryType")
             .and_then(|t| t.get("name"))
             .and_then(|n| n.as_str())
             .map(String::from);
 
-        let mutation_type = schema.get("mutationType")
+        let mutation_type = schema
+            .get("mutationType")
             .and_then(|t| t.get("name"))
             .and_then(|n| n.as_str())
             .map(String::from);
 
-        let subscription_type = schema.get("subscriptionType")
+        let subscription_type = schema
+            .get("subscriptionType")
             .and_then(|t| t.get("name"))
             .and_then(|n| n.as_str())
             .map(String::from);
 
-        let types = schema.get("types")
+        let types = schema
+            .get("types")
             .and_then(|t| t.as_array())
             .map(|arr| {
                 arr.iter()
@@ -243,7 +252,8 @@ impl SchemaInfo {
 
     /// Get all query fields
     pub fn query_fields(&self) -> Vec<&FieldInfo> {
-        self.query_type.as_ref()
+        self.query_type
+            .as_ref()
             .and_then(|name| self.types.iter().find(|t| &t.name == name))
             .map(|t| t.fields.iter().collect())
             .unwrap_or_default()
@@ -251,7 +261,8 @@ impl SchemaInfo {
 
     /// Get all mutation fields
     pub fn mutation_fields(&self) -> Vec<&FieldInfo> {
-        self.mutation_type.as_ref()
+        self.mutation_type
+            .as_ref()
             .and_then(|name| self.types.iter().find(|t| &t.name == name))
             .map(|t| t.fields.iter().collect())
             .unwrap_or_default()
@@ -310,26 +321,31 @@ impl TypeInfo {
         let kind = value.get("kind")?.as_str()?.to_string();
         let name = value.get("name")?.as_str()?.to_string();
 
-        let description = value.get("description")
+        let description = value
+            .get("description")
             .and_then(|d| d.as_str())
             .map(String::from);
 
-        let fields = value.get("fields")
+        let fields = value
+            .get("fields")
             .and_then(|f| f.as_array())
             .map(|arr| arr.iter().filter_map(FieldInfo::from_json).collect())
             .unwrap_or_default();
 
-        let input_fields = value.get("inputFields")
+        let input_fields = value
+            .get("inputFields")
             .and_then(|f| f.as_array())
             .map(|arr| arr.iter().filter_map(InputFieldInfo::from_json).collect())
             .unwrap_or_default();
 
-        let enum_values = value.get("enumValues")
+        let enum_values = value
+            .get("enumValues")
             .and_then(|e| e.as_array())
             .map(|arr| arr.iter().filter_map(EnumValueInfo::from_json).collect())
             .unwrap_or_default();
 
-        let interfaces = value.get("interfaces")
+        let interfaces = value
+            .get("interfaces")
             .and_then(|i| i.as_array())
             .map(|arr| {
                 arr.iter()
@@ -339,7 +355,8 @@ impl TypeInfo {
             })
             .unwrap_or_default();
 
-        let possible_types = value.get("possibleTypes")
+        let possible_types = value
+            .get("possibleTypes")
             .and_then(|p| p.as_array())
             .map(|arr| {
                 arr.iter()
@@ -378,24 +395,29 @@ impl FieldInfo {
     pub fn from_json(value: &JsonValue) -> Option<Self> {
         let name = value.get("name")?.as_str()?.to_string();
 
-        let description = value.get("description")
+        let description = value
+            .get("description")
             .and_then(|d| d.as_str())
             .map(String::from);
 
-        let type_name = value.get("type")
+        let type_name = value
+            .get("type")
             .map(format_type_ref)
             .unwrap_or_else(|| "Unknown".to_string());
 
-        let args = value.get("args")
+        let args = value
+            .get("args")
             .and_then(|a| a.as_array())
             .map(|arr| arr.iter().filter_map(InputFieldInfo::from_json).collect())
             .unwrap_or_default();
 
-        let is_deprecated = value.get("isDeprecated")
+        let is_deprecated = value
+            .get("isDeprecated")
             .and_then(|d| d.as_bool())
             .unwrap_or(false);
 
-        let deprecation_reason = value.get("deprecationReason")
+        let deprecation_reason = value
+            .get("deprecationReason")
             .and_then(|r| r.as_str())
             .map(String::from);
 
@@ -424,15 +446,18 @@ impl InputFieldInfo {
     pub fn from_json(value: &JsonValue) -> Option<Self> {
         let name = value.get("name")?.as_str()?.to_string();
 
-        let description = value.get("description")
+        let description = value
+            .get("description")
             .and_then(|d| d.as_str())
             .map(String::from);
 
-        let type_name = value.get("type")
+        let type_name = value
+            .get("type")
             .map(format_type_ref)
             .unwrap_or_else(|| "Unknown".to_string());
 
-        let default_value = value.get("defaultValue")
+        let default_value = value
+            .get("defaultValue")
             .and_then(|d| d.as_str())
             .map(String::from);
 
@@ -459,15 +484,18 @@ impl EnumValueInfo {
     pub fn from_json(value: &JsonValue) -> Option<Self> {
         let name = value.get("name")?.as_str()?.to_string();
 
-        let description = value.get("description")
+        let description = value
+            .get("description")
             .and_then(|d| d.as_str())
             .map(String::from);
 
-        let is_deprecated = value.get("isDeprecated")
+        let is_deprecated = value
+            .get("isDeprecated")
             .and_then(|d| d.as_bool())
             .unwrap_or(false);
 
-        let deprecation_reason = value.get("deprecationReason")
+        let deprecation_reason = value
+            .get("deprecationReason")
             .and_then(|r| r.as_str())
             .map(String::from);
 
@@ -487,13 +515,15 @@ fn format_type_ref(type_ref: &JsonValue) -> String {
 
     match kind {
         "NON_NULL" => {
-            let inner = type_ref.get("ofType")
+            let inner = type_ref
+                .get("ofType")
                 .map(format_type_ref)
                 .unwrap_or_else(|| "Unknown".to_string());
             format!("{}!", inner)
         }
         "LIST" => {
-            let inner = type_ref.get("ofType")
+            let inner = type_ref
+                .get("ofType")
                 .map(format_type_ref)
                 .unwrap_or_else(|| "Unknown".to_string());
             format!("[{}]", inner)
@@ -509,9 +539,7 @@ mod tests {
 
     #[test]
     fn test_introspection_query_builder() {
-        let query = IntrospectionQuery::new()
-            .full_type_info(true)
-            .build();
+        let query = IntrospectionQuery::new().full_type_info(true).build();
 
         assert!(query.contains("IntrospectionQuery"));
         assert!(query.contains("__schema"));

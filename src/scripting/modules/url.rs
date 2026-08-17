@@ -26,9 +26,15 @@ pub fn module() -> Result<Module, ContextError> {
 
     // Query string operations
     module.function("query_param", get_query_param).build()?;
-    module.function("query_params", get_all_query_params).build()?;
-    module.function("set_query_param", set_query_param).build()?;
-    module.function("remove_query_param", remove_query_param).build()?;
+    module
+        .function("query_params", get_all_query_params)
+        .build()?;
+    module
+        .function("set_query_param", set_query_param)
+        .build()?;
+    module
+        .function("remove_query_param", remove_query_param)
+        .build()?;
 
     // Building/modification
     module.function("join", join_url).build()?;
@@ -39,8 +45,12 @@ pub fn module() -> Result<Module, ContextError> {
     // Encoding
     module.function("encode", url_encode).build()?;
     module.function("decode", url_decode).build()?;
-    module.function("encode_component", encode_component).build()?;
-    module.function("decode_component", decode_component).build()?;
+    module
+        .function("encode_component", encode_component)
+        .build()?;
+    module
+        .function("decode_component", decode_component)
+        .build()?;
 
     Ok(module)
 }
@@ -81,11 +91,10 @@ fn get_scheme(url_str: &str) -> RuneString {
 /// Get the host
 fn get_host(url_str: &str) -> RuneString {
     match Url::parse(url_str) {
-        Ok(url) => {
-            url.host_str()
-                .map(|h| RuneString::try_from(h.to_string()).unwrap_or_default())
-                .unwrap_or_default()
-        }
+        Ok(url) => url
+            .host_str()
+            .map(|h| RuneString::try_from(h.to_string()).unwrap_or_default())
+            .unwrap_or_default(),
         Err(_) => RuneString::new(),
     }
 }
@@ -109,11 +118,10 @@ fn get_path(url_str: &str) -> RuneString {
 /// Get the query string (without ?)
 fn get_query(url_str: &str) -> RuneString {
     match Url::parse(url_str) {
-        Ok(url) => {
-            url.query()
-                .map(|q| RuneString::try_from(q.to_string()).unwrap_or_default())
-                .unwrap_or_default()
-        }
+        Ok(url) => url
+            .query()
+            .map(|q| RuneString::try_from(q.to_string()).unwrap_or_default())
+            .unwrap_or_default(),
         Err(_) => RuneString::new(),
     }
 }
@@ -121,11 +129,10 @@ fn get_query(url_str: &str) -> RuneString {
 /// Get the fragment (without #)
 fn get_fragment(url_str: &str) -> RuneString {
     match Url::parse(url_str) {
-        Ok(url) => {
-            url.fragment()
-                .map(|f| RuneString::try_from(f.to_string()).unwrap_or_default())
-                .unwrap_or_default()
-        }
+        Ok(url) => url
+            .fragment()
+            .map(|f| RuneString::try_from(f.to_string()).unwrap_or_default())
+            .unwrap_or_default(),
         Err(_) => RuneString::new(),
     }
 }
@@ -147,11 +154,10 @@ fn get_username(url_str: &str) -> RuneString {
 /// Get the password
 fn get_password(url_str: &str) -> RuneString {
     match Url::parse(url_str) {
-        Ok(url) => {
-            url.password()
-                .map(|p| RuneString::try_from(p.to_string()).unwrap_or_default())
-                .unwrap_or_default()
-        }
+        Ok(url) => url
+            .password()
+            .map(|p| RuneString::try_from(p.to_string()).unwrap_or_default())
+            .unwrap_or_default(),
         Err(_) => RuneString::new(),
     }
 }
@@ -180,7 +186,8 @@ fn get_all_query_params(url_str: &str) -> RuneString {
             // Bug #6 fix: Use array of pairs to preserve duplicate keys
             // HTTP allows duplicate query keys like ?id=1&id=2
             // A Map would overwrite, losing data
-            let pairs: Vec<(String, String)> = url.query_pairs()
+            let pairs: Vec<(String, String)> = url
+                .query_pairs()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect();
             let json = serde_json::to_string(&pairs).unwrap_or("[]".to_string());
@@ -244,12 +251,10 @@ fn remove_query_param(url_str: &str, key: &str) -> RuneString {
 /// Join a base URL with a relative path
 fn join_url(base: &str, relative: &str) -> RuneString {
     match Url::parse(base) {
-        Ok(base_url) => {
-            match base_url.join(relative) {
-                Ok(joined) => RuneString::try_from(joined.to_string()).unwrap_or_default(),
-                Err(_) => RuneString::try_from(base.to_string()).unwrap_or_default(),
-            }
-        }
+        Ok(base_url) => match base_url.join(relative) {
+            Ok(joined) => RuneString::try_from(joined.to_string()).unwrap_or_default(),
+            Err(_) => RuneString::try_from(base.to_string()).unwrap_or_default(),
+        },
         Err(_) => RuneString::try_from(base.to_string()).unwrap_or_default(),
     }
 }

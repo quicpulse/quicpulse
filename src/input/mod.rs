@@ -6,8 +6,8 @@
 
 mod parser;
 
-use std::path::PathBuf;
 use serde_json::Value as JsonValue;
+use std::path::PathBuf;
 
 pub use parser::parse;
 
@@ -21,7 +21,6 @@ pub enum InputItem {
     // =========================================================================
     // HEADERS
     // =========================================================================
-
     /// HTTP header: "Name:Value"
     Header { name: String, value: String },
 
@@ -34,7 +33,6 @@ pub enum InputItem {
     // =========================================================================
     // QUERY PARAMETERS
     // =========================================================================
-
     /// URL query parameter: "name==value"
     QueryParam { name: String, value: String },
 
@@ -44,7 +42,6 @@ pub enum InputItem {
     // =========================================================================
     // DATA FIELDS (form or JSON depending on mode)
     // =========================================================================
-
     /// Data field: "key=value"
     /// In JSON mode: becomes {"key": "value"}
     /// In form mode: becomes key=value in body
@@ -56,7 +53,6 @@ pub enum InputItem {
     // =========================================================================
     // JSON FIELDS (always JSON, regardless of mode)
     // =========================================================================
-
     /// JSON field with parsed value: "key:=value"
     /// Value is parsed as JSON (number, bool, object, array, null)
     JsonField { key: String, value: JsonValue },
@@ -67,7 +63,6 @@ pub enum InputItem {
     // =========================================================================
     // FILE UPLOADS
     // =========================================================================
-
     /// File upload: "field@path" or "field@path;type=mime;filename=name"
     FileUpload {
         field: String,
@@ -99,9 +94,7 @@ impl InputItem {
     pub fn is_header(&self) -> bool {
         matches!(
             self,
-            InputItem::Header { .. }
-                | InputItem::EmptyHeader { .. }
-                | InputItem::HeaderFile { .. }
+            InputItem::Header { .. } | InputItem::EmptyHeader { .. } | InputItem::HeaderFile { .. }
         )
     }
 
@@ -153,7 +146,10 @@ impl InputItem {
 
     /// Check if this is a JSON value item (:= or :=@)
     pub fn is_json_value(&self) -> bool {
-        matches!(self, InputItem::JsonField { .. } | InputItem::JsonFieldFile { .. })
+        matches!(
+            self,
+            InputItem::JsonField { .. } | InputItem::JsonFieldFile { .. }
+        )
     }
 
     /// Get the string value for items that have one directly
@@ -190,7 +186,12 @@ impl InputItem {
     /// For file uploads, get the upload details
     pub fn file_upload_details(&self) -> Option<FileUploadDetails> {
         match self {
-            InputItem::FileUpload { field, path, mime_type, filename } => Some(FileUploadDetails {
+            InputItem::FileUpload {
+                field,
+                path,
+                mime_type,
+                filename,
+            } => Some(FileUploadDetails {
                 field: field.clone(),
                 path: path.clone(),
                 mime_type: mime_type.clone(),

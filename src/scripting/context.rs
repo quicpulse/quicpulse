@@ -121,7 +121,8 @@ impl ResponseData {
     pub fn get_header(&self, key: &str) -> Option<&String> {
         // Case-insensitive header lookup
         let key_lower = key.to_lowercase();
-        self.headers.iter()
+        self.headers
+            .iter()
             .find(|(k, _)| k.to_lowercase() == key_lower)
             .map(|(_, v)| v)
     }
@@ -360,13 +361,17 @@ mod tests {
         req.set_body(serde_json::json!({"name": "test"}));
 
         assert_eq!(req.method, "POST");
-        assert_eq!(req.get_header("Content-Type"), Some(&"application/json".to_string()));
+        assert_eq!(
+            req.get_header("Content-Type"),
+            Some(&"application/json".to_string())
+        );
     }
 
     #[test]
     fn test_response_data() {
         let mut resp = ResponseData::new(200, serde_json::json!({"id": 1, "name": "test"}));
-        resp.headers.insert("content-type".to_string(), "application/json".to_string());
+        resp.headers
+            .insert("content-type".to_string(), "application/json".to_string());
 
         assert!(resp.is_success());
         assert!(!resp.is_client_error());
@@ -382,19 +387,31 @@ mod tests {
         assert_eq!(ctx.get_variable("user_id"), Some(&serde_json::json!(123)));
 
         ctx.set_extracted("token", serde_json::json!("abc123"));
-        assert_eq!(ctx.get_extracted("token"), Some(&serde_json::json!("abc123")));
+        assert_eq!(
+            ctx.get_extracted("token"),
+            Some(&serde_json::json!("abc123"))
+        );
     }
 
     #[test]
     fn test_response_json_path() {
-        let resp = ResponseData::new(200, serde_json::json!({
-            "user": {
-                "name": "John",
-                "emails": ["john@example.com", "j@test.com"]
-            }
-        }));
+        let resp = ResponseData::new(
+            200,
+            serde_json::json!({
+                "user": {
+                    "name": "John",
+                    "emails": ["john@example.com", "j@test.com"]
+                }
+            }),
+        );
 
-        assert_eq!(resp.json_path(".user.name"), Some(serde_json::json!("John")));
-        assert_eq!(resp.json_path("user.emails"), Some(serde_json::json!(["john@example.com", "j@test.com"])));
+        assert_eq!(
+            resp.json_path(".user.name"),
+            Some(serde_json::json!("John"))
+        );
+        assert_eq!(
+            resp.json_path("user.emails"),
+            Some(serde_json::json!(["john@example.com", "j@test.com"]))
+        );
     }
 }

@@ -3,9 +3,9 @@
 //! This module provides utilities for converting between JSON and
 //! protobuf wire format for dynamic gRPC calls.
 
+use crate::errors::QuicpulseError;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serde_json::Value as JsonValue;
-use crate::errors::QuicpulseError;
 
 /// Convert JSON to protobuf bytes
 ///
@@ -33,7 +33,7 @@ pub fn proto_to_json(bytes: &[u8]) -> Result<JsonValue, QuicpulseError> {
     // If not JSON, return raw bytes as base64
     Ok(JsonValue::String(base64::Engine::encode(
         &base64::engine::general_purpose::STANDARD,
-        bytes
+        bytes,
     )))
 }
 
@@ -60,7 +60,9 @@ pub fn frame_message(message: &[u8], compressed: bool) -> Bytes {
 /// Unframe a gRPC message
 pub fn unframe_message(mut buf: Bytes) -> Result<(bool, Bytes), QuicpulseError> {
     if buf.len() < GRPC_HEADER_SIZE {
-        return Err(QuicpulseError::Argument("Message too short for gRPC frame".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Message too short for gRPC frame".to_string(),
+        ));
     }
 
     // Read compressed flag
@@ -73,7 +75,8 @@ pub fn unframe_message(mut buf: Bytes) -> Result<(bool, Bytes), QuicpulseError> 
     if buf.len() < length {
         return Err(QuicpulseError::Argument(format!(
             "Message truncated: expected {} bytes, got {}",
-            length, buf.len()
+            length,
+            buf.len()
         )));
     }
 
@@ -90,7 +93,9 @@ pub struct WireEncoder {
 
 impl WireEncoder {
     pub fn new() -> Self {
-        Self { buf: BytesMut::new() }
+        Self {
+            buf: BytesMut::new(),
+        }
     }
 
     /// Encode a varint
@@ -168,8 +173,8 @@ pub enum WireType {
     Varint = 0,
     Fixed64 = 1,
     LengthDelimited = 2,
-    StartGroup = 3,  // Deprecated
-    EndGroup = 4,    // Deprecated
+    StartGroup = 3, // Deprecated
+    EndGroup = 4,   // Deprecated
     Fixed32 = 5,
 }
 
@@ -210,7 +215,9 @@ impl WireDecoder {
 
         loop {
             if self.pos >= self.buf.len() {
-                return Err(QuicpulseError::Argument("Unexpected end of message".to_string()));
+                return Err(QuicpulseError::Argument(
+                    "Unexpected end of message".to_string(),
+                ));
             }
 
             let byte = self.buf[self.pos];
@@ -245,7 +252,9 @@ impl WireDecoder {
         let length = self.read_varint()? as usize;
 
         if self.pos + length > self.buf.len() {
-            return Err(QuicpulseError::Argument("Length exceeds message size".to_string()));
+            return Err(QuicpulseError::Argument(
+                "Length exceeds message size".to_string(),
+            ));
         }
 
         let data = self.buf.slice(self.pos..self.pos + length);
@@ -264,7 +273,9 @@ impl WireDecoder {
     /// Read fixed64
     pub fn read_fixed64(&mut self) -> Result<u64, QuicpulseError> {
         if self.pos + 8 > self.buf.len() {
-            return Err(QuicpulseError::Argument("Unexpected end of message".to_string()));
+            return Err(QuicpulseError::Argument(
+                "Unexpected end of message".to_string(),
+            ));
         }
 
         let mut bytes = [0u8; 8];
@@ -277,7 +288,9 @@ impl WireDecoder {
     /// Read fixed32
     pub fn read_fixed32(&mut self) -> Result<u32, QuicpulseError> {
         if self.pos + 4 > self.buf.len() {
-            return Err(QuicpulseError::Argument("Unexpected end of message".to_string()));
+            return Err(QuicpulseError::Argument(
+                "Unexpected end of message".to_string(),
+            ));
         }
 
         let mut bytes = [0u8; 4];
@@ -303,7 +316,9 @@ impl WireDecoder {
                 self.read_fixed32()?;
             }
             WireType::StartGroup | WireType::EndGroup => {
-                return Err(QuicpulseError::Argument("Groups are deprecated".to_string()));
+                return Err(QuicpulseError::Argument(
+                    "Groups are deprecated".to_string(),
+                ));
             }
         }
         Ok(())

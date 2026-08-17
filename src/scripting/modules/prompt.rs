@@ -3,9 +3,9 @@
 //! Allows scripts to pause and request input from the user,
 //! useful for MFA/OTP flows, confirmations, and dynamic input.
 
+use dialoguer::{Confirm, Input, Password, Select};
 use rune::alloc::String as RuneString;
 use rune::{ContextError, Module};
-use dialoguer::{Input, Password, Confirm, Select};
 use std::io::{self, Write};
 
 /// Create the prompt module
@@ -14,14 +14,18 @@ pub fn module() -> Result<Module, ContextError> {
 
     // Text input
     module.function("text", prompt_text).build()?;
-    module.function("text_default", prompt_text_default).build()?;
+    module
+        .function("text_default", prompt_text_default)
+        .build()?;
 
     // Password/hidden input
     module.function("password", prompt_password).build()?;
 
     // Confirmation
     module.function("confirm", prompt_confirm).build()?;
-    module.function("confirm_default", prompt_confirm_default).build()?;
+    module
+        .function("confirm_default", prompt_confirm_default)
+        .build()?;
 
     // Selection from list
     module.function("select", prompt_select).build()?;
@@ -35,10 +39,7 @@ fn prompt_text(message: &str) -> RuneString {
     eprint!("{}", message);
     io::stderr().flush().ok();
 
-    match Input::<String>::new()
-        .with_prompt(message)
-        .interact_text()
-    {
+    match Input::<String>::new().with_prompt(message).interact_text() {
         Ok(input) => RuneString::try_from(input).unwrap_or_default(),
         Err(_) => RuneString::new(),
     }
@@ -64,10 +65,7 @@ fn prompt_password(message: &str) -> RuneString {
     // Use dialoguer's re-exported console to avoid version mismatch
     let term = dialoguer::console::Term::stderr();
 
-    match Password::new()
-        .with_prompt(message)
-        .interact_on(&term)
-    {
+    match Password::new().with_prompt(message).interact_on(&term) {
         Ok(input) => RuneString::try_from(input).unwrap_or_default(),
         Err(_) => RuneString::new(),
     }

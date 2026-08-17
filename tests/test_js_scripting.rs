@@ -90,7 +90,12 @@ async fn run_js_test(script: &str) -> (i32, String, String) {
 #[tokio::test]
 async fn test_js_explicit_type_javascript() {
     let (code, stdout, stderr) = run_js_test("true").await;
-    assert!(code == 0, "Explicit type:javascript failed: {} {}", stdout, stderr);
+    assert!(
+        code == 0,
+        "Explicit type:javascript failed: {} {}",
+        stdout,
+        stderr
+    );
 }
 
 #[tokio::test]
@@ -104,7 +109,12 @@ async fn test_js_file_extension_detection() {
 
     let (_dir, workflow_path) = create_js_file_workflow(&server.uri(), "response.status === 200");
     let r = http(&["--run", workflow_path.to_str().unwrap()]);
-    assert!(r.exit_code == 0, "File extension .js detection failed: {} {}", r.stdout, r.stderr);
+    assert!(
+        r.exit_code == 0,
+        "File extension .js detection failed: {} {}",
+        r.stdout,
+        r.stderr
+    );
 }
 
 // ============================================================================
@@ -121,28 +131,37 @@ crypto.sha256_hex("hello world") === "b94d27b9934d3e08a52e52d7da7dabfac484efe37a
 
 #[tokio::test]
 async fn test_js_crypto_uuid() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const uuid = crypto.uuid_v4();
 uuid.length === 36 && uuid.includes("-")
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "crypto.uuid_v4 failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_crypto_timestamp() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const ts = crypto.timestamp();
 ts > 1700000000
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "crypto.timestamp failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_crypto_random() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const hex = crypto.random_hex(16);
 hex.length === 16
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "crypto.random_hex failed: {} {}", stdout, stderr);
 }
 
@@ -152,21 +171,32 @@ hex.length === 16
 
 #[tokio::test]
 async fn test_js_encoding_base64() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const encoded = encoding.base64_encode("hello");
 const decoded = encoding.base64_decode(encoded);
 decoded === "hello"
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "encoding base64 failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_encoding_url() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const encoded = encoding.url_encode("hello world");
 encoded === "hello%20world"
-"#).await;
-    assert!(code == 0, "encoding.url_encode failed: {} {}", stdout, stderr);
+"#,
+    )
+    .await;
+    assert!(
+        code == 0,
+        "encoding.url_encode failed: {} {}",
+        stdout,
+        stderr
+    );
 }
 
 // ============================================================================
@@ -175,18 +205,24 @@ encoded === "hello%20world"
 
 #[tokio::test]
 async fn test_js_json_is_valid() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 json.is_valid('{"a": 1}') && !json.is_valid('invalid')
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "json.is_valid failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_json_pretty() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const pretty = json.pretty('{"a":1}');
 pretty.includes("\n")
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "json.pretty failed: {} {}", stdout, stderr);
 }
 
@@ -196,20 +232,26 @@ pretty.includes("\n")
 
 #[tokio::test]
 async fn test_js_assert_eq() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 assert.eq(1, 1);
 assert.eq("hello", "hello");
 true
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "assert.eq failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_assert_status() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 assert.status_ok(response.status);
 true
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "assert.status_ok failed: {} {}", stdout, stderr);
 }
 
@@ -219,10 +261,13 @@ true
 
 #[tokio::test]
 async fn test_js_store_set_get() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 store.set("test_key", "test_value");
 store.get("test_key") === "test_value"
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "store.set/get failed: {} {}", stdout, stderr);
 }
 
@@ -232,9 +277,12 @@ store.get("test_key") === "test_value"
 
 #[tokio::test]
 async fn test_js_http_status_ok() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 http.is_success(200) && !http.is_success(404)
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "http.is_success failed: {} {}", stdout, stderr);
 }
 
@@ -244,17 +292,23 @@ http.is_success(200) && !http.is_success(404)
 
 #[tokio::test]
 async fn test_js_regex_test() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 regex.test("\\d+", "abc123") && !regex.test("\\d+", "abc")
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "regex.test failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_regex_replace() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 regex.replace("world", "hello world", "JS") === "hello JS"
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "regex.replace failed: {} {}", stdout, stderr);
 }
 
@@ -264,17 +318,23 @@ regex.replace("world", "hello world", "JS") === "hello JS"
 
 #[tokio::test]
 async fn test_js_url_host() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 url.host("https://example.com/path") === "example.com"
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "url.host failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_url_is_valid() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 url.is_valid("https://example.com") && !url.is_valid("not a url")
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "url.is_valid failed: {} {}", stdout, stderr);
 }
 
@@ -284,18 +344,24 @@ url.is_valid("https://example.com") && !url.is_valid("not a url")
 
 #[tokio::test]
 async fn test_js_date_now() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const now = date.now();
 now.includes("20")  // Year starts with 20
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "date.now failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_date_timestamp() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 date.timestamp() > 1700000000
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "date.timestamp failed: {} {}", stdout, stderr);
 }
 
@@ -305,18 +371,24 @@ date.timestamp() > 1700000000
 
 #[tokio::test]
 async fn test_js_system_now() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 system.now() > 1700000000
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "system.now failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_system_platform() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const platform = system.platform();
 platform === "macos" || platform === "linux" || platform === "windows"
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "system.platform failed: {} {}", stdout, stderr);
 }
 
@@ -326,28 +398,37 @@ platform === "macos" || platform === "linux" || platform === "windows"
 
 #[tokio::test]
 async fn test_js_faker_name() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const name = faker.name();
 name.length > 0 && name.includes(" ")
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "faker.name failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_faker_email() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const email = faker.email();
 email.includes("@")
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "faker.email failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_faker_uuid() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 const uuid = faker.uuid();
 uuid.length === 36
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "faker.uuid failed: {} {}", stdout, stderr);
 }
 
@@ -357,10 +438,13 @@ uuid.length === 36
 
 #[tokio::test]
 async fn test_js_console_log() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 console.log("test message");
 true
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "console.log failed: {} {}", stdout, stderr);
 }
 
@@ -370,17 +454,28 @@ true
 
 #[tokio::test]
 async fn test_js_response_status() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 response.status === 200
-"#).await;
+"#,
+    )
+    .await;
     assert!(code == 0, "response.status failed: {} {}", stdout, stderr);
 }
 
 #[tokio::test]
 async fn test_js_response_body() {
-    let (code, stdout, stderr) = run_js_test(r#"
+    let (code, stdout, stderr) = run_js_test(
+        r#"
 // response.body is already a JS object when the body is valid JSON
 response.body.success === true
-"#).await;
-    assert!(code == 0, "response.body parsing failed: {} {}", stdout, stderr);
+"#,
+    )
+    .await;
+    assert!(
+        code == 0,
+        "response.body parsing failed: {} {}",
+        stdout,
+        stderr
+    );
 }

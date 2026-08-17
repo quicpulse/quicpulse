@@ -1,8 +1,8 @@
 //! Config file handling
 
-use std::path::PathBuf;
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
+use std::path::PathBuf;
 
 /// Hook configuration for running scripts at specific points
 #[derive(Debug, Clone, Default)]

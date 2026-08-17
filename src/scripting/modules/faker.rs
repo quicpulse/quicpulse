@@ -2,18 +2,18 @@
 //!
 //! Provides functions to generate realistic fake data for testing APIs.
 
-use rune::alloc::String as RuneString;
-use rune::{ContextError, Module};
-use fake::faker::name::en::*;
-use fake::faker::internet::en::*;
 use fake::faker::address::en::*;
-use fake::faker::phone_number::en::*;
+use fake::faker::boolean::en::*;
 use fake::faker::company::en::*;
-use fake::faker::lorem::en::*;
 use fake::faker::creditcard::en::*;
 use fake::faker::filesystem::en::*;
-use fake::faker::boolean::en::*;
+use fake::faker::internet::en::*;
+use fake::faker::lorem::en::*;
+use fake::faker::name::en::*;
+use fake::faker::phone_number::en::*;
 use fake::Fake;
+use rune::alloc::String as RuneString;
+use rune::{ContextError, Module};
 
 /// Create the faker module
 pub fn module() -> Result<Module, ContextError> {
@@ -23,7 +23,9 @@ pub fn module() -> Result<Module, ContextError> {
     module.function("name", name).build()?;
     module.function("first_name", first_name).build()?;
     module.function("last_name", last_name).build()?;
-    module.function("name_with_title", name_with_title).build()?;
+    module
+        .function("name_with_title", name_with_title)
+        .build()?;
     module.function("title", title).build()?;
     module.function("suffix", suffix).build()?;
 
@@ -73,7 +75,9 @@ pub fn module() -> Result<Module, ContextError> {
     module.function("paragraphs", paragraphs).build()?;
 
     // Credit card generators
-    module.function("credit_card_number", credit_card_number).build()?;
+    module
+        .function("credit_card_number", credit_card_number)
+        .build()?;
 
     // Filesystem generators
     module.function("file_name", file_name).build()?;
@@ -87,7 +91,9 @@ pub fn module() -> Result<Module, ContextError> {
 
     // Number generators (using rand)
     module.function("number", random_number).build()?;
-    module.function("number_range", random_number_range).build()?;
+    module
+        .function("number_range", random_number_range)
+        .build()?;
     module.function("float", random_float).build()?;
     module.function("float_range", random_float_range).build()?;
 
@@ -350,7 +356,7 @@ fn random_number() -> i64 {
 }
 
 fn random_number_range(min: i64, max: i64) -> i64 {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     rng.random_range(min..=max)
 }
@@ -360,7 +366,7 @@ fn random_float() -> f64 {
 }
 
 fn random_float_range(min: f64, max: f64) -> f64 {
-    use rand::Rng;
+    use rand::RngExt;
     let mut rng = rand::rng();
     rng.random_range(min..=max)
 }

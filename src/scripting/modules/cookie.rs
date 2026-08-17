@@ -12,12 +12,16 @@ pub fn module() -> Result<Module, ContextError> {
 
     // Parsing
     module.function("parse", parse_cookie_header).build()?;
-    module.function("parse_set_cookie", parse_set_cookie).build()?;
+    module
+        .function("parse_set_cookie", parse_set_cookie)
+        .build()?;
     module.function("get", get_cookie_value).build()?;
 
     // Building
     module.function("build", build_cookie).build()?;
-    module.function("build_set_cookie", build_set_cookie).build()?;
+    module
+        .function("build_set_cookie", build_set_cookie)
+        .build()?;
 
     // Manipulation
     module.function("merge", merge_cookies).build()?;
@@ -45,7 +49,8 @@ fn parse_cookie_header(cookie_str: &str) -> RuneString {
         }
     }
 
-    RuneString::try_from(serde_json::to_string(&cookies).unwrap_or("{}".to_string())).unwrap_or_default()
+    RuneString::try_from(serde_json::to_string(&cookies).unwrap_or("{}".to_string()))
+        .unwrap_or_default()
 }
 
 /// Parse a Set-Cookie header into detailed JSON
@@ -171,11 +176,19 @@ fn build_set_cookie(cookie_json: &str) -> RuneString {
         parts.push(format!("SameSite={}", same_site));
     }
 
-    if cookie.get("secure").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if cookie
+        .get("secure")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         parts.push("Secure".to_string());
     }
 
-    if cookie.get("httpOnly").and_then(|v| v.as_bool()).unwrap_or(false) {
+    if cookie
+        .get("httpOnly")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
+    {
         parts.push("HttpOnly".to_string());
     }
 
@@ -184,7 +197,8 @@ fn build_set_cookie(cookie_json: &str) -> RuneString {
 
 /// Merge two cookie header strings
 fn merge_cookies(cookies1: &str, cookies2: &str) -> RuneString {
-    let mut all_cookies: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+    let mut all_cookies: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
 
     // Parse first cookie string
     for part in cookies1.split(';') {
@@ -291,7 +305,10 @@ fn is_secure_cookie(cookie_json: &str) -> bool {
         Err(_) => return false,
     };
 
-    cookie.get("secure").and_then(|v| v.as_bool()).unwrap_or(false)
+    cookie
+        .get("secure")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
 }
 
 /// Check if cookie has HttpOnly flag
@@ -301,7 +318,10 @@ fn is_http_only(cookie_json: &str) -> bool {
         Err(_) => return false,
     };
 
-    cookie.get("httpOnly").and_then(|v| v.as_bool()).unwrap_or(false)
+    cookie
+        .get("httpOnly")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false)
 }
 
 #[cfg(test)]
@@ -335,7 +355,8 @@ mod tests {
 
     #[test]
     fn test_build_set_cookie() {
-        let cookie_json = r#"{"name": "session", "value": "abc", "secure": true, "httpOnly": true, "path": "/"}"#;
+        let cookie_json =
+            r#"{"name": "session", "value": "abc", "secure": true, "httpOnly": true, "path": "/"}"#;
         let result = build_set_cookie(cookie_json);
         assert!(result.contains("session=abc"));
         assert!(result.contains("Secure"));

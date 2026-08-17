@@ -2,9 +2,9 @@
 //!
 //! Provides regular expression operations for pattern matching and text manipulation.
 
+use regex::Regex;
 use rune::alloc::String as RuneString;
 use rune::{ContextError, Module};
-use regex::Regex;
 use std::cell::RefCell;
 use std::collections::HashMap;
 

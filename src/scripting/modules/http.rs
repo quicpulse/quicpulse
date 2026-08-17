@@ -34,8 +34,12 @@ pub fn module() -> Result<Module, ContextError> {
     // Status code helper functions
     module.function("is_success", is_success).build()?;
     module.function("is_redirect", is_redirect).build()?;
-    module.function("is_client_error", is_client_error).build()?;
-    module.function("is_server_error", is_server_error).build()?;
+    module
+        .function("is_client_error", is_client_error)
+        .build()?;
+    module
+        .function("is_server_error", is_server_error)
+        .build()?;
     module.function("is_error", is_error).build()?;
 
     Ok(module)

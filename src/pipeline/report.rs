@@ -78,10 +78,10 @@ pub fn generate_junit_report(
     report.add_testsuite(suite);
 
     // Write to file
-    let file = File::create(&config.output_path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let file = File::create(&config.output_path).map_err(|e| QuicpulseError::Io(e))?;
 
-    report.write_xml(file)
+    report
+        .write_xml(file)
         .map_err(|e| QuicpulseError::Script(format!("Failed to write JUnit XML: {}", e)))?;
 
     Ok(())
@@ -111,7 +111,10 @@ fn build_test_case(result: &StepResult, config: &ReportConfig) -> TestCase {
                 error,
                 result.method,
                 result.url,
-                result.status_code.map(|s| s.to_string()).unwrap_or_else(|| "N/A".to_string())
+                result
+                    .status_code
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "N/A".to_string())
             )
         } else {
             error.clone()
@@ -122,9 +125,7 @@ fn build_test_case(result: &StepResult, config: &ReportConfig) -> TestCase {
         tc
     } else {
         // Check for assertion failures
-        let failed_assertions: Vec<_> = result.assertions.iter()
-            .filter(|a| !a.passed)
-            .collect();
+        let failed_assertions: Vec<_> = result.assertions.iter().filter(|a| !a.passed).collect();
 
         if failed_assertions.is_empty() {
             // All passed
@@ -133,7 +134,8 @@ fn build_test_case(result: &StepResult, config: &ReportConfig) -> TestCase {
             tc
         } else {
             // Build failure message from all failed assertions
-            let failure_messages: Vec<String> = failed_assertions.iter()
+            let failure_messages: Vec<String> = failed_assertions
+                .iter()
                 .map(|a| format!("{}: {}", a.assertion, a.message))
                 .collect();
 
@@ -145,13 +147,21 @@ fn build_test_case(result: &StepResult, config: &ReportConfig) -> TestCase {
                     failure_message,
                     result.method,
                     result.url,
-                    result.status_code.map(|s| s.to_string()).unwrap_or_else(|| "N/A".to_string())
+                    result
+                        .status_code
+                        .map(|s| s.to_string())
+                        .unwrap_or_else(|| "N/A".to_string())
                 )
             } else {
                 failure_message.clone()
             };
 
-            let mut tc = TestCase::failure(&result.name, duration, "AssertionFailure", &detailed_message);
+            let mut tc = TestCase::failure(
+                &result.name,
+                duration,
+                "AssertionFailure",
+                &detailed_message,
+            );
             tc.set_classname(&classname);
             tc
         }
@@ -161,7 +171,13 @@ fn build_test_case(result: &StepResult, config: &ReportConfig) -> TestCase {
 /// Sanitize a string for use as a JUnit classname
 fn sanitize_classname(name: &str) -> String {
     name.chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' || c == '.' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' || c == '.' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 
@@ -207,8 +223,7 @@ pub fn generate_json_report(
     let json_str = serde_json::to_string_pretty(&report)
         .map_err(|e| QuicpulseError::Script(format!("Failed to serialize JSON: {}", e)))?;
 
-    let mut file = File::create(&config.output_path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let mut file = File::create(&config.output_path).map_err(|e| QuicpulseError::Io(e))?;
 
     file.write_all(json_str.as_bytes())
         .map_err(|e| QuicpulseError::Io(e))?;
@@ -233,7 +248,8 @@ pub fn generate_tap_report(
         if result.skipped {
             output.push_str(&format!("ok {} - {} # SKIP\n", test_num, result.name));
         } else if result.passed() {
-            output.push_str(&format!("ok {} - {} # time={}ms\n",
+            output.push_str(&format!(
+                "ok {} - {} # time={}ms\n",
                 test_num,
                 result.name,
                 result.response_time.as_millis()
@@ -252,9 +268,8 @@ pub fn generate_tap_report(
                 output.push_str(&format!("  error: {}\n", error));
             }
 
-            let failed_assertions: Vec<_> = result.assertions.iter()
-                .filter(|a| !a.passed)
-                .collect();
+            let failed_assertions: Vec<_> =
+                result.assertions.iter().filter(|a| !a.passed).collect();
 
             if !failed_assertions.is_empty() {
                 output.push_str("  failures:\n");
@@ -267,8 +282,7 @@ pub fn generate_tap_report(
         }
     }
 
-    let mut file = File::create(&config.output_path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let mut file = File::create(&config.output_path).map_err(|e| QuicpulseError::Io(e))?;
 
     file.write_all(output.as_bytes())
         .map_err(|e| QuicpulseError::Io(e))?;
@@ -317,9 +331,7 @@ mod tests {
             url: "https://api.example.com/test".to_string(),
             status_code: Some(200),
             response_time: StdDuration::from_millis(150),
-            assertions: vec![
-                AssertionResult::pass("status", "Status is 200"),
-            ],
+            assertions: vec![AssertionResult::pass("status", "Status is 200")],
             extracted: HashMap::new(),
             error: None,
             skipped: false,
@@ -409,9 +421,7 @@ mod tests {
 
     #[test]
     fn test_json_report_generation() {
-        let results = vec![
-            make_passing_result("Test Step"),
-        ];
+        let results = vec![make_passing_result("Test Step")];
 
         let config = ReportConfig {
             output_path: "/tmp/test_report.json".to_string(),

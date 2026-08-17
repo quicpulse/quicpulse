@@ -91,7 +91,8 @@ fn log_info(message: &str) {
         color("\x1b[36m"), // cyan
         reset(),
         message
-    ).ok();
+    )
+    .ok();
 }
 
 /// Log warning message
@@ -104,7 +105,8 @@ fn log_warn(message: &str) {
         color("\x1b[33m"), // yellow
         reset(),
         message
-    ).ok();
+    )
+    .ok();
 }
 
 /// Log error message
@@ -117,7 +119,8 @@ fn log_error(message: &str) {
         color("\x1b[31m"), // red
         reset(),
         message
-    ).ok();
+    )
+    .ok();
 }
 
 /// Log debug message (only if verbosity >= 1)
@@ -131,7 +134,8 @@ fn log_debug(message: &str) {
             color("\x1b[35m"), // magenta
             reset(),
             message
-        ).ok();
+        )
+        .ok();
     }
 }
 
@@ -146,7 +150,8 @@ fn log_trace(message: &str) {
             color("\x1b[90m"), // gray
             reset(),
             message
-        ).ok();
+        )
+        .ok();
     }
 }
 
@@ -160,7 +165,8 @@ fn log_success(message: &str) {
         color("\x1b[32m"), // green
         reset(),
         message
-    ).ok();
+    )
+    .ok();
 }
 
 /// Log failure message
@@ -173,7 +179,8 @@ fn log_fail(message: &str) {
         color("\x1b[31m"), // red
         reset(),
         message
-    ).ok();
+    )
+    .ok();
 }
 
 /// Print raw text to stderr (no newline)
@@ -207,7 +214,8 @@ fn horizontal_rule() {
         "{}────────────────────────────────────────{}",
         color("\x1b[90m"),
         reset()
-    ).ok();
+    )
+    .ok();
 }
 
 /// Pretty-print JSON to stderr
@@ -257,12 +265,14 @@ fn print_table(json_str: &str) {
                 color("\x1b[1m"),
                 headers.join("\t"),
                 reset()
-            ).ok();
+            )
+            .ok();
 
             // Print rows
             for item in arr {
                 if let serde_json::Value::Object(obj) = item {
-                    let row: Vec<String> = headers.iter()
+                    let row: Vec<String> = headers
+                        .iter()
                         .map(|h| {
                             obj.get(h)
                                 .map(|v| match v {
@@ -302,7 +312,8 @@ fn time_start(label: &str) {
         color("\x1b[90m"),
         label,
         reset()
-    ).ok();
+    )
+    .ok();
 }
 
 /// End a timer and print elapsed time
@@ -320,7 +331,8 @@ fn time_end(label: &str) {
             label,
             duration.as_secs_f64() * 1000.0,
             reset()
-        ).ok();
+        )
+        .ok();
     } else {
         writeln!(
             handle,
@@ -328,7 +340,8 @@ fn time_end(label: &str) {
             color("\x1b[90m"),
             label,
             reset()
-        ).ok();
+        )
+        .ok();
     }
 }
 
@@ -349,7 +362,8 @@ fn group_start(label: &str) {
         color("\x1b[1m"),
         label,
         reset()
-    ).ok();
+    )
+    .ok();
 }
 
 /// End a group
@@ -363,12 +377,7 @@ fn log_progress(message: &str, percent: i64) {
     let filled = (percent as usize) / 5;
     let empty = 20 - filled;
 
-    let bar = format!(
-        "[{}{}] {}%",
-        "█".repeat(filled),
-        "░".repeat(empty),
-        percent
-    );
+    let bar = format!("[{}{}] {}%", "█".repeat(filled), "░".repeat(empty), percent);
 
     let stderr = io::stderr();
     let mut handle = stderr.lock();
@@ -379,7 +388,8 @@ fn log_progress(message: &str, percent: i64) {
         bar,
         message,
         reset()
-    ).ok();
+    )
+    .ok();
     handle.flush().ok();
 
     if percent >= 100 {

@@ -18,5 +18,5 @@
 pub mod parser;
 pub mod portforward;
 
-pub use parser::{K8sUrl, parse_k8s_url};
-pub use portforward::{PortForwardManager, PortForward};
+pub use parser::{parse_k8s_url, K8sUrl};
+pub use portforward::{PortForward, PortForwardManager};

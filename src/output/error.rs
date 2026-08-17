@@ -22,10 +22,7 @@ pub enum StreamError {
 
     /// Data too large for processing
     #[error("data too large: {size} bytes exceeds limit of {limit} bytes")]
-    TooLarge {
-        size: usize,
-        limit: usize,
-    },
+    TooLarge { size: usize, limit: usize },
 
     /// Invalid data format
     #[error("invalid format: {0}")]

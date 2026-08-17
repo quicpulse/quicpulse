@@ -2,23 +2,27 @@
 //!
 //! Provides JSON Schema validation.
 
-use rquickjs::{Ctx, Object, Function};
-use jsonschema::Validator;
 use crate::errors::QuicpulseError;
+use jsonschema::Validator;
+use rquickjs::{Ctx, Function, Object};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let schema = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create schema object: {}", e)))?;
 
-    schema.set("validate", Function::new(ctx.clone(), schema_validate)?)
+    schema
+        .set("validate", Function::new(ctx.clone(), schema_validate)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    schema.set("is_valid", Function::new(ctx.clone(), schema_is_valid)?)
+    schema
+        .set("is_valid", Function::new(ctx.clone(), schema_is_valid)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    schema.set("errors", Function::new(ctx.clone(), schema_errors)?)
+    schema
+        .set("errors", Function::new(ctx.clone(), schema_errors)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("schema", schema)
+    globals
+        .set("schema", schema)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set schema global: {}", e)))?;
 
     Ok(())
@@ -33,7 +37,8 @@ fn schema_validate(schema_json: String, data_json: String) -> String {
             return serde_json::json!({
                 "valid": false,
                 "errors": [format!("Invalid schema JSON: {}", e)]
-            }).to_string();
+            })
+            .to_string();
         }
     };
 
@@ -43,7 +48,8 @@ fn schema_validate(schema_json: String, data_json: String) -> String {
             return serde_json::json!({
                 "valid": false,
                 "errors": [format!("Invalid data JSON: {}", e)]
-            }).to_string();
+            })
+            .to_string();
         }
     };
 
@@ -53,7 +59,8 @@ fn schema_validate(schema_json: String, data_json: String) -> String {
             return serde_json::json!({
                 "valid": false,
                 "errors": [format!("Invalid schema: {}", e)]
-            }).to_string();
+            })
+            .to_string();
         }
     };
 
@@ -65,12 +72,14 @@ fn schema_validate(schema_json: String, data_json: String) -> String {
     if errors.is_empty() {
         serde_json::json!({
             "valid": true
-        }).to_string()
+        })
+        .to_string()
     } else {
         serde_json::json!({
             "valid": false,
             "errors": errors
-        }).to_string()
+        })
+        .to_string()
     }
 }
 

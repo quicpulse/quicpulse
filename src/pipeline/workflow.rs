@@ -2,11 +2,11 @@
 //!
 //! Supports YAML and TOML workflow files for API automation.
 
-use std::collections::HashMap;
-use std::path::Path;
-use std::fs;
-use serde::{Deserialize, Serialize};
 use crate::errors::QuicpulseError;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 
 /// Maximum workflow file size (1 MB) - prevents OOM from malicious files
 /// YAML/JSON parsers can expand memory 10-20x, so limit input size
@@ -147,7 +147,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Control Flow
     // =========================================================================
-
     /// Repeat this step N times
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub repeat: Option<u32>,
@@ -179,7 +178,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Network Options
     // =========================================================================
-
     /// Follow redirects for this step
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub follow_redirects: Option<bool>,
@@ -195,7 +193,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // SSL/TLS Options
     // =========================================================================
-
     /// Skip SSL certificate verification
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub insecure: Option<bool>,
@@ -215,7 +212,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Protocol Options
     // =========================================================================
-
     /// Use HTTP/2
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub http2: Option<bool>,
@@ -235,7 +231,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Compression
     // =========================================================================
-
     /// Compress request body (deflate)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub compress: Option<bool>,
@@ -243,7 +238,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Scripting (Rune)
     // =========================================================================
-
     /// Script to run before the request (can modify request)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pre_script: Option<ScriptConfig>,
@@ -259,7 +253,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Advanced Features
     // =========================================================================
-
     /// Security fuzzing configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fuzz: Option<FuzzConfig>,
@@ -279,7 +272,6 @@ pub struct WorkflowStep {
     // =========================================================================
     // Additional Module Integrations
     // =========================================================================
-
     /// HAR (HTTP Archive) replay
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub har: Option<HarConfig>,
@@ -411,7 +403,7 @@ pub struct WebSocketConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subprotocol: Option<String>,
 
-    /// Operation mode: "send" (send and disconnect), "listen" (receive only), 
+    /// Operation mode: "send" (send and disconnect), "listen" (receive only),
     /// "interactive" (REPL), "stream" (send from messages array)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub mode: Option<String>,
@@ -643,19 +635,11 @@ pub struct SaveConfig {
 #[serde(tag = "type", rename_all = "lowercase")]
 pub enum StepAuth {
     /// Basic HTTP authentication
-    Basic {
-        username: String,
-        password: String,
-    },
+    Basic { username: String, password: String },
     /// Bearer token authentication
-    Bearer {
-        token: String,
-    },
+    Bearer { token: String },
     /// Digest authentication
-    Digest {
-        username: String,
-        password: String,
-    },
+    Digest { username: String, password: String },
     /// AWS Signature Version 4 authentication
     #[serde(rename = "aws_sigv4")]
     AwsSigV4 {
@@ -767,8 +751,7 @@ fn default_method() -> String {
 /// - Maximum file size is 10 MB (should be more than enough for any workflow)
 pub fn load_workflow(path: &Path) -> Result<Workflow, QuicpulseError> {
     // Check file size before loading to prevent OOM
-    let metadata = fs::metadata(path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = fs::metadata(path).map_err(|e| QuicpulseError::Io(e))?;
 
     let file_size = metadata.len();
     if file_size > MAX_WORKFLOW_FILE_SIZE {
@@ -780,27 +763,24 @@ pub fn load_workflow(path: &Path) -> Result<Workflow, QuicpulseError> {
     }
 
     // Read file content
-    let content = fs::read_to_string(path)
-        .map_err(|e| QuicpulseError::Io(e))?;
+    let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
 
-    let extension = path.extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("");
+    let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
     let workflow = match extension.to_lowercase().as_str() {
-        "yaml" | "yml" => {
-            serde_yaml::from_str(&content)
-                .map_err(|e| QuicpulseError::Argument(format!("Failed to parse YAML workflow: {}", e)))?
-        }
-        "toml" => {
-            toml::from_str(&content)
-                .map_err(|e| QuicpulseError::Argument(format!("Failed to parse TOML workflow: {}", e)))?
-        }
+        "yaml" | "yml" => serde_yaml::from_str(&content).map_err(|e| {
+            QuicpulseError::Argument(format!("Failed to parse YAML workflow: {}", e))
+        })?,
+        "toml" => toml::from_str(&content).map_err(|e| {
+            QuicpulseError::Argument(format!("Failed to parse TOML workflow: {}", e))
+        })?,
         _ => {
             // Try YAML first, then TOML
-            serde_yaml::from_str(&content)
-                .or_else(|_| toml::from_str(&content)
-                    .map_err(|e| QuicpulseError::Argument(format!("Failed to parse workflow: {}", e))))?
+            serde_yaml::from_str(&content).or_else(|_| {
+                toml::from_str(&content).map_err(|e| {
+                    QuicpulseError::Argument(format!("Failed to parse workflow: {}", e))
+                })
+            })?
         }
     };
 
@@ -813,23 +793,30 @@ pub fn load_workflow(path: &Path) -> Result<Workflow, QuicpulseError> {
 /// Validate basic workflow structure
 fn validate_workflow_structure(workflow: &Workflow) -> Result<(), QuicpulseError> {
     if workflow.name.is_empty() {
-        return Err(QuicpulseError::Argument("Workflow must have a name".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Workflow must have a name".to_string(),
+        ));
     }
 
     if workflow.steps.is_empty() {
-        return Err(QuicpulseError::Argument("Workflow must have at least one step".to_string()));
+        return Err(QuicpulseError::Argument(
+            "Workflow must have at least one step".to_string(),
+        ));
     }
 
     // Validate each step has required fields
     for (i, step) in workflow.steps.iter().enumerate() {
         if step.name.is_empty() {
             return Err(QuicpulseError::Argument(format!(
-                "Step {} must have a name", i + 1
+                "Step {} must have a name",
+                i + 1
             )));
         }
         if step.url.is_empty() {
             return Err(QuicpulseError::Argument(format!(
-                "Step {} ({}) must have a URL", i + 1, step.name
+                "Step {} ({}) must have a URL",
+                i + 1,
+                step.name
             )));
         }
     }
@@ -848,7 +835,12 @@ pub fn apply_environment(workflow: &mut Workflow, env_name: &str) -> Result<(), 
         Err(QuicpulseError::Argument(format!(
             "Environment '{}' not found. Available: {}",
             env_name,
-            workflow.environments.keys().cloned().collect::<Vec<_>>().join(", ")
+            workflow
+                .environments
+                .keys()
+                .cloned()
+                .collect::<Vec<_>>()
+                .join(", ")
         )))
     } else {
         Ok(())
@@ -864,7 +856,10 @@ pub fn apply_cli_variables(workflow: &mut Workflow, vars: &[String]) -> Result<(
                 .unwrap_or_else(|_| serde_json::Value::String(value.to_string()));
             workflow.variables.insert(key.to_string(), json_value);
         } else {
-            return Err(QuicpulseError::Argument(format!("Invalid variable format: {}. Use NAME=VALUE", var)));
+            return Err(QuicpulseError::Argument(format!(
+                "Invalid variable format: {}. Use NAME=VALUE",
+                var
+            )));
         }
     }
     Ok(())

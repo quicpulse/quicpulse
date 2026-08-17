@@ -34,7 +34,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 use crate::errors::QuicpulseError;
-use tracing::{info, debug, instrument};
+use tracing::{debug, info, instrument};
 
 /// TLS protocol versions
 ///
@@ -116,27 +116,45 @@ impl Certificate {
         };
 
         // Read certificate file
-        let cert_data = fs::read(cert_path)
-            .map_err(|e| QuicpulseError::Ssl(format!("Failed to read certificate '{}': {}", cert_path.display(), e)))?;
+        let cert_data = fs::read(cert_path).map_err(|e| {
+            QuicpulseError::Ssl(format!(
+                "Failed to read certificate '{}': {}",
+                cert_path.display(),
+                e
+            ))
+        })?;
 
         // Check if it's a PKCS#12 file
-        if is_pkcs12(&cert_data) || cert_path.extension().map(|e| e == "p12" || e == "pfx").unwrap_or(false) {
+        if is_pkcs12(&cert_data)
+            || cert_path
+                .extension()
+                .map(|e| e == "p12" || e == "pfx")
+                .unwrap_or(false)
+        {
             // PKCS#12 format - not supported without native-tls
             return Err(QuicpulseError::Ssl(
-                "PKCS#12 certificates are not supported. Use PEM format instead.".to_string()
+                "PKCS#12 certificates are not supported. Use PEM format instead.".to_string(),
             ));
         }
 
         // PEM format - need to combine cert and key
         if let Some(key_path) = &self.key_file {
-            let key_data = fs::read(key_path)
-                .map_err(|e| QuicpulseError::Ssl(format!("Failed to read key file '{}': {}", key_path.display(), e)))?;
+            let key_data = fs::read(key_path).map_err(|e| {
+                QuicpulseError::Ssl(format!(
+                    "Failed to read key file '{}': {}",
+                    key_path.display(),
+                    e
+                ))
+            })?;
 
             // Check if key is encrypted
             if is_key_encrypted(&key_data) {
                 let password = match &self.key_password {
                     Some(p) => p.clone(),
-                    None => prompt_password(&format!("Enter passphrase for '{}': ", key_path.display()))?,
+                    None => prompt_password(&format!(
+                        "Enter passphrase for '{}': ",
+                        key_path.display()
+                    ))?,
                 };
 
                 // Decrypt the key using rustls-pemfile
@@ -147,8 +165,9 @@ impl Certificate {
                 combined.extend_from_slice(b"\n");
                 combined.extend_from_slice(&decrypted_key);
 
-                let identity = reqwest::Identity::from_pem(&combined)
-                    .map_err(|e| QuicpulseError::Ssl(format!("Failed to load PEM identity: {}", e)))?;
+                let identity = reqwest::Identity::from_pem(&combined).map_err(|e| {
+                    QuicpulseError::Ssl(format!("Failed to load PEM identity: {}", e))
+                })?;
                 return Ok(Some(identity));
             }
 
@@ -216,14 +235,20 @@ fn decrypt_pem_key(_encrypted_data: &[u8], _password: &str) -> Result<Vec<u8>, Q
          Workarounds:\n\
          1. Convert to unencrypted PEM: openssl rsa -in encrypted.key -out decrypted.key\n\
          2. Use PKCS#12 format: openssl pkcs12 -export -in cert.pem -inkey key.pem -out cert.p12\n\
-         3. Provide an unencrypted key file".to_string()
+         3. Provide an unencrypted key file"
+            .to_string(),
     ))
 }
 
 /// Load multiple CA certificates from a PEM bundle file
 fn load_ca_bundle(path: &Path) -> Result<Vec<reqwest::Certificate>, QuicpulseError> {
-    let ca_data = fs::read(path)
-        .map_err(|e| QuicpulseError::Ssl(format!("Failed to read CA bundle '{}': {}", path.display(), e)))?;
+    let ca_data = fs::read(path).map_err(|e| {
+        QuicpulseError::Ssl(format!(
+            "Failed to read CA bundle '{}': {}",
+            path.display(),
+            e
+        ))
+    })?;
 
     let mut certs = Vec::new();
 
@@ -233,12 +258,16 @@ fn load_ca_bundle(path: &Path) -> Result<Vec<reqwest::Certificate>, QuicpulseErr
     for cert_result in rustls_pemfile::certs(&mut reader) {
         match cert_result {
             Ok(cert) => {
-                let reqwest_cert = reqwest::Certificate::from_der(&cert)
-                    .map_err(|e| QuicpulseError::Ssl(format!("Failed to parse CA certificate: {}", e)))?;
+                let reqwest_cert = reqwest::Certificate::from_der(&cert).map_err(|e| {
+                    QuicpulseError::Ssl(format!("Failed to parse CA certificate: {}", e))
+                })?;
                 certs.push(reqwest_cert);
             }
             Err(e) => {
-                return Err(QuicpulseError::Ssl(format!("Failed to parse CA bundle: {}", e)));
+                return Err(QuicpulseError::Ssl(format!(
+                    "Failed to parse CA bundle: {}",
+                    e
+                )));
             }
         }
     }
@@ -428,8 +457,14 @@ mod tests {
     #[test]
     fn test_tls_version_min_tls() {
         // TLS 1.2 and 1.3 return specific versions
-        assert_eq!(TlsVersion::Tls1_2.min_tls_version(), Some(reqwest::tls::Version::TLS_1_2));
-        assert_eq!(TlsVersion::Tls1_3.min_tls_version(), Some(reqwest::tls::Version::TLS_1_3));
+        assert_eq!(
+            TlsVersion::Tls1_2.min_tls_version(),
+            Some(reqwest::tls::Version::TLS_1_2)
+        );
+        assert_eq!(
+            TlsVersion::Tls1_3.min_tls_version(),
+            Some(reqwest::tls::Version::TLS_1_3)
+        );
 
         // Auto returns None (let reqwest decide)
         assert_eq!(TlsVersion::Auto.min_tls_version(), None);

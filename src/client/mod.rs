@@ -9,8 +9,8 @@ pub mod ssl;
 pub mod unix_socket;
 
 // Re-exports
-pub use http::{send_request_with_session, check_status, USER_AGENT_STRING, IntermediateResponse};
-pub use http3::{send_http3_request, Http3Response, run_http3};
+pub use http::{check_status, send_request_with_session, IntermediateResponse, USER_AGENT_STRING};
+pub use http3::{run_http3, send_http3_request, Http3Response};
 
 #[cfg(unix)]
 pub use unix_socket::send_request as send_unix_socket_request;

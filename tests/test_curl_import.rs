@@ -3,8 +3,8 @@
 mod common;
 
 use common::{http, http_error, ExitStatus};
-use wiremock::{MockServer, Mock, ResponseTemplate};
-use wiremock::matchers::{method, path, header, body_string_contains};
+use wiremock::matchers::{body_string_contains, header, method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 // =============================================================================
 // Curl Import - Basic GET Tests
@@ -24,8 +24,11 @@ async fn test_curl_import_simple_get() {
     let response = http(&["--import-curl", &curl_cmd]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
-    assert!(response.stdout.contains("200") || response.stdout.contains("Hello"),
-        "Should get successful response. stdout: {}", response.stdout);
+    assert!(
+        response.stdout.contains("200") || response.stdout.contains("Hello"),
+        "Should get successful response. stdout: {}",
+        response.stdout
+    );
 }
 
 #[tokio::test]
@@ -34,13 +37,15 @@ async fn test_curl_import_with_url_only() {
 
     Mock::given(method("GET"))
         .and(path("/api/users"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_body_json(serde_json::json!([{"id": 1}])))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([{"id": 1}])))
         .mount(&mock_server)
         .await;
 
     // Just URL, no "curl" prefix
-    let response = http(&["--import-curl", &format!("curl {}/api/users", mock_server.uri())]);
+    let response = http(&[
+        "--import-curl",
+        &format!("curl {}/api/users", mock_server.uri()),
+    ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
 }
@@ -56,8 +61,9 @@ async fn test_curl_import_post_json() {
     Mock::given(method("POST"))
         .and(path("/api/create"))
         .and(body_string_contains("name"))
-        .respond_with(ResponseTemplate::new(201)
-            .set_body_json(serde_json::json!({"id": 1, "name": "Test"})))
+        .respond_with(
+            ResponseTemplate::new(201).set_body_json(serde_json::json!({"id": 1, "name": "Test"})),
+        )
         .mount(&mock_server)
         .await;
 
@@ -68,8 +74,11 @@ async fn test_curl_import_post_json() {
     let response = http(&["--import-curl", &curl_cmd]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
-    assert!(response.stdout.contains("201") || response.stdout.contains("id"),
-        "Should create resource. stdout: {}", response.stdout);
+    assert!(
+        response.stdout.contains("201") || response.stdout.contains("id"),
+        "Should create resource. stdout: {}",
+        response.stdout
+    );
 }
 
 #[tokio::test]
@@ -163,10 +172,7 @@ async fn test_curl_import_accept_header() {
         .mount(&mock_server)
         .await;
 
-    let curl_cmd = format!(
-        "curl -H 'Accept: text/plain' {}/api",
-        mock_server.uri()
-    );
+    let curl_cmd = format!("curl -H 'Accept: text/plain' {}/api", mock_server.uri());
     let response = http(&["--import-curl", &curl_cmd]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -260,8 +266,7 @@ async fn test_curl_import_follow_redirects() {
 
     Mock::given(method("GET"))
         .and(path("/redirect"))
-        .respond_with(ResponseTemplate::new(302)
-            .append_header("Location", "/final"))
+        .respond_with(ResponseTemplate::new(302).append_header("Location", "/final"))
         .mount(&mock_server)
         .await;
 
@@ -275,8 +280,11 @@ async fn test_curl_import_follow_redirects() {
     let response = http(&["--import-curl", &curl_cmd]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
-    assert!(response.stdout.contains("Final") || response.stdout.contains("200"),
-        "Should follow redirect. stdout: {}", response.stdout);
+    assert!(
+        response.stdout.contains("Final") || response.stdout.contains("200"),
+        "Should follow redirect. stdout: {}",
+        response.stdout
+    );
 }
 
 #[tokio::test]
@@ -285,8 +293,7 @@ async fn test_curl_import_location_flag() {
 
     Mock::given(method("GET"))
         .and(path("/start"))
-        .respond_with(ResponseTemplate::new(301)
-            .append_header("Location", "/end"))
+        .respond_with(ResponseTemplate::new(301).append_header("Location", "/end"))
         .mount(&mock_server)
         .await;
 
@@ -350,8 +357,7 @@ async fn test_curl_import_timeout() {
 
     Mock::given(method("GET"))
         .and(path("/slow"))
-        .respond_with(ResponseTemplate::new(200)
-            .set_delay(std::time::Duration::from_millis(100)))
+        .respond_with(ResponseTemplate::new(200).set_delay(std::time::Duration::from_millis(100)))
         .mount(&mock_server)
         .await;
 
@@ -435,8 +441,7 @@ async fn test_curl_import_head_method() {
 
     Mock::given(method("HEAD"))
         .and(path("/resource"))
-        .respond_with(ResponseTemplate::new(200)
-            .append_header("X-Custom", "value"))
+        .respond_with(ResponseTemplate::new(200).append_header("X-Custom", "value"))
         .mount(&mock_server)
         .await;
 
@@ -463,8 +468,12 @@ async fn test_curl_generate_simple_get() {
     let response = http(&["--curl", "GET", &format!("{}/test", mock_server.uri())]);
 
     // Should output curl command, not make request
-    assert!(response.stdout.contains("curl") || response.stderr.contains("curl"),
-        "Should generate curl command. stdout: {}, stderr: {}", response.stdout, response.stderr);
+    assert!(
+        response.stdout.contains("curl") || response.stderr.contains("curl"),
+        "Should generate curl command. stdout: {}, stderr: {}",
+        response.stdout,
+        response.stderr
+    );
 }
 
 #[tokio::test]
@@ -475,13 +484,16 @@ async fn test_curl_generate_with_headers() {
         "--curl",
         "GET",
         &format!("{}/test", mock_server.uri()),
-        "X-Custom:value"
+        "X-Custom:value",
     ]);
 
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should include the header in curl output
-    assert!(output.contains("-H") || output.contains("header"),
-        "Should include header flag. output: {}", output);
+    assert!(
+        output.contains("-H") || output.contains("header"),
+        "Should include header flag. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -492,13 +504,16 @@ async fn test_curl_generate_post_with_data() {
         "--curl",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "name=John"
+        "name=John",
     ]);
 
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should include POST method and data
-    assert!(output.contains("POST") || output.contains("-X"),
-        "Should include method. output: {}", output);
+    assert!(
+        output.contains("POST") || output.contains("-X"),
+        "Should include method. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -507,15 +522,19 @@ async fn test_curl_generate_with_auth() {
 
     let response = http(&[
         "--curl",
-        "--auth", "user:pass",
+        "--auth",
+        "user:pass",
         "GET",
-        &format!("{}/secure", mock_server.uri())
+        &format!("{}/secure", mock_server.uri()),
     ]);
 
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should include -u flag
-    assert!(output.contains("-u") || output.contains("Authorization"),
-        "Should include auth. output: {}", output);
+    assert!(
+        output.contains("-u") || output.contains("Authorization"),
+        "Should include auth. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -540,7 +559,10 @@ fn test_curl_import_empty_command() {
 
 #[test]
 fn test_curl_import_unterminated_quote() {
-    let response = http_error(&["--import-curl", "curl -H 'Content-Type: application/json https://example.com"]);
+    let response = http_error(&[
+        "--import-curl",
+        "curl -H 'Content-Type: application/json https://example.com",
+    ]);
 
     // Unterminated quote should error
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -581,10 +603,7 @@ async fn test_curl_import_with_user_agent() {
         .mount(&mock_server)
         .await;
 
-    let curl_cmd = format!(
-        "curl -A 'MyApp/1.0' {}/api",
-        mock_server.uri()
-    );
+    let curl_cmd = format!("curl -A 'MyApp/1.0' {}/api", mock_server.uri());
     let response = http(&["--import-curl", &curl_cmd]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -601,10 +620,7 @@ async fn test_curl_import_with_referer() {
         .mount(&mock_server)
         .await;
 
-    let curl_cmd = format!(
-        "curl -e 'https://google.com' {}/page",
-        mock_server.uri()
-    );
+    let curl_cmd = format!("curl -e 'https://google.com' {}/page", mock_server.uri());
     let response = http(&["--import-curl", &curl_cmd]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -617,7 +633,11 @@ async fn test_curl_import_with_referer() {
 #[test]
 fn test_curl_import_proxy_option() {
     // Just test parsing - don't actually connect via proxy
-    let response = http(&["--import-curl", "curl -x http://proxy:8080 http://nonexistent.example.com/test", "--offline"]);
+    let response = http(&[
+        "--import-curl",
+        "curl -x http://proxy:8080 http://nonexistent.example.com/test",
+        "--offline",
+    ]);
 
     // Should parse successfully (offline means no actual request)
     // Proxy option should be recognized from the curl command
@@ -634,12 +654,16 @@ fn test_curl_roundtrip_simple() {
     // Note: --curl just generates the command without making a request
     let gen_response = http(&[
         "--curl",
-        "--offline",  // Don't try to connect
+        "--offline", // Don't try to connect
         "GET",
-        "http://example.com/roundtrip"
+        "http://example.com/roundtrip",
     ]);
 
     // The generated command should contain curl
     let output = format!("{}{}", gen_response.stdout, gen_response.stderr);
-    assert!(output.contains("curl"), "Should generate curl command. output: {}", output);
+    assert!(
+        output.contains("curl"),
+        "Should generate curl command. output: {}",
+        output
+    );
 }

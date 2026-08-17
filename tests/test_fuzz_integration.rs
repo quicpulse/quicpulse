@@ -2,10 +2,10 @@
 
 mod common;
 
-use common::{http, http_error, fixtures, ExitStatus};
+use common::{fixtures, http, http_error, ExitStatus};
 use std::path::PathBuf;
-use wiremock::{MockServer, Mock, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
 fn fixture_path(name: &str) -> PathBuf {
     fixtures::fixture_path(name)
@@ -30,15 +30,20 @@ async fn test_fuzz_basic() {
         "POST",
         &format!("{}/api/test", mock_server.uri()),
         "name=test",
-        "value=123"
+        "value=123",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should show fuzz results
-    assert!(output.contains("Fuzz") || output.contains("fuzz") ||
-            output.contains("payload") || output.contains("requests"),
-        "Should show fuzz results. output: {}", output);
+    assert!(
+        output.contains("Fuzz")
+            || output.contains("fuzz")
+            || output.contains("payload")
+            || output.contains("requests"),
+        "Should show fuzz results. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -54,11 +59,12 @@ async fn test_fuzz_single_field() {
     // Only fuzz the "name" field
     let response = http(&[
         "--fuzz",
-        "--fuzz-field", "name",
+        "--fuzz-field",
+        "name",
         "POST",
         &format!("{}/api", mock_server.uri()),
         "name=test",
-        "email=user@example.com"
+        "email=user@example.com",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -77,12 +83,14 @@ async fn test_fuzz_multiple_fields() {
     // Fuzz multiple specific fields
     let response = http(&[
         "--fuzz",
-        "--fuzz-field", "name",
-        "--fuzz-field", "email",
+        "--fuzz-field",
+        "name",
+        "--fuzz-field",
+        "email",
         "POST",
         &format!("{}/api", mock_server.uri()),
         "name=test",
-        "email=test@example.com"
+        "email=test@example.com",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -104,18 +112,24 @@ async fn test_fuzz_sql_category() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "sql",
+        "--fuzz-category",
+        "sql",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "query=test"
+        "query=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should show SQL injection tests
-    assert!(output.contains("sql") || output.contains("SQL") ||
-            output.contains("injection") || output.len() > 100,
-        "Should run SQL injection tests. output: {}", output);
+    assert!(
+        output.contains("sql")
+            || output.contains("SQL")
+            || output.contains("injection")
+            || output.len() > 100,
+        "Should run SQL injection tests. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -130,10 +144,11 @@ async fn test_fuzz_xss_category() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "xss",
+        "--fuzz-category",
+        "xss",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "content=test"
+        "content=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -151,10 +166,11 @@ async fn test_fuzz_cmd_category() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "cmd",
+        "--fuzz-category",
+        "cmd",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "command=test"
+        "command=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -172,11 +188,13 @@ async fn test_fuzz_multiple_categories() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "sql",
-        "--fuzz-category", "xss",
+        "--fuzz-category",
+        "sql",
+        "--fuzz-category",
+        "xss",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -199,10 +217,11 @@ async fn test_fuzz_risk_level_filter() {
     // Only high-risk payloads (level 4+)
     let response = http(&[
         "--fuzz",
-        "--fuzz-risk", "4",
+        "--fuzz-risk",
+        "4",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "input=test"
+        "input=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -221,10 +240,11 @@ async fn test_fuzz_low_risk_level() {
     // Include all risk levels (1+)
     let response = http(&[
         "--fuzz",
-        "--fuzz-risk", "1",
+        "--fuzz-risk",
+        "1",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "input=test"
+        "input=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -246,11 +266,13 @@ async fn test_fuzz_custom_payload() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-payload", "custom_payload_1",
-        "--fuzz-payload", "custom_payload_2",
+        "--fuzz-payload",
+        "custom_payload_1",
+        "--fuzz-payload",
+        "custom_payload_2",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -269,10 +291,11 @@ async fn test_fuzz_custom_dict_file() {
     let dict_path = fixture_path("payloads.txt");
     let response = http(&[
         "--fuzz",
-        "--fuzz-dict", dict_path.to_str().unwrap(),
+        "--fuzz-dict",
+        dict_path.to_str().unwrap(),
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "input=test"
+        "input=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -302,17 +325,23 @@ async fn test_fuzz_detects_500_anomaly() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "boundary",
+        "--fuzz-category",
+        "boundary",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should detect and report 500 errors as anomalies
-    assert!(output.contains("anomal") || output.contains("Anomal") ||
-            output.contains("500") || output.contains("error"),
-        "Should detect anomalies. output: {}", output);
+    assert!(
+        output.contains("anomal")
+            || output.contains("Anomal")
+            || output.contains("500")
+            || output.contains("error"),
+        "Should detect anomalies. output: {}",
+        output
+    );
 }
 
 #[tokio::test]
@@ -328,10 +357,11 @@ async fn test_fuzz_anomalies_only() {
     let response = http(&[
         "--fuzz",
         "--fuzz-anomalies-only",
-        "--fuzz-category", "boundary",
+        "--fuzz-category",
+        "boundary",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -354,14 +384,19 @@ async fn test_fuzz_stop_on_anomaly() {
         "--fuzz-stop-on-anomaly",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     let output = format!("{}{}", response.stdout, response.stderr);
     // Should stop on first anomaly
-    assert!(output.contains("stop") || output.contains("anomal") ||
-            output.contains("500") || output.len() > 50,
-        "Should stop on anomaly. output: {}", output);
+    assert!(
+        output.contains("stop")
+            || output.contains("anomal")
+            || output.contains("500")
+            || output.len() > 50,
+        "Should stop on anomaly. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -380,11 +415,13 @@ async fn test_fuzz_custom_concurrency() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-concurrency", "5",
-        "--fuzz-category", "boundary",
+        "--fuzz-concurrency",
+        "5",
+        "--fuzz-category",
+        "boundary",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -406,23 +443,25 @@ async fn test_fuzz_shows_category_summary() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "sql",
-        "--fuzz-category", "xss",
+        "--fuzz-category",
+        "sql",
+        "--fuzz-category",
+        "xss",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "input=test"
+        "input=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show category breakdown in summary
-    let has_categories = output.contains("sql") ||
-                         output.contains("SQL") ||
-                         output.contains("xss") ||
-                         output.contains("XSS") ||
-                         output.contains("category") ||
-                         output.len() > 200;
+    let has_categories = output.contains("sql")
+        || output.contains("SQL")
+        || output.contains("xss")
+        || output.contains("XSS")
+        || output.contains("category")
+        || output.len() > 200;
     assert!(has_categories, "Should show categories. output: {}", output);
 }
 
@@ -438,21 +477,22 @@ async fn test_fuzz_shows_statistics() {
 
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "boundary",
+        "--fuzz-category",
+        "boundary",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "value=test"
+        "value=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
     let output = format!("{}{}", response.stdout, response.stderr);
 
     // Should show statistics
-    let has_stats = output.contains("total") ||
-                    output.contains("Total") ||
-                    output.contains("requests") ||
-                    output.contains("success") ||
-                    output.len() > 100;
+    let has_stats = output.contains("total")
+        || output.contains("Total")
+        || output.contains("requests")
+        || output.contains("success")
+        || output.len() > 100;
     assert!(has_stats, "Should show statistics. output: {}", output);
 }
 
@@ -462,11 +502,7 @@ async fn test_fuzz_shows_statistics() {
 
 #[test]
 fn test_fuzz_no_data_fields() {
-    let response = http_error(&[
-        "--fuzz",
-        "GET",
-        "http://localhost:9999/api"
-    ]);
+    let response = http_error(&["--fuzz", "GET", "http://localhost:9999/api"]);
 
     // No data fields to fuzz should error
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -476,28 +512,33 @@ fn test_fuzz_no_data_fields() {
 fn test_fuzz_invalid_category() {
     let response = http_error(&[
         "--fuzz",
-        "--fuzz-category", "invalid_category_xyz",
+        "--fuzz-category",
+        "invalid_category_xyz",
         "POST",
         "http://localhost:9999/api",
-        "data=test"
+        "data=test",
     ]);
 
     // Invalid category should error or be ignored
     // (depends on implementation)
-    assert!(response.exit_status == ExitStatus::Error ||
-            response.stderr.contains("invalid") ||
-            response.stderr.contains("unknown"),
-        "Should handle invalid category. stderr: {}", response.stderr);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || response.stderr.contains("invalid")
+            || response.stderr.contains("unknown"),
+        "Should handle invalid category. stderr: {}",
+        response.stderr
+    );
 }
 
 #[test]
 fn test_fuzz_nonexistent_dict_file() {
     let response = http_error(&[
         "--fuzz",
-        "--fuzz-dict", "/nonexistent/path/payloads.txt",
+        "--fuzz-dict",
+        "/nonexistent/path/payloads.txt",
         "POST",
         "http://localhost:9999/api",
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -520,11 +561,12 @@ async fn test_fuzz_json_body() {
     // JSON data fields
     let response = http(&[
         "--fuzz",
-        "--fuzz-category", "type",
+        "--fuzz-category",
+        "type",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "name:=123",  // JSON number
-        "active:=true"  // JSON boolean
+        "name:=123",    // JSON number
+        "active:=true", // JSON boolean
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -544,11 +586,12 @@ async fn test_fuzz_form_body() {
     let response = http(&[
         "--fuzz",
         "--form",
-        "--fuzz-category", "sql",
+        "--fuzz-category",
+        "sql",
         "POST",
         &format!("{}/api", mock_server.uri()),
         "username=test",
-        "password=secret"
+        "password=secret",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -570,11 +613,13 @@ async fn test_fuzz_with_auth() {
 
     let response = http(&[
         "--fuzz",
-        "--auth", "user:pass",
-        "--fuzz-category", "boundary",
+        "--auth",
+        "user:pass",
+        "--fuzz-category",
+        "boundary",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);
@@ -592,12 +637,15 @@ async fn test_fuzz_with_bearer_token() {
 
     let response = http(&[
         "--fuzz",
-        "--auth", "token123",
-        "--auth-type", "bearer",
-        "--fuzz-category", "boundary",
+        "--auth",
+        "token123",
+        "--auth-type",
+        "bearer",
+        "--fuzz-category",
+        "boundary",
         "POST",
         &format!("{}/api", mock_server.uri()),
-        "data=test"
+        "data=test",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Success);

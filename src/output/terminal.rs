@@ -1,14 +1,14 @@
 pub mod colors {
-    pub const GREY: u8 = 102;      // #7D7D7D - Punctuation, secondary
-    pub const AQUA: u8 = 109;      // #7A9EB5 - Numbers, info
-    pub const PURPLE: u8 = 134;    // #9E54D6 - Special
-    pub const ORANGE: u8 = 208;    // #F2913D - Warnings, PUT/PATCH
-    pub const RED: u8 = 167;       // #E34F45 - Errors, DELETE
-    pub const BLUE: u8 = 68;       // #426BD1 - Names, labels
-    pub const PINK: u8 = 176;      // #DE85DE - Keys
-    pub const GREEN: u8 = 71;      // #63C27A - Success, GET
-    pub const YELLOW: u8 = 185;    // #CCCC3D - POST, redirects
-    pub const WHITE: u8 = 250;     // Primary text
+    pub const GREY: u8 = 102; // #7D7D7D - Punctuation, secondary
+    pub const AQUA: u8 = 109; // #7A9EB5 - Numbers, info
+    pub const PURPLE: u8 = 134; // #9E54D6 - Special
+    pub const ORANGE: u8 = 208; // #F2913D - Warnings, PUT/PATCH
+    pub const RED: u8 = 167; // #E34F45 - Errors, DELETE
+    pub const BLUE: u8 = 68; // #426BD1 - Names, labels
+    pub const PINK: u8 = 176; // #DE85DE - Keys
+    pub const GREEN: u8 = 71; // #63C27A - Success, GET
+    pub const YELLOW: u8 = 185; // #CCCC3D - POST, redirects
+    pub const WHITE: u8 = 250; // Primary text
 }
 
 /// ANSI escape code constants
@@ -106,23 +106,23 @@ pub mod protocol {
     /// gRPC status
     pub fn grpc_status(code: i32) -> String {
         let color = match code {
-            0 => colors::GREEN,  // OK
-            1 => colors::ORANGE, // CANCELLED
-            2 => colors::RED,    // UNKNOWN
-            3 => colors::ORANGE, // INVALID_ARGUMENT
-            4 => colors::ORANGE, // DEADLINE_EXCEEDED
-            5 => colors::RED,    // NOT_FOUND
-            6 => colors::ORANGE, // ALREADY_EXISTS
-            7 => colors::RED,    // PERMISSION_DENIED
-            8 => colors::ORANGE, // RESOURCE_EXHAUSTED
-            9 => colors::ORANGE, // FAILED_PRECONDITION
+            0 => colors::GREEN,   // OK
+            1 => colors::ORANGE,  // CANCELLED
+            2 => colors::RED,     // UNKNOWN
+            3 => colors::ORANGE,  // INVALID_ARGUMENT
+            4 => colors::ORANGE,  // DEADLINE_EXCEEDED
+            5 => colors::RED,     // NOT_FOUND
+            6 => colors::ORANGE,  // ALREADY_EXISTS
+            7 => colors::RED,     // PERMISSION_DENIED
+            8 => colors::ORANGE,  // RESOURCE_EXHAUSTED
+            9 => colors::ORANGE,  // FAILED_PRECONDITION
             10 => colors::ORANGE, // ABORTED
             11 => colors::ORANGE, // OUT_OF_RANGE
-            12 => colors::RED,   // UNIMPLEMENTED
-            13 => colors::RED,   // INTERNAL
-            14 => colors::RED,   // UNAVAILABLE
-            15 => colors::RED,   // DATA_LOSS
-            16 => colors::RED,   // UNAUTHENTICATED
+            12 => colors::RED,    // UNIMPLEMENTED
+            13 => colors::RED,    // INTERNAL
+            14 => colors::RED,    // UNAVAILABLE
+            15 => colors::RED,    // DATA_LOSS
+            16 => colors::RED,    // UNAUTHENTICATED
             _ => colors::GREY,
         };
         bold_fg(color)

@@ -2,30 +2,34 @@
 //!
 //! This module provides JQ-style filtering for JSON responses using the jaq library.
 
-use jaq_core::{Ctx, RcIter};
+use crate::errors::QuicpulseError;
+use jaq_core::load::{Arena, File, Loader};
+use jaq_core::{data, unwrap_valr, Compiler, Ctx, Vars};
 use jaq_json::Val;
 use serde_json::Value as JsonValue;
-use crate::errors::QuicpulseError;
 
 /// Apply a JQ filter expression to a JSON value
 pub fn apply_filter(json: &JsonValue, filter_expr: &str) -> Result<Vec<JsonValue>, QuicpulseError> {
     // Parse the filter
     let filter = parse_filter(filter_expr)?;
 
-    // Convert serde_json to jaq value using built-in From impl
-    let input: Val = json.clone().into();
+    // Parse JSON into jaq Val
+    let json_bytes = serde_json::to_vec(json)
+        .map_err(|e| QuicpulseError::Argument(format!("JSON serialization error: {}", e)))?;
+    let input = jaq_json::read::parse_single(&json_bytes).map_err(|e| {
+        QuicpulseError::Argument(format!("Failed to parse JSON for filter: {:?}", e))
+    })?;
 
-    // Create empty context (no variables)
-    let inputs = RcIter::new(core::iter::empty());
-    let ctx = Ctx::new([], &inputs);
+    // Create execution context
+    let ctx = Ctx::<data::JustLut<Val>>::new(&filter.lut, Vars::new([]));
 
     // Run the filter and collect results
     let mut output = Vec::new();
-    for result in filter.run((ctx, input)) {
+    for result in filter.id.run((ctx, input)).map(unwrap_valr) {
         match result {
             Ok(val) => {
-                // Convert back using built-in From impl
-                let json_val: JsonValue = val.into();
+                let json_val: JsonValue = serde_json::from_str(&val.to_string())
+                    .unwrap_or_else(|_| JsonValue::String(val.to_string()));
                 output.push(json_val);
             }
             Err(e) => {
@@ -38,28 +42,36 @@ pub fn apply_filter(json: &JsonValue, filter_expr: &str) -> Result<Vec<JsonValue
 }
 
 /// Parse a JQ filter expression
-fn parse_filter(expr: &str) -> Result<jaq_core::Filter<jaq_core::Native<Val>>, QuicpulseError> {
-    use jaq_core::load::{Arena, File, Loader};
-
+fn parse_filter(
+    expr: &str,
+) -> Result<jaq_core::compile::Filter<jaq_core::Native<data::JustLut<Val>>>, QuicpulseError> {
     let arena = Arena::default();
-    let loader = Loader::new(jaq_std::defs().chain(jaq_json::defs()));
+    let defs = jaq_core::defs()
+        .chain(jaq_std::defs())
+        .chain(jaq_json::defs());
+    let loader = Loader::new(defs);
     let path = ();
 
-    let modules = loader.load(&arena, File { path, code: expr })
+    let modules = loader
+        .load(&arena, File { path, code: expr })
         .map_err(|errs| {
-            let msg = errs.into_iter()
+            let msg = errs
+                .into_iter()
                 .map(|e| format!("{:?}", e))
                 .collect::<Vec<_>>()
                 .join(", ");
             QuicpulseError::Argument(format!("Failed to parse filter: {}", msg))
         })?;
 
-    // Include standard functions from jaq_std and jaq_json
-    let filter = jaq_core::Compiler::<_, jaq_core::Native<Val>>::default()
-        .with_funs(jaq_std::funs().chain(jaq_json::funs()))
+    let funs = jaq_core::funs()
+        .chain(jaq_std::funs())
+        .chain(jaq_json::funs());
+    let filter = Compiler::<_, data::JustLut<Val>>::default()
+        .with_funs(funs)
         .compile(modules)
         .map_err(|errs| {
-            let msg = errs.into_iter()
+            let msg = errs
+                .into_iter()
                 .map(|e| format!("{:?}", e))
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -82,7 +94,8 @@ pub fn format_filtered_output(results: &[JsonValue], pretty: bool) -> String {
             serde_json::to_string(&results[0]).unwrap_or_else(|_| format!("{}", results[0]))
         }
     } else {
-        results.iter()
+        results
+            .iter()
             .map(|v| {
                 if pretty {
                     serde_json::to_string_pretty(v).unwrap_or_else(|_| format!("{}", v))

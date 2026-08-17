@@ -1,13 +1,13 @@
 //! HAR (HTTP Archive) replay support
 
-pub mod types;
 pub mod parser;
 pub mod runner;
+pub mod types;
 
-pub use parser::{load_har, filter_entries, filter_by_indices};
+pub use parser::{filter_by_indices, filter_entries, load_har};
 pub use runner::{
-    HarRunner, HarReplayOptions,
-    format_replay_results, format_har_list, select_requests_interactive, parse_delay
+    format_har_list, format_replay_results, parse_delay, select_requests_interactive,
+    HarReplayOptions, HarRunner,
 };
 
 use crate::cli::Args;

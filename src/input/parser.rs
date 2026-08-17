@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use once_cell::sync::Lazy;
 
-use super::{InputItem, FileUploadMeta};
+use super::{FileUploadMeta, InputItem};
 use crate::errors::QuicpulseError;
 
 /// Separator patterns - order doesn't matter as we sort by length at runtime
@@ -119,7 +119,12 @@ fn find_separator(input: &str, sep: &str, kind: SeparatorKind) -> Option<usize> 
 }
 
 /// Build an InputItem from parsed components
-fn build_item(input: &str, pos: usize, sep: &str, kind: SeparatorKind) -> Result<InputItem, QuicpulseError> {
+fn build_item(
+    input: &str,
+    pos: usize,
+    sep: &str,
+    kind: SeparatorKind,
+) -> Result<InputItem, QuicpulseError> {
     let key = &input[..pos];
     let value = &input[pos + sep.len()..];
 
@@ -166,11 +171,9 @@ fn build_item(input: &str, pos: usize, sep: &str, kind: SeparatorKind) -> Result
         }),
 
         SeparatorKind::JsonField => {
-            let json_value = serde_json::from_str(value)
-                .map_err(|e| QuicpulseError::Parse(format!(
-                    "Invalid JSON in '{}': {}",
-                    input, e
-                )))?;
+            let json_value = serde_json::from_str(value).map_err(|e| {
+                QuicpulseError::Parse(format!("Invalid JSON in '{}': {}", input, e))
+            })?;
             Ok(InputItem::JsonField {
                 key: key.to_string(),
                 value: json_value,
@@ -296,7 +299,10 @@ mod tests {
     #[test]
     fn test_parse_file_upload_with_type() {
         let item = parse("avatar@/path/to/file;type=image/png").unwrap();
-        if let InputItem::FileUpload { field, mime_type, .. } = item {
+        if let InputItem::FileUpload {
+            field, mime_type, ..
+        } = item
+        {
             assert_eq!(field, "avatar");
             assert_eq!(mime_type, Some("image/png".to_string()));
         } else {

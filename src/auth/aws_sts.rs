@@ -3,9 +3,9 @@
 //! Provides automatic role assumption for AWS profiles configured with
 //! `role_arn` and `source_profile`.
 
-use crate::errors::QuicpulseError;
 use super::aws::AwsSigV4Config;
 use super::aws_config::AwsProfile;
+use crate::errors::QuicpulseError;
 
 /// Temporary AWS credentials from STS
 #[derive(Debug, Clone)]
@@ -22,7 +22,9 @@ pub async fn resolve_assume_role_profile(
     region: String,
     service: String,
 ) -> Result<AwsSigV4Config, QuicpulseError> {
-    let role_arn = profile.role_arn.as_ref()
+    let role_arn = profile
+        .role_arn
+        .as_ref()
         .ok_or_else(|| QuicpulseError::Config("Profile missing role_arn".to_string()))?;
 
     // Get source credentials
@@ -39,7 +41,9 @@ pub async fn resolve_assume_role_profile(
         }
     } else if source_profile.is_sso_profile() {
         // Recursively resolve SSO profile
-        let sso_config = super::aws_sso::resolve_sso_profile(&source_profile, region.clone(), "sts".to_string()).await?;
+        let sso_config =
+            super::aws_sso::resolve_sso_profile(&source_profile, region.clone(), "sts".to_string())
+                .await?;
         AwsCredentials {
             access_key_id: sso_config.access_key_id,
             secret_access_key: sso_config.secret_access_key,
@@ -54,7 +58,9 @@ pub async fn resolve_assume_role_profile(
     };
 
     // Build AssumeRole request
-    let role_session_name = profile.role_session_name.clone()
+    let role_session_name = profile
+        .role_session_name
+        .clone()
         .unwrap_or_else(|| format!("quicpulse-{}", std::process::id()));
 
     let assumed_creds = assume_role(
@@ -64,7 +70,8 @@ pub async fn resolve_assume_role_profile(
         profile.external_id.as_deref(),
         profile.duration_seconds,
         &region,
-    ).await?;
+    )
+    .await?;
 
     Ok(AwsSigV4Config {
         access_key_id: assumed_creds.access_key_id,
@@ -84,10 +91,10 @@ async fn assume_role(
     duration_seconds: Option<u32>,
     region: &str,
 ) -> Result<AwsCredentials, QuicpulseError> {
-    use std::time::SystemTime;
+    use aws_credential_types::Credentials;
     use aws_sigv4::http_request::{sign, SignableBody, SignableRequest, SigningSettings};
     use aws_sigv4::sign::v4;
-    use aws_credential_types::Credentials;
+    use std::time::SystemTime;
 
     // Build the STS request
     let sts_endpoint = format!("https://sts.{}.amazonaws.com", region);
@@ -113,7 +120,8 @@ async fn assume_role(
     }
 
     // Build query string
-    let query_string: String = params.iter()
+    let query_string: String = params
+        .iter()
         .map(|(k, v)| format!("{}={}", k, urlencoding::encode(v)))
         .collect::<Vec<_>>()
         .join("&");
@@ -148,7 +156,10 @@ async fn assume_role(
     let uri = format!(
         "{}{}",
         parsed_url.path(),
-        parsed_url.query().map(|q| format!("?{}", q)).unwrap_or_default()
+        parsed_url
+            .query()
+            .map(|q| format!("?{}", q))
+            .unwrap_or_default()
     );
 
     // Build headers
@@ -162,9 +173,12 @@ async fn assume_role(
     let signable_request = SignableRequest::new(
         "GET",
         &uri,
-        header_map.iter().map(|(k, v)| (k.as_str(), v.to_str().unwrap_or(""))),
+        header_map
+            .iter()
+            .map(|(k, v)| (k.as_str(), v.to_str().unwrap_or(""))),
         SignableBody::empty(),
-    ).map_err(|e| QuicpulseError::Auth(format!("Failed to create STS signable request: {}", e)))?;
+    )
+    .map_err(|e| QuicpulseError::Auth(format!("Failed to create STS signable request: {}", e)))?;
 
     let signing_output = sign(signable_request, &signing_params.into())
         .map_err(|e| QuicpulseError::Auth(format!("Failed to sign STS request: {}", e)))?;
@@ -179,7 +193,9 @@ async fn assume_role(
     }
 
     // Make the request
-    let response = request.send().await
+    let response = request
+        .send()
+        .await
         .map_err(|e| QuicpulseError::Config(format!("STS AssumeRole request failed: {}", e)))?;
 
     if !response.status().is_success() {
@@ -192,7 +208,9 @@ async fn assume_role(
     }
 
     // Parse XML response
-    let body: String = response.text().await
+    let body: String = response
+        .text()
+        .await
         .map_err(|e| QuicpulseError::Config(format!("Failed to read STS response: {}", e)))?;
 
     parse_assume_role_response(&body)

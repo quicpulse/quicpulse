@@ -28,13 +28,14 @@ pub const TRACE: &str = "TRACE";
 pub const CONNECT: &str = "CONNECT";
 
 /// All standard HTTP methods
-pub const STANDARD_METHODS: &[&str] = &[
-    GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT,
-];
+pub const STANDARD_METHODS: &[&str] =
+    &[GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, TRACE, CONNECT];
 
 /// Check if a string is a standard HTTP method
 pub fn is_standard(method: &str) -> bool {
-    STANDARD_METHODS.iter().any(|&m| m.eq_ignore_ascii_case(method))
+    STANDARD_METHODS
+        .iter()
+        .any(|&m| m.eq_ignore_ascii_case(method))
 }
 
 /// Check if a string looks like an HTTP method (all uppercase, reasonable length)

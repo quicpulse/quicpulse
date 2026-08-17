@@ -3,9 +3,9 @@
 //! Provides support for obtaining access tokens using the OAuth 2.0
 //! client credentials grant type.
 
-use std::time::{Duration, Instant};
-use serde::{Deserialize, Serialize};
 use crate::errors::QuicpulseError;
+use serde::{Deserialize, Serialize};
+use std::time::{Duration, Instant};
 
 /// OAuth 2.0 configuration
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ impl OAuth2Config {
 
         if parts.len() != 2 {
             return Err(QuicpulseError::Argument(
-                "OAuth2 credentials must be in format: CLIENT_ID:CLIENT_SECRET".to_string()
+                "OAuth2 credentials must be in format: CLIENT_ID:CLIENT_SECRET".to_string(),
             ));
         }
 
@@ -47,21 +47,24 @@ impl OAuth2Config {
     pub fn from_env(token_url: String, scopes: Vec<String>) -> Result<Self, QuicpulseError> {
         let client_id = std::env::var("OAUTH_CLIENT_ID")
             .or_else(|_| std::env::var("CLIENT_ID"))
-            .map_err(|_| QuicpulseError::Argument(
-                "OAUTH_CLIENT_ID environment variable not set".to_string()
-            ))?;
+            .map_err(|_| {
+                QuicpulseError::Argument("OAUTH_CLIENT_ID environment variable not set".to_string())
+            })?;
 
         let client_secret = std::env::var("OAUTH_CLIENT_SECRET")
             .or_else(|_| std::env::var("CLIENT_SECRET"))
-            .map_err(|_| QuicpulseError::Argument(
-                "OAUTH_CLIENT_SECRET environment variable not set".to_string()
-            ))?;
+            .map_err(|_| {
+                QuicpulseError::Argument(
+                    "OAUTH_CLIENT_SECRET environment variable not set".to_string(),
+                )
+            })?;
 
         let token_url = if token_url.is_empty() {
-            std::env::var("OAUTH_TOKEN_URL")
-                .map_err(|_| QuicpulseError::Argument(
-                    "OAuth token URL not provided and OAUTH_TOKEN_URL not set".to_string()
-                ))?
+            std::env::var("OAUTH_TOKEN_URL").map_err(|_| {
+                QuicpulseError::Argument(
+                    "OAuth token URL not provided and OAUTH_TOKEN_URL not set".to_string(),
+                )
+            })?
         } else {
             token_url
         };
@@ -163,9 +166,7 @@ pub async fn obtain_token(config: &OAuth2Config) -> Result<CachedToken, Quicpuls
     };
 
     // Build form data
-    let mut form_params = vec![
-        ("grant_type", "client_credentials".to_string()),
-    ];
+    let mut form_params = vec![("grant_type", "client_credentials".to_string())];
     if let Some(ref scope) = scope {
         form_params.push(("scope", scope.clone()));
     }
@@ -183,7 +184,9 @@ pub async fn obtain_token(config: &OAuth2Config) -> Result<CachedToken, Quicpuls
         .map_err(|e| QuicpulseError::Request(e))?;
 
     let status = response.status();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| QuicpulseError::Request(e))?;
 
     if !status.is_success() {
@@ -193,7 +196,10 @@ pub async fn obtain_token(config: &OAuth2Config) -> Result<CachedToken, Quicpuls
                 Some(desc) => format!("{}: {}", error.error, desc),
                 None => error.error,
             };
-            return Err(QuicpulseError::Auth(format!("OAuth2 token request failed: {}", msg)));
+            return Err(QuicpulseError::Auth(format!(
+                "OAuth2 token request failed: {}",
+                msg
+            )));
         }
         return Err(QuicpulseError::Auth(format!(
             "OAuth2 token request failed with status {}: {}",
@@ -207,7 +213,11 @@ pub async fn obtain_token(config: &OAuth2Config) -> Result<CachedToken, Quicpuls
 
     Ok(CachedToken {
         access_token: token.access_token,
-        token_type: if token.token_type.is_empty() { "Bearer".to_string() } else { token.token_type },
+        token_type: if token.token_type.is_empty() {
+            "Bearer".to_string()
+        } else {
+            token.token_type
+        },
         obtained_at,
         expires_in: token.expires_in.map(Duration::from_secs),
         refresh_token: token.refresh_token,
@@ -244,7 +254,9 @@ pub async fn refresh_token(
         .map_err(|e| QuicpulseError::Request(e))?;
 
     let status = response.status();
-    let body = response.text().await
+    let body = response
+        .text()
+        .await
         .map_err(|e| QuicpulseError::Request(e))?;
 
     if !status.is_success() {
@@ -253,7 +265,10 @@ pub async fn refresh_token(
                 Some(desc) => format!("{}: {}", error.error, desc),
                 None => error.error,
             };
-            return Err(QuicpulseError::Auth(format!("Token refresh failed: {}", msg)));
+            return Err(QuicpulseError::Auth(format!(
+                "Token refresh failed: {}",
+                msg
+            )));
         }
         return Err(QuicpulseError::Auth(format!(
             "Token refresh failed with status {}: {}",
@@ -261,12 +276,17 @@ pub async fn refresh_token(
         )));
     }
 
-    let token: TokenResponse = serde_json::from_str(&body)
-        .map_err(|e| QuicpulseError::Auth(format!("Failed to parse refresh token response: {}", e)))?;
+    let token: TokenResponse = serde_json::from_str(&body).map_err(|e| {
+        QuicpulseError::Auth(format!("Failed to parse refresh token response: {}", e))
+    })?;
 
     Ok(CachedToken {
         access_token: token.access_token,
-        token_type: if token.token_type.is_empty() { "Bearer".to_string() } else { token.token_type },
+        token_type: if token.token_type.is_empty() {
+            "Bearer".to_string()
+        } else {
+            token.token_type
+        },
         obtained_at,
         expires_in: token.expires_in.map(Duration::from_secs),
         // Use new refresh token if provided, otherwise keep the old one
@@ -293,7 +313,7 @@ static TOKEN_CACHE: Lazy<DashMap<String, CachedToken>> = Lazy::new(DashMap::new)
 static IN_FLIGHT: Lazy<DashSet<String>> = Lazy::new(DashSet::new);
 
 fn generate_cache_key(config: &OAuth2Config) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(config.client_secret.as_bytes());
     let secret_hash = hex::encode(hasher.finalize());
@@ -351,7 +371,9 @@ pub async fn get_token(config: &OAuth2Config) -> Result<CachedToken, QuicpulseEr
     }
 
     // RAII guard ensures cleanup even if future is cancelled or panics
-    let _guard = InFlightGuard { key: cache_key.clone() };
+    let _guard = InFlightGuard {
+        key: cache_key.clone(),
+    };
 
     // We're responsible for fetching the token
     let result = obtain_token(config).await;
@@ -376,7 +398,8 @@ mod tests {
             "client_id:client_secret",
             "https://auth.example.com/token".to_string(),
             vec!["read".to_string(), "write".to_string()],
-        ).unwrap();
+        )
+        .unwrap();
 
         assert_eq!(config.client_id, "client_id");
         assert_eq!(config.client_secret, "client_secret");

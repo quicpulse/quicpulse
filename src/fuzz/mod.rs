@@ -3,16 +3,18 @@
 pub mod payloads;
 pub mod runner;
 
-pub use payloads::{PayloadCategory, load_custom_payloads_from_file, create_custom_payloads, FuzzPayload};
-pub use runner::{FuzzRunner, FuzzOptions, FuzzBodyFormat, format_fuzz_results};
+pub use payloads::{
+    create_custom_payloads, load_custom_payloads_from_file, FuzzPayload, PayloadCategory,
+};
+pub use runner::{format_fuzz_results, FuzzBodyFormat, FuzzOptions, FuzzRunner};
 
-use std::time::Duration;
-use crate::cli::Args;
 use crate::cli::parser::ProcessedArgs;
+use crate::cli::Args;
 use crate::context::Environment;
 use crate::errors::QuicpulseError;
 use crate::input::InputItem;
 use crate::status::ExitStatus;
+use std::time::Duration;
 
 pub async fn run_fuzz(
     args: Args,
@@ -25,7 +27,11 @@ pub async fn run_fuzz(
     if let Some(ref dict_path) = args.fuzz_dict {
         match load_custom_payloads_from_file(dict_path) {
             Ok(payloads) => {
-                eprintln!("Loaded {} custom payloads from {}", payloads.len(), dict_path.display());
+                eprintln!(
+                    "Loaded {} custom payloads from {}",
+                    payloads.len(),
+                    dict_path.display()
+                );
                 custom_payloads.extend(payloads);
             }
             Err(e) => {
@@ -65,7 +71,11 @@ pub async fn run_fuzz(
             };
             cats.push(cat);
         }
-        if cats.is_empty() { None } else { Some(cats) }
+        if cats.is_empty() {
+            None
+        } else {
+            Some(cats)
+        }
     };
 
     let body_format = if args.form {
@@ -84,14 +94,24 @@ pub async fn run_fuzz(
         min_risk_level: args.fuzz_risk,
         proxy: args.proxy.first().map(|p| p.0.clone()),
         insecure: args.verify == "no",
-        ca_cert: args.cert.as_ref().and_then(|p| p.to_str().map(String::from)),
+        ca_cert: args
+            .cert
+            .as_ref()
+            .and_then(|p| p.to_str().map(String::from)),
         body_format,
         custom_payloads,
     };
 
     let fields_to_fuzz: Vec<String> = if args.fuzz_fields.is_empty() {
-        processed.items.iter()
-            .filter(|item| matches!(item, InputItem::DataField { .. } | InputItem::JsonField { .. }))
+        processed
+            .items
+            .iter()
+            .filter(|item| {
+                matches!(
+                    item,
+                    InputItem::DataField { .. } | InputItem::JsonField { .. }
+                )
+            })
             .map(|item| item.key().to_string())
             .collect()
     } else {
@@ -99,7 +119,9 @@ pub async fn run_fuzz(
     };
 
     if fields_to_fuzz.is_empty() {
-        eprintln!("Error: No fields to fuzz. Provide data fields (e.g., name=value) or use --fuzz-field");
+        eprintln!(
+            "Error: No fields to fuzz. Provide data fields (e.g., name=value) or use --fuzz-field"
+        );
         return Ok(ExitStatus::Error);
     }
 
@@ -140,7 +162,9 @@ pub async fn run_fuzz(
         use crate::cli::args::AuthType;
         match args.auth_type {
             Some(AuthType::Bearer) => {
-                if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Bearer {}", auth_str)) {
+                if let Ok(val) =
+                    reqwest::header::HeaderValue::from_str(&format!("Bearer {}", auth_str))
+                {
                     headers.insert(reqwest::header::AUTHORIZATION, val);
                 }
             }
@@ -148,18 +172,22 @@ pub async fn run_fuzz(
                 eprintln!("Warning: Digest auth not supported in fuzz mode, using Basic auth");
                 let encoded = base64::Engine::encode(
                     &base64::engine::general_purpose::STANDARD,
-                    auth_str.as_bytes()
+                    auth_str.as_bytes(),
                 );
-                if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Basic {}", encoded)) {
+                if let Ok(val) =
+                    reqwest::header::HeaderValue::from_str(&format!("Basic {}", encoded))
+                {
                     headers.insert(reqwest::header::AUTHORIZATION, val);
                 }
             }
             _ => {
                 let encoded = base64::Engine::encode(
                     &base64::engine::general_purpose::STANDARD,
-                    auth_str.as_bytes()
+                    auth_str.as_bytes(),
                 );
-                if let Ok(val) = reqwest::header::HeaderValue::from_str(&format!("Basic {}", encoded)) {
+                if let Ok(val) =
+                    reqwest::header::HeaderValue::from_str(&format!("Basic {}", encoded))
+                {
                     headers.insert(reqwest::header::AUTHORIZATION, val);
                 }
             }
@@ -173,10 +201,17 @@ pub async fn run_fuzz(
         );
     }
 
-    let method: reqwest::Method = processed.method.parse()
+    let method: reqwest::Method = processed
+        .method
+        .parse()
         .map_err(|_| QuicpulseError::Argument(format!("Invalid method: {}", processed.method)))?;
 
-    eprintln!("Fuzzing {} {} with {} field(s)", method, processed.url, fields_to_fuzz.len());
+    eprintln!(
+        "Fuzzing {} {} with {} field(s)",
+        method,
+        processed.url,
+        fields_to_fuzz.len()
+    );
     eprintln!("  Fields: {}", fields_to_fuzz.join(", "));
     eprintln!("  Concurrency: {}", options.concurrency);
     eprintln!("  Risk level: >= {}/5", options.min_risk_level);
@@ -186,15 +221,20 @@ pub async fn run_fuzz(
     eprintln!();
 
     let runner = FuzzRunner::new(options.clone())?;
-    let (results, summary) = runner.run(
-        method,
-        &processed.url,
-        base_body.as_ref(),
-        &fields_to_fuzz,
-        headers,
-    ).await?;
+    let (results, summary) = runner
+        .run(
+            method,
+            &processed.url,
+            base_body.as_ref(),
+            &fields_to_fuzz,
+            headers,
+        )
+        .await?;
 
-    print!("{}", format_fuzz_results(&results, &summary, options.anomalies_only));
+    print!(
+        "{}",
+        format_fuzz_results(&results, &summary, options.anomalies_only)
+    );
 
     if summary.anomalies > 0 {
         Ok(ExitStatus::Error)

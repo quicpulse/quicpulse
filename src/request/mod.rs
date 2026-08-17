@@ -5,5 +5,5 @@
 mod builder;
 mod json;
 
-pub use builder::{RequestConfig, RequestBody, FileField};
+pub use builder::{FileField, RequestBody, RequestConfig};
 pub use json::set_nested_value;

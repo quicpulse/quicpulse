@@ -1,10 +1,10 @@
 //! JSON handling tests
 mod common;
 
-use wiremock::{Mock, MockServer, ResponseTemplate};
 use wiremock::matchers::{method, path};
+use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_with_env, MockEnvironment, HTTP_OK};
+use common::http;
 
 // ============================================================================
 // JSON Data Item Tests
@@ -13,12 +13,14 @@ use common::{http, http_with_env, MockEnvironment, HTTP_OK};
 #[test]
 fn test_json_simple_values() {
     let r = http(&[
-        "--offline", "--print=B", "example.org",
+        "--offline",
+        "--print=B",
+        "example.org",
         "name=value",
         "count:=42",
         "active:=true",
     ]);
-    
+
     assert!(r.contains(r#""name":"value""#));
     assert!(r.contains(r#""count":42"#));
     assert!(r.contains(r#""active":true"#));
@@ -27,10 +29,12 @@ fn test_json_simple_values() {
 #[test]
 fn test_json_array_value() {
     let r = http(&[
-        "--offline", "--print=B", "example.org",
+        "--offline",
+        "--print=B",
+        "example.org",
         r#"items:=["a", "b", "c"]"#,
     ]);
-    
+
     assert!(r.contains(r#""items""#));
     assert!(r.contains(r#"["a","b","c"]"#) || r.contains(r#""a""#));
 }
@@ -38,21 +42,20 @@ fn test_json_array_value() {
 #[test]
 fn test_json_object_value() {
     let r = http(&[
-        "--offline", "--print=B", "example.org",
+        "--offline",
+        "--print=B",
+        "example.org",
         r#"config:={"key": "val"}"#,
     ]);
-    
+
     assert!(r.contains(r#""config""#));
     assert!(r.contains(r#""key""#));
 }
 
 #[test]
 fn test_json_null_value() {
-    let r = http(&[
-        "--offline", "--print=B", "example.org",
-        "empty:=null",
-    ]);
-    
+    let r = http(&["--offline", "--print=B", "example.org", "empty:=null"]);
+
     assert!(r.contains(r#""empty":null"#));
 }
 
@@ -63,18 +66,20 @@ fn test_json_null_value() {
 #[tokio::test]
 async fn test_json_response_formatted() {
     let server = MockServer::start().await;
-    
+
     Mock::given(method("GET"))
         .and(path("/json"))
-        .respond_with(ResponseTemplate::new(200)
-            .insert_header("Content-Type", "application/json")
-            .set_body_string(r#"{"a":1,"b":2}"#))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "application/json")
+                .set_body_string(r#"{"a":1,"b":2}"#),
+        )
         .mount(&server)
         .await;
-    
+
     let url = format!("{}/json", server.uri());
     let r = http(&["--pretty=format", "--print=b", &url]);
-    
+
     // Formatted JSON should have indentation
     assert!(r.contains("\"a\""));
     assert!(r.contains("\"b\""));
@@ -83,18 +88,20 @@ async fn test_json_response_formatted() {
 #[tokio::test]
 async fn test_json_response_unformatted() {
     let server = MockServer::start().await;
-    
+
     Mock::given(method("GET"))
         .and(path("/json"))
-        .respond_with(ResponseTemplate::new(200)
-            .insert_header("Content-Type", "application/json")
-            .set_body_string(r#"{"a":1,"b":2}"#))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "application/json")
+                .set_body_string(r#"{"a":1,"b":2}"#),
+        )
         .mount(&server)
         .await;
-    
+
     let url = format!("{}/json", server.uri());
     let r = http(&["--pretty=none", "--print=b", &url]);
-    
+
     // Unformatted JSON should be compact
     assert!(r.contains(r#"{"a""#) || r.contains(r#""a":"#));
 }
@@ -106,20 +113,22 @@ async fn test_json_response_unformatted() {
 #[tokio::test]
 async fn test_json_duplicate_keys_preserved() {
     let server = MockServer::start().await;
-    
+
     let json_with_dupes = r#"{"key": 15, "key": 15, "key": 3, "key": 7}"#;
-    
+
     Mock::given(method("GET"))
         .and(path("/json"))
-        .respond_with(ResponseTemplate::new(200)
-            .insert_header("Content-Type", "application/json")
-            .set_body_string(json_with_dupes))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "application/json")
+                .set_body_string(json_with_dupes),
+        )
         .mount(&server)
         .await;
-    
+
     let url = format!("{}/json", server.uri());
     let r = http(&["--pretty=format", "--print=b", &url]);
-    
+
     // Should handle duplicate keys without crashing
     assert!(r.contains("key"));
 }
@@ -131,18 +140,20 @@ async fn test_json_duplicate_keys_preserved() {
 #[tokio::test]
 async fn test_json_explicit_with_text_content_type() {
     let server = MockServer::start().await;
-    
+
     Mock::given(method("GET"))
         .and(path("/text"))
-        .respond_with(ResponseTemplate::new(200)
-            .insert_header("Content-Type", "text/plain")
-            .set_body_string(r#"{"actually": "json"}"#))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Type", "text/plain")
+                .set_body_string(r#"{"actually": "json"}"#),
+        )
         .mount(&server)
         .await;
-    
+
     let url = format!("{}/text", server.uri());
     let r = http(&["--print=b", &url]);
-    
+
     // Even with text/plain, the body should be returned
     assert!(r.contains("actually"));
     assert!(r.contains("json"));
@@ -155,7 +166,13 @@ async fn test_json_explicit_with_text_content_type() {
 #[test]
 fn test_simple_json_value_in_form_mode() {
     // Simple JSON values (numbers, bools, strings) should work in form mode
-    let r = http(&["--offline", "--form", "--print=B", "example.org", "option:=42"]);
+    let r = http(&[
+        "--offline",
+        "--form",
+        "--print=B",
+        "example.org",
+        "option:=42",
+    ]);
     assert!(r.contains("option"));
     assert!(r.contains("42"));
 }
@@ -167,11 +184,14 @@ fn test_simple_json_value_in_form_mode() {
 #[test]
 fn test_json_format_option_indent() {
     let r = http(&[
-        "--offline", "--print=B",
+        "--offline",
+        "--print=B",
         "--format-options=json.indent:2",
-        "example.org", "foo=bar", "baz=qux",
+        "example.org",
+        "foo=bar",
+        "baz=qux",
     ]);
-    
+
     // With indent:2, JSON should have 2-space indentation
     assert!(r.contains("foo"));
     assert!(r.contains("baz"));
@@ -181,9 +201,12 @@ fn test_json_format_option_indent() {
 #[ignore] // TODO: sort_keys feature not yet implemented
 fn test_json_format_option_sort_keys() {
     let r = http(&[
-        "--offline", "--print=B",
+        "--offline",
+        "--print=B",
         "--format-options=json.sort_keys:true",
-        "example.org", "z=last", "a=first",
+        "example.org",
+        "z=last",
+        "a=first",
     ]);
 
     // With sort_keys:true, 'a' should appear before 'z'
@@ -198,11 +221,14 @@ fn test_json_format_option_sort_keys() {
 #[test]
 fn test_unsorted_json_output() {
     let r = http(&[
-        "--offline", "--print=B",
+        "--offline",
+        "--print=B",
         "--unsorted",
-        "example.org", "z=last", "a=first",
+        "example.org",
+        "z=last",
+        "a=first",
     ]);
-    
+
     // With --unsorted, keys are processed in order but HashMap doesn't preserve order
     // Just verify both keys are present
     assert!(r.contains("\"z\""));

@@ -2,7 +2,10 @@
 
 use indicatif::{ProgressBar, ProgressStyle};
 use percent_encoding::percent_decode_str;
-use reqwest::header::{HeaderMap, ACCEPT_ENCODING, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE};
+use reqwest::header::{
+    HeaderMap, ACCEPT_ENCODING, CONTENT_DISPOSITION, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE,
+    RANGE,
+};
 use reqwest::Response;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
@@ -81,7 +84,8 @@ impl Downloader {
         response: &Response,
     ) -> Result<PathBuf, QuicpulseError> {
         // Parse content length
-        self.total_size = response.headers()
+        self.total_size = response
+            .headers()
             .get(CONTENT_LENGTH)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| s.parse().ok());
@@ -108,7 +112,11 @@ impl Downloader {
     }
 
     /// Determine output filename
-    fn determine_filename(&self, url: &str, response: &Response) -> Result<PathBuf, QuicpulseError> {
+    fn determine_filename(
+        &self,
+        url: &str,
+        response: &Response,
+    ) -> Result<PathBuf, QuicpulseError> {
         // Priority 1: User-specified output path
         if let Some(ref path) = self.output_path {
             return Ok(path.clone());
@@ -139,10 +147,12 @@ impl Downloader {
     fn ensure_unique_filename(&self, filename: &str) -> PathBuf {
         let path = PathBuf::from(filename);
 
-        let stem = path.file_stem()
+        let stem = path
+            .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("download");
-        let ext = path.extension()
+        let ext = path
+            .extension()
             .and_then(|s| s.to_str())
             .map(|e| format!(".{}", e))
             .unwrap_or_default();
@@ -240,7 +250,9 @@ impl Downloader {
     /// Previously, if the network stalled inside chunk().await, Ctrl+C would not
     /// terminate until the network timeout occurred.
     pub async fn download_body(&mut self, mut response: Response) -> Result<u64, QuicpulseError> {
-        let output_path = self.output_path.clone()
+        let output_path = self
+            .output_path
+            .clone()
             .ok_or_else(|| QuicpulseError::Download("No output path set".to_string()))?;
 
         // Open file (append if resuming, create otherwise)
@@ -251,7 +263,8 @@ impl Downloader {
                 .open(&output_path)
         } else {
             File::create(&output_path)
-        }.map_err(|e| QuicpulseError::Io(e))?;
+        }
+        .map_err(|e| QuicpulseError::Io(e))?;
 
         let mut writer = BufWriter::new(file);
         let mut total_bytes = 0u64;
@@ -287,10 +300,13 @@ impl Downloader {
             // Double-check cancellation after receiving chunk
             if crate::utils::was_interrupted() {
                 writer.flush().map_err(|e| QuicpulseError::Io(e))?;
-                return Err(QuicpulseError::Download("Download interrupted by user".to_string()));
+                return Err(QuicpulseError::Download(
+                    "Download interrupted by user".to_string(),
+                ));
             }
 
-            writer.write_all(&chunk)
+            writer
+                .write_all(&chunk)
                 .map_err(|e| QuicpulseError::Io(e))?;
 
             let chunk_len = chunk.len() as u64;
@@ -338,9 +354,7 @@ fn extract_filename_from_url(url: &str, headers: &HeaderMap) -> String {
         if let Some(segments) = parsed.path_segments() {
             if let Some(last) = segments.last() {
                 // URL-decode the segment first (handles %2F etc.)
-                let decoded = percent_decode_str(last)
-                    .decode_utf8_lossy()
-                    .to_string();
+                let decoded = percent_decode_str(last).decode_utf8_lossy().to_string();
 
                 if !decoded.is_empty() && decoded.contains('.') {
                     // Bug #7 fix: Sanitize to prevent path traversal

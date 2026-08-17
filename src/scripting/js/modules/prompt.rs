@@ -3,25 +3,30 @@
 //! Provides interactive user input capabilities.
 //! Note: This module is only functional in interactive mode.
 
-use rquickjs::{Ctx, Object, Function};
-use std::io::{self, Write};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
+use std::io::{self, Write};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
     let prompt = Object::new(ctx.clone())
         .map_err(|e| QuicpulseError::Script(format!("Failed to create prompt object: {}", e)))?;
 
-    prompt.set("input", Function::new(ctx.clone(), prompt_input)?)
+    prompt
+        .set("input", Function::new(ctx.clone(), prompt_input)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    prompt.set("password", Function::new(ctx.clone(), prompt_password)?)
+    prompt
+        .set("password", Function::new(ctx.clone(), prompt_password)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    prompt.set("confirm", Function::new(ctx.clone(), prompt_confirm)?)
+    prompt
+        .set("confirm", Function::new(ctx.clone(), prompt_confirm)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
-    prompt.set("select", Function::new(ctx.clone(), prompt_select)?)
+    prompt
+        .set("select", Function::new(ctx.clone(), prompt_select)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("prompt", prompt)
+    globals
+        .set("prompt", prompt)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set prompt global: {}", e)))?;
 
     Ok(())
@@ -128,7 +133,10 @@ fn prompt_select(message: String, options_json: String) -> Option<String> {
     let mut input = String::new();
     io::stdin().read_line(&mut input).ok()?;
 
-    input.trim().parse::<usize>().ok()
+    input
+        .trim()
+        .parse::<usize>()
+        .ok()
         .filter(|&n| n >= 1 && n <= options.len())
         .map(|n| options[n - 1].clone())
 }

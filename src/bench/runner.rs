@@ -2,16 +2,16 @@
 //!
 //! Handles concurrent HTTP request execution and result collection.
 
+use reqwest::{Client, Method};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{mpsc, Semaphore};
-use reqwest::{Client, Method};
 use url::Url;
 
-use crate::cli::Args;
-use crate::cli::parser::ProcessedArgs;
-use crate::errors::QuicpulseError;
 use super::stats::{BenchmarkStats, StatsCollector};
+use crate::cli::parser::ProcessedArgs;
+use crate::cli::Args;
+use crate::errors::QuicpulseError;
 
 /// Configuration for a benchmark run
 #[derive(Debug, Clone)]
@@ -63,10 +63,7 @@ pub struct BenchmarkRunner {
 
 impl BenchmarkRunner {
     /// Create a new benchmark runner
-    pub fn new(
-        config: BenchmarkConfig,
-        args: &Args,
-    ) -> Result<Self, QuicpulseError> {
+    pub fn new(config: BenchmarkConfig, args: &Args) -> Result<Self, QuicpulseError> {
         let client = build_client(args)?;
 
         Ok(Self {
@@ -95,11 +92,15 @@ impl BenchmarkRunner {
         let start = Instant::now();
 
         // Parse URL
-        let url: Url = config.url.parse()
+        let url: Url = config
+            .url
+            .parse()
             .map_err(|e| QuicpulseError::Argument(format!("Invalid URL: {}", e)))?;
 
         // Parse method
-        let method: Method = config.method.parse()
+        let method: Method = config
+            .method
+            .parse()
             .map_err(|e| QuicpulseError::Argument(format!("Invalid method: {}", e)))?;
 
         // Create channel for collecting results
@@ -142,7 +143,12 @@ impl BenchmarkRunner {
         let mut collector = StatsCollector::new();
 
         while let Some(result) = rx.recv().await {
-            collector.record(result.status_code, result.latency, result.bytes, result.error);
+            collector.record(
+                result.status_code,
+                result.latency,
+                result.bytes,
+                result.error,
+            );
         }
 
         // Wait for all tasks to complete
@@ -236,7 +242,9 @@ fn build_client(args: &Args) -> Result<Client, QuicpulseError> {
 
     // Configure redirects
     if args.follow {
-        builder = builder.redirect(reqwest::redirect::Policy::limited(args.max_redirects as usize));
+        builder = builder.redirect(reqwest::redirect::Policy::limited(
+            args.max_redirects as usize,
+        ));
     } else {
         builder = builder.redirect(reqwest::redirect::Policy::none());
     }
@@ -246,7 +254,8 @@ fn build_client(args: &Args) -> Result<Client, QuicpulseError> {
         builder = builder.danger_accept_invalid_certs(true);
     }
 
-    builder.build()
+    builder
+        .build()
         .map_err(|e| QuicpulseError::Connection(format!("Failed to build client: {}", e)))
 }
 

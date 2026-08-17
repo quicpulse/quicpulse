@@ -3,9 +3,9 @@
 //! Provides sandboxed file system access.
 //! For security, file operations are restricted to specific directories.
 
-use rquickjs::{Ctx, Object, Function};
-use std::path::{Path, PathBuf};
 use crate::errors::QuicpulseError;
+use rquickjs::{Ctx, Function, Object};
+use std::path::{Path, PathBuf};
 
 pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     let globals = ctx.globals();
@@ -33,7 +33,8 @@ pub fn register(ctx: &Ctx<'_>) -> Result<(), QuicpulseError> {
     fs.set("join", Function::new(ctx.clone(), fs_join)?)
         .map_err(|e| QuicpulseError::Script(e.to_string()))?;
 
-    globals.set("fs", fs)
+    globals
+        .set("fs", fs)
         .map_err(|e| QuicpulseError::Script(format!("Failed to set fs global: {}", e)))?;
 
     Ok(())
@@ -69,11 +70,7 @@ fn is_safe_path(path: &Path) -> bool {
 
     // Allow specific directories under home
     if let Some(home) = dirs::home_dir() {
-        let allowed_subdirs = [
-            ".config/quicpulse",
-            ".quicpulse",
-            "quicpulse",
-        ];
+        let allowed_subdirs = [".config/quicpulse", ".quicpulse", "quicpulse"];
 
         for subdir in &allowed_subdirs {
             let allowed = home.join(subdir);
@@ -113,28 +110,20 @@ fn fs_read(path: String) -> Option<String> {
 }
 
 fn fs_exists(path: String) -> bool {
-    resolve_path(&path)
-        .map(|p| p.exists())
-        .unwrap_or(false)
+    resolve_path(&path).map(|p| p.exists()).unwrap_or(false)
 }
 
 fn fs_is_file(path: String) -> bool {
-    resolve_path(&path)
-        .map(|p| p.is_file())
-        .unwrap_or(false)
+    resolve_path(&path).map(|p| p.is_file()).unwrap_or(false)
 }
 
 fn fs_is_dir(path: String) -> bool {
-    resolve_path(&path)
-        .map(|p| p.is_dir())
-        .unwrap_or(false)
+    resolve_path(&path).map(|p| p.is_dir()).unwrap_or(false)
 }
 
 fn fs_size(path: String) -> Option<i64> {
     let resolved = resolve_path(&path)?;
-    std::fs::metadata(resolved)
-        .ok()
-        .map(|m| m.len() as i64)
+    std::fs::metadata(resolved).ok().map(|m| m.len() as i64)
 }
 
 fn fs_list(path: String) -> String {

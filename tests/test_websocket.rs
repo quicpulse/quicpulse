@@ -92,7 +92,13 @@ fn test_ws_subprotocol_flag() {
 #[test]
 fn test_ws_binary_flag_hex() {
     // Test --ws-binary hex mode
-    let r = http_error(&["ws://example.com/socket", "--ws-binary", "hex", "--ws-send", "48656c6c6f"]);
+    let r = http_error(&[
+        "ws://example.com/socket",
+        "--ws-binary",
+        "hex",
+        "--ws-send",
+        "48656c6c6f",
+    ]);
     assert!(
         r.stderr.contains("WebSocket") || r.stderr.contains("Connection"),
         "Should process --ws-binary hex. stderr: {}",
@@ -103,7 +109,13 @@ fn test_ws_binary_flag_hex() {
 #[test]
 fn test_ws_binary_flag_base64() {
     // Test --ws-binary base64 mode
-    let r = http_error(&["ws://example.com/socket", "--ws-binary", "base64", "--ws-send", "SGVsbG8="]);
+    let r = http_error(&[
+        "ws://example.com/socket",
+        "--ws-binary",
+        "base64",
+        "--ws-send",
+        "SGVsbG8=",
+    ]);
     assert!(
         r.stderr.contains("WebSocket") || r.stderr.contains("Connection"),
         "Should process --ws-binary base64. stderr: {}",
@@ -114,7 +126,12 @@ fn test_ws_binary_flag_base64() {
 #[test]
 fn test_ws_max_messages_flag() {
     // Test --ws-max-messages flag
-    let r = http_error(&["ws://example.com/socket", "--ws-listen", "--ws-max-messages", "10"]);
+    let r = http_error(&[
+        "ws://example.com/socket",
+        "--ws-listen",
+        "--ws-max-messages",
+        "10",
+    ]);
     assert!(
         r.stderr.contains("WebSocket") || r.stderr.contains("Connection"),
         "Should process --ws-max-messages. stderr: {}",
@@ -125,7 +142,12 @@ fn test_ws_max_messages_flag() {
 #[test]
 fn test_ws_ping_interval_flag() {
     // Test --ws-ping-interval flag
-    let r = http_error(&["ws://example.com/socket", "--ws-listen", "--ws-ping-interval", "30"]);
+    let r = http_error(&[
+        "ws://example.com/socket",
+        "--ws-listen",
+        "--ws-ping-interval",
+        "30",
+    ]);
     assert!(
         r.stderr.contains("WebSocket") || r.stderr.contains("Connection"),
         "Should process --ws-ping-interval. stderr: {}",
@@ -143,14 +165,38 @@ fn test_websocket_help_displayed() {
 
     // Check that WebSocket flags are in help
     assert!(r.stdout.contains("--ws"), "Help should show --ws flag");
-    assert!(r.stdout.contains("--ws-send"), "Help should show --ws-send flag");
-    assert!(r.stdout.contains("--ws-listen"), "Help should show --ws-listen flag");
-    assert!(r.stdout.contains("--ws-interactive"), "Help should show --ws-interactive flag");
-    assert!(r.stdout.contains("--ws-subprotocol"), "Help should show --ws-subprotocol flag");
-    assert!(r.stdout.contains("--ws-binary"), "Help should show --ws-binary flag");
-    assert!(r.stdout.contains("--ws-compress"), "Help should show --ws-compress flag");
-    assert!(r.stdout.contains("--ws-max-messages"), "Help should show --ws-max-messages flag");
-    assert!(r.stdout.contains("--ws-ping-interval"), "Help should show --ws-ping-interval flag");
+    assert!(
+        r.stdout.contains("--ws-send"),
+        "Help should show --ws-send flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-listen"),
+        "Help should show --ws-listen flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-interactive"),
+        "Help should show --ws-interactive flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-subprotocol"),
+        "Help should show --ws-subprotocol flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-binary"),
+        "Help should show --ws-binary flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-compress"),
+        "Help should show --ws-compress flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-max-messages"),
+        "Help should show --ws-max-messages flag"
+    );
+    assert!(
+        r.stdout.contains("--ws-ping-interval"),
+        "Help should show --ws-ping-interval flag"
+    );
 }
 
 // ============================================================================
@@ -159,7 +205,7 @@ fn test_websocket_help_displayed() {
 
 #[cfg(test)]
 mod unit_tests {
-    use quicpulse::websocket::types::{WsEndpoint, WsMessage, BinaryMode};
+    use quicpulse::websocket::types::{BinaryMode, WsEndpoint, WsMessage};
 
     #[test]
     fn test_ws_endpoint_url() {
@@ -243,7 +289,7 @@ mod unit_tests {
 
 #[cfg(test)]
 mod codec_tests {
-    use quicpulse::websocket::codec::{encode_binary, decode_binary, format_text_message};
+    use quicpulse::websocket::codec::{decode_binary, encode_binary, format_text_message};
     use quicpulse::websocket::types::BinaryMode;
 
     #[test]
@@ -303,8 +349,8 @@ mod codec_tests {
 
 #[cfg(test)]
 mod url_parsing_tests {
-    use quicpulse::websocket::parse_ws_endpoint;
     use quicpulse::cli::Args;
+    use quicpulse::websocket::parse_ws_endpoint;
 
     fn default_args() -> Args {
         Args::default()

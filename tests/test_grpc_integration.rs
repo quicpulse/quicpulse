@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{http, http_error, fixtures, ExitStatus};
+use common::{fixtures, http, http_error, ExitStatus};
 use std::path::PathBuf;
 
 fn fixture_path(name: &str) -> PathBuf {
@@ -19,7 +19,7 @@ fn test_grpc_endpoint_parsing_basic() {
     let response = http(&[
         "--grpc",
         "grpc://localhost:50051/test.TestService/Echo",
-        "--offline"
+        "--offline",
     ]);
 
     // Should parse the endpoint format - just verify CLI accepts the arguments
@@ -32,32 +32,34 @@ fn test_grpc_endpoint_with_port() {
     let response = http_error(&[
         "--grpc",
         "grpc://127.0.0.1:9000/package.Service/Method",
-        "--offline"
+        "--offline",
     ]);
 
     // Should parse host:port format - exits with error due to offline
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("offline") ||
-            output.contains("127.0.0.1"),
-        "Should handle endpoint. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("offline")
+            || output.contains("127.0.0.1"),
+        "Should handle endpoint. output: {}",
+        output
+    );
 }
 
 #[test]
 fn test_grpc_endpoint_without_scheme() {
     // Test parsing without grpc:// scheme
-    let response = http_error(&[
-        "--grpc",
-        "localhost:50051/test.Service/Method",
-        "--offline"
-    ]);
+    let response = http_error(&["--grpc", "localhost:50051/test.Service/Method", "--offline"]);
 
     // Should handle with or without scheme
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("offline") ||
-            output.contains("localhost"),
-        "Should handle endpoint. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("offline")
+            || output.contains("localhost"),
+        "Should handle endpoint. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -71,9 +73,10 @@ fn test_grpc_with_proto_file() {
     // Test that proto file can be specified
     let response = http(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
+        "--proto",
+        proto_path.to_str().unwrap(),
         "grpc://localhost:50051/test.TestService/Echo",
-        "--offline"
+        "--offline",
     ]);
 
     // Should accept proto file argument - just verify CLI accepts it
@@ -85,16 +88,20 @@ fn test_grpc_with_proto_file() {
 fn test_grpc_proto_file_nonexistent() {
     let response = http_error(&[
         "--grpc",
-        "--proto", "/nonexistent/path/test.proto",
-        "grpc://localhost:50051/test.Service/Method"
+        "--proto",
+        "/nonexistent/path/test.proto",
+        "grpc://localhost:50051/test.Service/Method",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
-    assert!(response.stderr.contains("not found") ||
-            response.stderr.contains("No such file") ||
-            response.stderr.contains("error") ||
-            response.stderr.contains("proto"),
-        "Should error on missing proto. stderr: {}", response.stderr);
+    assert!(
+        response.stderr.contains("not found")
+            || response.stderr.contains("No such file")
+            || response.stderr.contains("error")
+            || response.stderr.contains("proto"),
+        "Should error on missing proto. stderr: {}",
+        response.stderr
+    );
 }
 
 #[test]
@@ -105,8 +112,9 @@ fn test_grpc_invalid_proto_file() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", invalid_proto.to_str().unwrap(),
-        "grpc://localhost:50051/test.Service/Method"
+        "--proto",
+        invalid_proto.to_str().unwrap(),
+        "grpc://localhost:50051/test.Service/Method",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -123,37 +131,40 @@ fn test_grpc_list_services() {
     // Without a running server, listing will fail but args should be accepted
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
+        "--proto",
+        proto_path.to_str().unwrap(),
         "--grpc-list",
-        "grpc://localhost:50051"
+        "grpc://localhost:50051",
     ]);
 
     // Should recognize the arguments (connection will fail)
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("TestService") ||
-            output.contains("Service") ||
-            output.contains("connect") ||
-            output.contains("Connection"),
-        "Should handle list request. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("TestService")
+            || output.contains("Service")
+            || output.contains("connect")
+            || output.contains("Connection"),
+        "Should handle list request. output: {}",
+        output
+    );
 }
 
 #[test]
 fn test_grpc_list_without_proto() {
     // Listing without proto requires server reflection
-    let response = http_error(&[
-        "--grpc",
-        "--grpc-list",
-        "grpc://localhost:50051"
-    ]);
+    let response = http_error(&["--grpc", "--grpc-list", "grpc://localhost:50051"]);
 
     // Without proto and without running server, should fail
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("reflect") ||
-            output.contains("proto") ||
-            output.contains("connect"),
-        "Should need proto or reflection. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("reflect")
+            || output.contains("proto")
+            || output.contains("connect"),
+        "Should need proto or reflection. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -167,19 +178,24 @@ fn test_grpc_describe_service() {
     // Without a running server, describe will fail but args should be accepted
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "--grpc-describe", "test.TestService",
-        "grpc://localhost:50051"
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "--grpc-describe",
+        "test.TestService",
+        "grpc://localhost:50051",
     ]);
 
     // Should recognize the arguments (may fail due to connection)
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("Echo") ||
-            output.contains("Service") ||
-            output.contains("connect") ||
-            output.contains("Connection"),
-        "Should handle describe request. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("Echo")
+            || output.contains("Service")
+            || output.contains("connect")
+            || output.contains("Connection"),
+        "Should handle describe request. output: {}",
+        output
+    );
 }
 
 #[test]
@@ -188,17 +204,22 @@ fn test_grpc_describe_nonexistent_service() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "--grpc-describe", "nonexistent.Service",
-        "grpc://localhost:50051"
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "--grpc-describe",
+        "nonexistent.Service",
+        "grpc://localhost:50051",
     ]);
 
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("not found") ||
-            output.contains("unknown") ||
-            output.contains("connect"),
-        "Should error on unknown service. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("not found")
+            || output.contains("unknown")
+            || output.contains("connect"),
+        "Should error on unknown service. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -211,9 +232,10 @@ fn test_grpc_json_request_body() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
+        "--proto",
+        proto_path.to_str().unwrap(),
         "grpc://localhost:50051/test.TestService/Echo",
-        r#"message={"message": "hello"}"#
+        r#"message={"message": "hello"}"#,
     ]);
 
     // JSON body should be accepted (connection will fail)
@@ -226,9 +248,10 @@ fn test_grpc_with_data_fields() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
+        "--proto",
+        proto_path.to_str().unwrap(),
         "grpc://localhost:50051/test.TestService/Echo",
-        "message=hello"
+        "message=hello",
     ]);
 
     // Data fields should be accepted
@@ -245,10 +268,11 @@ fn test_grpc_with_metadata() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
+        "--proto",
+        proto_path.to_str().unwrap(),
         "grpc://localhost:50051/test.TestService/Echo",
         "x-custom-metadata:value",
-        "authorization:Bearer token"
+        "authorization:Bearer token",
     ]);
 
     // Metadata should be accepted
@@ -265,8 +289,9 @@ fn test_grpc_with_tls() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "grpcs://localhost:50051/test.TestService/Echo"  // grpcs = TLS
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "grpcs://localhost:50051/test.TestService/Echo", // grpcs = TLS
     ]);
 
     // TLS endpoint should be accepted
@@ -279,9 +304,11 @@ fn test_grpc_insecure_flag() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "--verify", "no",
-        "grpcs://localhost:50051/test.TestService/Echo"
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "--verify",
+        "no",
+        "grpcs://localhost:50051/test.TestService/Echo",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
@@ -293,10 +320,7 @@ fn test_grpc_insecure_flag() {
 
 #[test]
 fn test_grpc_invalid_endpoint() {
-    let response = http_error(&[
-        "--grpc",
-        "not-a-valid-grpc-endpoint"
-    ]);
+    let response = http_error(&["--grpc", "not-a-valid-grpc-endpoint"]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
 }
@@ -307,8 +331,9 @@ fn test_grpc_missing_service_method() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "grpc://localhost:50051"  // Missing service/method
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "grpc://localhost:50051", // Missing service/method
     ]);
 
     // Should error or require service/method
@@ -322,15 +347,21 @@ fn test_grpc_connection_refused() {
     // Connect to port that's not listening
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "grpc://127.0.0.1:59999/test.TestService/Echo"
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "grpc://127.0.0.1:59999/test.TestService/Echo",
     ]);
 
     assert_eq!(response.exit_status, ExitStatus::Error);
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.contains("connect") || output.contains("Connection") ||
-            output.contains("refused") || output.contains("error"),
-        "Should show connection error. output: {}", output);
+    assert!(
+        output.contains("connect")
+            || output.contains("Connection")
+            || output.contains("refused")
+            || output.contains("error"),
+        "Should show connection error. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -345,18 +376,22 @@ fn test_grpc_proto_with_nested_messages() {
     // Without a running server, will fail but arguments should be accepted
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
+        "--proto",
+        proto_path.to_str().unwrap(),
         "--grpc-list",
-        "grpc://localhost:50051"
+        "grpc://localhost:50051",
     ]);
 
     // Should handle nested message types in proto
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(response.exit_status == ExitStatus::Error ||
-            output.contains("Test") ||
-            output.contains("Service") ||
-            output.contains("connect"),
-        "Should handle proto. output: {}", output);
+    assert!(
+        response.exit_status == ExitStatus::Error
+            || output.contains("Test")
+            || output.contains("Service")
+            || output.contains("connect"),
+        "Should handle proto. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -369,9 +404,11 @@ fn test_grpc_with_timeout() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "--timeout", "1",
-        "grpc://localhost:50051/test.TestService/Echo"
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "--timeout",
+        "1",
+        "grpc://localhost:50051/test.TestService/Echo",
     ]);
 
     // Timeout should be applied
@@ -389,13 +426,18 @@ fn test_grpc_verbose_mode() {
     let response = http_error(&[
         "-v",
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "grpc://localhost:50051/test.TestService/Echo"
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "grpc://localhost:50051/test.TestService/Echo",
     ]);
 
     // Verbose mode should show more details
     let output = format!("{}{}", response.stdout, response.stderr);
-    assert!(output.len() > 50, "Verbose should show details. output: {}", output);
+    assert!(
+        output.len() > 50,
+        "Verbose should show details. output: {}",
+        output
+    );
 }
 
 // =============================================================================
@@ -408,12 +450,14 @@ fn test_grpc_with_all_options() {
 
     let response = http_error(&[
         "--grpc",
-        "--proto", proto_path.to_str().unwrap(),
-        "--timeout", "5",
+        "--proto",
+        proto_path.to_str().unwrap(),
+        "--timeout",
+        "5",
         "-v",
         "grpc://localhost:50051/test.TestService/Echo",
         "message=test",
-        "x-request-id:123"
+        "x-request-id:123",
     ]);
 
     // All options should be accepted

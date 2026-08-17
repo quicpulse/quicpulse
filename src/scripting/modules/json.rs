@@ -13,7 +13,9 @@ pub fn module() -> Result<Module, ContextError> {
     // Parsing and serialization
     module.function("parse", parse).build()?;
     module.function("stringify", stringify).build()?;
-    module.function("stringify_pretty", stringify_pretty).build()?;
+    module
+        .function("stringify_pretty", stringify_pretty)
+        .build()?;
 
     // JSONPath queries
     module.function("query", query).build()?;
@@ -58,12 +60,10 @@ fn parse(input: &str) -> RuneString {
 /// Stringify a JSON value (pretty printed)
 fn stringify(json_str: &str) -> RuneString {
     match serde_json::from_str::<JsonValue>(json_str) {
-        Ok(value) => {
-            match serde_json::to_string(&value) {
-                Ok(s) => RuneString::try_from(s).unwrap_or_default(),
-                Err(_) => RuneString::try_from(json_str.to_string()).unwrap_or_default(),
-            }
-        }
+        Ok(value) => match serde_json::to_string(&value) {
+            Ok(s) => RuneString::try_from(s).unwrap_or_default(),
+            Err(_) => RuneString::try_from(json_str.to_string()).unwrap_or_default(),
+        },
         Err(_) => RuneString::try_from(json_str.to_string()).unwrap_or_default(),
     }
 }
@@ -71,12 +71,10 @@ fn stringify(json_str: &str) -> RuneString {
 /// Stringify with pretty formatting
 fn stringify_pretty(json_str: &str) -> RuneString {
     match serde_json::from_str::<JsonValue>(json_str) {
-        Ok(value) => {
-            match serde_json::to_string_pretty(&value) {
-                Ok(s) => RuneString::try_from(s).unwrap_or_default(),
-                Err(_) => RuneString::try_from(json_str.to_string()).unwrap_or_default(),
-            }
-        }
+        Ok(value) => match serde_json::to_string_pretty(&value) {
+            Ok(s) => RuneString::try_from(s).unwrap_or_default(),
+            Err(_) => RuneString::try_from(json_str.to_string()).unwrap_or_default(),
+        },
         Err(_) => RuneString::try_from(json_str.to_string()).unwrap_or_default(),
     }
 }
@@ -137,9 +135,9 @@ fn query_first(json_str: &str, path: &str) -> RuneString {
 /// Internal helper to get value by dot-notation path
 fn get_value_internal(value: &JsonValue, path: &str) -> JsonValue {
     let mut current = value;
-    
+
     let segments = parse_json_path(path);
-    
+
     for key in segments {
         // Try as object key
         if let Some(obj) = current.as_object() {
@@ -167,7 +165,7 @@ fn parse_json_path(path: &str) -> Vec<String> {
     let mut segments = Vec::new();
     let mut chars = path.chars().peekable();
     let mut current_segment = String::new();
-    
+
     while let Some(c) = chars.next() {
         match c {
             '.' => {
@@ -221,11 +219,11 @@ fn parse_json_path(path: &str) -> Vec<String> {
             }
         }
     }
-    
+
     if !current_segment.is_empty() {
         segments.push(current_segment);
     }
-    
+
     segments
 }
 
@@ -268,10 +266,9 @@ fn get_keys(json_str: &str) -> RuneString {
     };
 
     if let Some(obj) = value.as_object() {
-        let keys: Vec<JsonValue> = obj.keys()
-            .map(|k| JsonValue::String(k.clone()))
-            .collect();
-        return RuneString::try_from(serde_json::to_string(&keys).unwrap_or("[]".to_string())).unwrap_or_default();
+        let keys: Vec<JsonValue> = obj.keys().map(|k| JsonValue::String(k.clone())).collect();
+        return RuneString::try_from(serde_json::to_string(&keys).unwrap_or("[]".to_string()))
+            .unwrap_or_default();
     }
 
     RuneString::try_from("[]").unwrap_or_default()
@@ -286,11 +283,13 @@ fn get_values(json_str: &str) -> RuneString {
 
     if let Some(obj) = value.as_object() {
         let values: Vec<&JsonValue> = obj.values().collect();
-        return RuneString::try_from(serde_json::to_string(&values).unwrap_or("[]".to_string())).unwrap_or_default();
+        return RuneString::try_from(serde_json::to_string(&values).unwrap_or("[]".to_string()))
+            .unwrap_or_default();
     }
 
     if let Some(arr) = value.as_array() {
-        return RuneString::try_from(serde_json::to_string(arr).unwrap_or("[]".to_string())).unwrap_or_default();
+        return RuneString::try_from(serde_json::to_string(arr).unwrap_or("[]".to_string()))
+            .unwrap_or_default();
     }
 
     RuneString::try_from("[]").unwrap_or_default()
@@ -425,8 +424,8 @@ fn set_value(json_str: &str, path: &str, value_str: &str) -> RuneString {
         Err(_) => JsonValue::Object(serde_json::Map::new()),
     };
 
-    let new_value: JsonValue = serde_json::from_str(value_str)
-        .unwrap_or(JsonValue::String(value_str.to_string()));
+    let new_value: JsonValue =
+        serde_json::from_str(value_str).unwrap_or(JsonValue::String(value_str.to_string()));
 
     let keys: Vec<&str> = path.split('.').collect();
     set_nested(&mut root, &keys, new_value);
@@ -447,7 +446,8 @@ fn set_nested(current: &mut JsonValue, keys: &[&str], value: JsonValue) {
     }
 
     if let Some(obj) = current.as_object_mut() {
-        let next = obj.entry(keys[0].to_string())
+        let next = obj
+            .entry(keys[0].to_string())
             .or_insert(JsonValue::Object(serde_json::Map::new()));
         set_nested(next, &keys[1..], value);
     }

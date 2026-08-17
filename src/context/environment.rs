@@ -1,6 +1,6 @@
 //! Environment struct (stdin/stdout/etc.)
 
-use std::io::{self, Stdin, Stdout, Stderr};
+use std::io::{self, Stderr, Stdin, Stdout};
 
 /// Execution environment
 pub struct Environment {
