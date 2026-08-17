@@ -12,9 +12,7 @@ what was done in each pass, and what is worth doing next.
 
 ## Current state
 
-**55.47% line coverage — 11881 / 21419 lines** (2026-08-17)
-
-Previous baseline was 52.07% (11145 / 21403), committed in `bb84748`. To diff against it:
+**55.48% line coverage — 11886 / 21423 lines** (2026-08-17)
 
 ```bash
 git show bb84748:coverage/tarpaulin.txt

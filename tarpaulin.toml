@@ -1,0 +1,12 @@
+[tarpaulin]
+engine = "llvm"
+ignore_panics = true
+ignore_tests = true
+skip_clean = true
+follow_exec = true
+exclude_files = [
+    "src/grpc/interactive.rs",
+    "src/websocket/interactive.rs",
+    "src/websocket/stream.rs",
+    "src/internal/update.rs",
+]

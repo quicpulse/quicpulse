@@ -3,52 +3,10 @@
 #![allow(unused_imports)]
 #![allow(clippy::all)]
 
-mod auth;
-mod bench;
-mod binary;
-mod cli;
-mod client;
-mod config;
-mod context;
-mod cookies;
-mod core;
-mod debug;
-mod devexp;
-mod downloads;
-mod encoding;
-mod errors;
-mod filter;
-mod fs;
-mod fuzz;
-mod graphql;
-mod grpc;
-mod har;
-mod http;
-mod input;
-mod internal;
-mod json;
-mod magic;
-mod middleware;
-mod mime;
-mod mock;
-mod models;
-mod openapi;
-mod output;
-mod pipeline;
-mod plugins;
-mod request;
-mod scripting;
-mod sessions;
-mod signals;
-mod status;
-mod strings;
-mod table;
-mod uploads;
-mod utils;
-mod websocket;
-
-use context::Environment;
-use status::ExitStatus;
+use quicpulse::context::Environment;
+use quicpulse::core;
+use quicpulse::signals;
+use quicpulse::status::ExitStatus;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Entry point - catches Ctrl+C and calls core::run()

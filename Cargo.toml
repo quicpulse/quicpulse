@@ -219,3 +219,7 @@ codegen-units = 1
 strip = true
 opt-level = 3
 panic = "abort"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)', 'cfg(tarpaulin_include)'] }
+
