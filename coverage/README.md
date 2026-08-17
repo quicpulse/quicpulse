@@ -39,7 +39,7 @@ Notes:
   ```
 - When a previous report exists, tarpaulin appends a per-file delta
   (e.g. `src/status.rs: 13/13 +30.77%`). Parsers must tolerate that trailing field.
-- Tooling used for the current figures: `cargo-tarpaulin 0.37.2`, `rustc 1.97.1`.
+- Tooling used for the current figures: `cargo-tarpaulin 0.37.2`, `rustc 1.90`.
 
 ## Measurement caveats
 

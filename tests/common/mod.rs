@@ -8,6 +8,8 @@
 
 #![allow(dead_code, unused_imports)]
 
+pub mod docker;
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -256,7 +258,7 @@ pub fn http_error_with_env(args: &[&str], env: &MockEnvironment) -> CliResponse 
     }
 }
 
-fn parse_output(output: Output) -> CliResponse {
+pub(crate) fn parse_output(output: Output) -> CliResponse {
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
     let exit_code = output.status.code().unwrap_or(1);

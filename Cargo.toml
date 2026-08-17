@@ -2,7 +2,7 @@
 name = "quicpulse"
 version = "0.0.5"
 edition = "2021"
-rust-version = "1.97"
+rust-version = "1.90"
 description = "HTTP client for the command line"
 authors = ["quicpulse Contributors"]
 license = "MIT OR Apache-2.0"
