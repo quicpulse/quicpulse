@@ -86,8 +86,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
       - name: Install musl toolchain (Linux x86_64 musl)
         if: runner.os == 'Linux' && matrix.target == 'x86_64-unknown-linux-musl'
@@ -256,8 +257,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: stable
           targets: ${{ matrix.target }}
       - name: Install musl toolchain (Linux x86_64 musl)
         if: runner.os == 'Linux' && matrix.target == 'x86_64-unknown-linux-musl'
