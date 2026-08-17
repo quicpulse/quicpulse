@@ -2,24 +2,7 @@ use clap::Parser;
 use tracing::{debug, error, info, instrument, warn};
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-fn form_urlencode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    let mut buf = [0u8; 4];
-    for c in s.chars() {
-        match c {
-            ' ' => result.push('+'),
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '~' => result.push(c),
-            _ => {
-                let encoded = c.encode_utf8(&mut buf);
-                for b in encoded.as_bytes() {
-                    use std::fmt::Write;
-                    let _ = write!(result, "%{:02X}", b);
-                }
-            }
-        }
-    }
-    result
-}
+use crate::strings::form_urlencode;
 
 /// Serialize JSON to a compact string format
 fn json_to_deterministic_format(value: &serde_json::Value) -> String {

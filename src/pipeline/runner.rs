@@ -3653,4 +3653,473 @@ mod tests {
         assert!(runner.should_run_step(&step1));
         assert!(runner.should_run_step(&step2));
     }
+
+    // =====================================================================
+    // validate()
+    // =====================================================================
+
+    use crate::pipeline::workflow::StepAssertions;
+
+    fn workflow_from_yaml(yaml: &str) -> Workflow {
+        serde_yaml::from_str(yaml).expect("workflow fixture should parse")
+    }
+
+    fn workflow_with(steps: Vec<WorkflowStep>) -> Workflow {
+        let mut wf = workflow_from_yaml(
+            r#"
+name: fixture
+steps:
+  - name: placeholder
+    url: https://example.com
+"#,
+        );
+        wf.steps = steps;
+        wf
+    }
+
+    fn valid_step(name: &str) -> WorkflowStep {
+        WorkflowStep {
+            name: name.to_string(),
+            method: "GET".to_string(),
+            url: "https://example.com".to_string(),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn test_validate_accepts_a_well_formed_workflow() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let wf = workflow_with(vec![valid_step("one"), valid_step("two")]);
+
+        let warnings = runner.validate(&wf).expect("should be valid");
+        assert!(warnings.is_empty(), "unexpected warnings: {warnings:?}");
+    }
+
+    #[test]
+    fn test_validate_rejects_a_workflow_with_no_steps() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let wf = workflow_with(vec![]);
+
+        let errors = runner.validate(&wf).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.contains("no steps")),
+            "got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_validate_rejects_an_invalid_http_method() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let step = WorkflowStep {
+            method: "NOT A METHOD".to_string(),
+            ..valid_step("bad")
+        };
+
+        let errors = runner.validate(&workflow_with(vec![step])).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.contains("Invalid HTTP method")),
+            "got: {errors:?}"
+        );
+        // Errors are prefixed with the 1-based step index and name.
+        assert!(
+            errors.iter().any(|e| e.contains("Step 1 (bad)")),
+            "got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_validate_accepts_lowercase_methods() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let step = WorkflowStep {
+            method: "post".to_string(),
+            ..valid_step("lower")
+        };
+        assert!(runner.validate(&workflow_with(vec![step])).is_ok());
+    }
+
+    #[test]
+    fn test_validate_rejects_bad_timeout_and_delay() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let step = WorkflowStep {
+            timeout: Some("not-a-duration".to_string()),
+            delay: Some("also-bad".to_string()),
+            ..valid_step("durations")
+        };
+
+        let errors = runner.validate(&workflow_with(vec![step])).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.contains("Invalid timeout format")),
+            "got: {errors:?}"
+        );
+        assert!(
+            errors.iter().any(|e| e.contains("Invalid delay format")),
+            "got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_validate_accepts_humantime_durations() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let step = WorkflowStep {
+            timeout: Some("30s".to_string()),
+            delay: Some("500ms".to_string()),
+            ..valid_step("durations")
+        };
+        assert!(runner.validate(&workflow_with(vec![step])).is_ok());
+    }
+
+    #[test]
+    fn test_validate_latency_assertion_format() {
+        let runner = PipelineRunner::new(true).unwrap();
+
+        // The leading '<' is stripped before parsing.
+        let ok = WorkflowStep {
+            assert: StepAssertions {
+                latency: Some("< 2s".to_string()),
+                ..Default::default()
+            },
+            ..valid_step("latency")
+        };
+        assert!(runner.validate(&workflow_with(vec![ok])).is_ok());
+
+        let bad = WorkflowStep {
+            assert: StepAssertions {
+                latency: Some("<nonsense".to_string()),
+                ..Default::default()
+            },
+            ..valid_step("latency")
+        };
+        let errors = runner.validate(&workflow_with(vec![bad])).unwrap_err();
+        assert!(
+            errors
+                .iter()
+                .any(|e| e.contains("Invalid latency assertion")),
+            "got: {errors:?}"
+        );
+    }
+
+    #[test]
+    fn test_validate_rejects_excessive_retries() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let step = WorkflowStep {
+            retries: Some(MAX_RETRIES_PER_STEP + 1),
+            ..valid_step("retry")
+        };
+
+        let errors = runner.validate(&workflow_with(vec![step])).unwrap_err();
+        assert!(
+            errors.iter().any(|e| e.contains("Too many retries")),
+            "got: {errors:?}"
+        );
+
+        // The boundary value itself is allowed.
+        let at_limit = WorkflowStep {
+            retries: Some(MAX_RETRIES_PER_STEP),
+            ..valid_step("retry")
+        };
+        assert!(runner.validate(&workflow_with(vec![at_limit])).is_ok());
+    }
+
+    #[test]
+    fn test_validate_warns_about_undefined_url_variables() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let step = WorkflowStep {
+            url: "https://example.com/{{missing}}".to_string(),
+            ..valid_step("vars")
+        };
+
+        let warnings = runner.validate(&workflow_with(vec![step])).unwrap();
+        assert!(
+            warnings
+                .iter()
+                .any(|w| w.contains("undefined variable 'missing'")),
+            "got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn test_validate_does_not_warn_for_declared_variables() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let mut wf = workflow_with(vec![WorkflowStep {
+            url: "https://example.com/{{host}}".to_string(),
+            ..valid_step("vars")
+        }]);
+        wf.variables
+            .insert("host".to_string(), JsonValue::String("x".into()));
+
+        assert!(runner.validate(&wf).unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_validate_does_not_warn_when_an_earlier_step_extracts_the_variable() {
+        let runner = PipelineRunner::new(true).unwrap();
+
+        let mut producer = valid_step("login");
+        producer
+            .extract
+            .insert("token".to_string(), "$.token".to_string());
+
+        let consumer = WorkflowStep {
+            url: "https://example.com/{{token}}".to_string(),
+            ..valid_step("use-token")
+        };
+
+        let warnings = runner
+            .validate(&workflow_with(vec![producer, consumer]))
+            .unwrap();
+        assert!(warnings.is_empty(), "got: {warnings:?}");
+    }
+
+    #[test]
+    fn test_validate_still_warns_when_the_extraction_comes_later() {
+        // Only *previous* steps count, so a forward reference must warn.
+        let runner = PipelineRunner::new(true).unwrap();
+
+        let consumer = WorkflowStep {
+            url: "https://example.com/{{token}}".to_string(),
+            ..valid_step("use-token")
+        };
+        let mut producer = valid_step("login");
+        producer
+            .extract
+            .insert("token".to_string(), "$.token".to_string());
+
+        let warnings = runner
+            .validate(&workflow_with(vec![consumer, producer]))
+            .unwrap();
+        assert!(
+            warnings.iter().any(|w| w.contains("'token'")),
+            "got: {warnings:?}"
+        );
+    }
+
+    #[test]
+    fn test_validate_reports_every_error_at_once() {
+        let runner = PipelineRunner::new(true).unwrap();
+        let steps = vec![
+            WorkflowStep {
+                method: "BAD METHOD".to_string(),
+                ..valid_step("first")
+            },
+            WorkflowStep {
+                timeout: Some("nope".to_string()),
+                ..valid_step("second")
+            },
+        ];
+
+        let errors = runner.validate(&workflow_with(steps)).unwrap_err();
+        assert!(errors.len() >= 2, "expected both errors, got: {errors:?}");
+        assert!(errors.iter().any(|e| e.contains("Step 1 (first)")));
+        assert!(errors.iter().any(|e| e.contains("Step 2 (second)")));
+    }
+
+    // =====================================================================
+    // StepResult
+    // =====================================================================
+
+    fn step_result(name: &str) -> StepResult {
+        StepResult {
+            name: name.to_string(),
+            method: "GET".to_string(),
+            url: "https://example.com".to_string(),
+            status_code: Some(200),
+            response_time: Duration::from_millis(12),
+            assertions: Vec::new(),
+            extracted: HashMap::new(),
+            error: None,
+            skipped: false,
+        }
+    }
+
+    #[test]
+    fn test_step_result_passed_requires_no_error_and_all_assertions_ok() {
+        assert!(step_result("ok").passed());
+
+        let errored = StepResult {
+            error: Some("boom".to_string()),
+            ..step_result("err")
+        };
+        assert!(!errored.passed());
+
+        let skipped = StepResult {
+            skipped: true,
+            ..step_result("skip")
+        };
+        assert!(!skipped.passed(), "a skipped step has not passed");
+
+        let failed_assertion = StepResult {
+            assertions: vec![AssertionResult::fail("status", "expected 200")],
+            ..step_result("assert")
+        };
+        assert!(!failed_assertion.passed());
+
+        let passed_assertion = StepResult {
+            assertions: vec![AssertionResult::pass("status", "ok")],
+            ..step_result("assert")
+        };
+        assert!(passed_assertion.passed());
+    }
+
+    // =====================================================================
+    // Result formatting
+    // =====================================================================
+
+    #[test]
+    fn test_format_workflow_results_summary_counts() {
+        let results = vec![
+            step_result("passing"),
+            StepResult {
+                error: Some("connection refused".to_string()),
+                ..step_result("failing")
+            },
+            StepResult {
+                skipped: true,
+                ..step_result("skipped")
+            },
+        ];
+
+        let out = format_workflow_results(&results);
+        assert!(
+            out.contains("Total: 3 | Passed: 1 | Failed: 1 | Skipped: 1"),
+            "got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_format_workflow_results_marks_each_step_status() {
+        let results = vec![
+            step_result("passing"),
+            StepResult {
+                error: Some("boom".to_string()),
+                ..step_result("failing")
+            },
+            StepResult {
+                skipped: true,
+                ..step_result("skipped")
+            },
+        ];
+
+        let out = format_workflow_results(&results);
+        assert!(out.contains("✓ Step 1: passing"), "got:\n{out}");
+        assert!(out.contains("✗ Step 2: failing"), "got:\n{out}");
+        assert!(out.contains("⊘ Step 3: skipped"), "got:\n{out}");
+        // A skipped step shows SKIPPED instead of a status code, and no URL line.
+        assert!(out.contains("SKIPPED"), "got:\n{out}");
+        assert!(out.contains("Error: boom"), "got:\n{out}");
+    }
+
+    #[test]
+    fn test_format_workflow_results_shows_missing_status_as_dashes() {
+        let results = vec![StepResult {
+            status_code: None,
+            ..step_result("no-status")
+        }];
+        assert!(format_workflow_results(&results).contains("---"));
+    }
+
+    #[test]
+    fn test_format_workflow_results_lists_assertions_and_extractions() {
+        let mut result = step_result("detailed");
+        result.assertions = vec![
+            AssertionResult::pass("status", "200 == 200"),
+            AssertionResult::fail("body.id", "missing"),
+        ];
+        result
+            .extracted
+            .insert("token".to_string(), JsonValue::String("abc".into()));
+
+        let out = format_workflow_results(&[result]);
+        assert!(out.contains("status: 200 == 200"), "got:\n{out}");
+        assert!(out.contains("body.id: missing"), "got:\n{out}");
+        assert!(out.contains("Extracted:"), "got:\n{out}");
+        assert!(out.contains("token = \"abc\""), "got:\n{out}");
+    }
+
+    #[test]
+    fn test_format_workflow_results_handles_no_results() {
+        let out = format_workflow_results(&[]);
+        assert!(
+            out.contains("Total: 0 | Passed: 0 | Failed: 0 | Skipped: 0"),
+            "got:\n{out}"
+        );
+    }
+
+    #[test]
+    fn test_format_workflow_results_json_emits_one_line_per_step_plus_summary() {
+        let results = vec![
+            step_result("first"),
+            StepResult {
+                error: Some("boom".to_string()),
+                ..step_result("second")
+            },
+        ];
+
+        let out = format_workflow_results_json(&results);
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), 3, "2 steps + 1 summary, got:\n{out}");
+
+        // Every line must be valid JSON.
+        let parsed: Vec<JsonValue> = lines
+            .iter()
+            .map(|l| serde_json::from_str(l).expect("each line must be JSON"))
+            .collect();
+
+        assert_eq!(parsed[0]["event"], "step_result");
+        assert_eq!(parsed[0]["step_name"], "first");
+        assert_eq!(parsed[0]["level"], "info");
+        assert_eq!(parsed[0]["passed"], true);
+        assert_eq!(parsed[0]["status_code"], 200);
+        assert_eq!(parsed[0]["duration_ms"], 12);
+
+        assert_eq!(parsed[1]["level"], "error");
+        assert_eq!(parsed[1]["passed"], false);
+        assert_eq!(parsed[1]["error"], "boom");
+
+        assert_eq!(parsed[2]["event"], "workflow_summary");
+        assert_eq!(parsed[2]["total"], 2);
+        assert_eq!(parsed[2]["passed"], 1);
+        assert_eq!(parsed[2]["failed"], 1);
+        assert_eq!(parsed[2]["skipped"], 0);
+        assert_eq!(parsed[2]["success"], false);
+    }
+
+    #[test]
+    fn test_format_workflow_results_json_counts_assertions() {
+        let mut result = step_result("counted");
+        result.assertions = vec![
+            AssertionResult::pass("a", "ok"),
+            AssertionResult::fail("b", "no"),
+            AssertionResult::fail("c", "no"),
+        ];
+
+        let out = format_workflow_results_json(&[result]);
+        let first: JsonValue = serde_json::from_str(out.lines().next().unwrap()).unwrap();
+        assert_eq!(first["assertions_passed"], 1);
+        assert_eq!(first["assertions_failed"], 2);
+    }
+
+    #[test]
+    fn test_format_workflow_results_json_reports_success_when_nothing_failed() {
+        let results = vec![
+            step_result("ok"),
+            StepResult {
+                skipped: true,
+                ..step_result("skipped")
+            },
+        ];
+        let out = format_workflow_results_json(&results);
+        let summary: JsonValue = serde_json::from_str(out.lines().last().unwrap()).unwrap();
+        assert_eq!(summary["success"], true, "skips must not count as failures");
+        assert_eq!(summary["skipped"], 1);
+    }
+
+    #[test]
+    fn test_format_workflow_results_json_on_empty_input_is_just_a_summary() {
+        let out = format_workflow_results_json(&[]);
+        let lines: Vec<&str> = out.lines().collect();
+        assert_eq!(lines.len(), 1);
+        let summary: JsonValue = serde_json::from_str(lines[0]).unwrap();
+        assert_eq!(summary["total"], 0);
+        assert_eq!(summary["success"], true);
+    }
 }

@@ -135,3 +135,114 @@ pub fn format_xml(xml: &str, options: &XmlFormatterOptions) -> String {
 
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn fmt(xml: &str) -> String {
+        format_xml(xml, &XmlFormatterOptions::default())
+    }
+
+    #[test]
+    fn test_default_options() {
+        assert_eq!(XmlFormatterOptions::default().indent, 2);
+    }
+
+    #[test]
+    fn test_nests_child_elements() {
+        assert_eq!(fmt("<a><b>text</b></a>"), "<a>\n  <b>text\n  </b>\n</a>");
+    }
+
+    #[test]
+    fn test_declaration_is_not_indented_as_a_parent() {
+        // <?xml ...?> must not increase depth, so <root> stays at column 0.
+        assert_eq!(
+            fmt("<?xml version=\"1.0\"?><root><item/></root>"),
+            "<?xml version=\"1.0\"?>\n<root>\n  <item/>\n</root>"
+        );
+    }
+
+    #[test]
+    fn test_self_closing_tags_do_not_increase_depth() {
+        assert_eq!(fmt("<a><b/><c/></a>"), "<a>\n  <b/>\n  <c/>\n</a>");
+    }
+
+    #[test]
+    fn test_gt_inside_attribute_value_does_not_end_the_tag() {
+        // The '>' in the title attribute must stay part of the same tag.
+        assert_eq!(
+            fmt("<a title=\"a > b\"><c/></a>"),
+            "<a title=\"a > b\">\n  <c/>\n</a>"
+        );
+    }
+
+    #[test]
+    fn test_single_quoted_attribute_with_gt() {
+        assert_eq!(fmt("<a t='x > y'/>"), "<a t='x > y'/>");
+    }
+
+    #[test]
+    fn test_comment_with_gt_is_kept_intact() {
+        assert_eq!(
+            fmt("<a><!-- hi > there --><b/></a>"),
+            "<a>\n  <!-- hi > there -->\n  <b/>\n</a>"
+        );
+    }
+
+    #[test]
+    fn test_cdata_with_gt_is_kept_intact() {
+        assert_eq!(
+            fmt("<a><![CDATA[ x > y ]]></a>"),
+            "<a>\n  <![CDATA[ x > y ]]>\n</a>"
+        );
+    }
+
+    #[test]
+    fn test_existing_newlines_are_normalized() {
+        // Pre-formatted input should not accumulate blank lines.
+        assert_eq!(fmt("<a>\n<b/>\n</a>"), "<a>\n  <b/>\n</a>");
+    }
+
+    #[test]
+    fn test_custom_indent_width() {
+        assert_eq!(
+            format_xml("<a><b/></a>", &XmlFormatterOptions { indent: 4 }),
+            "<a>\n    <b/>\n</a>"
+        );
+        assert_eq!(
+            format_xml("<a><b/></a>", &XmlFormatterOptions { indent: 0 }),
+            "<a>\n<b/>\n</a>"
+        );
+    }
+
+    #[test]
+    fn test_unbalanced_closing_tags_do_not_panic() {
+        // depth uses saturating_sub, so extra closers must not underflow.
+        assert_eq!(fmt("</a></b>"), "</a>\n</b>");
+    }
+
+    #[test]
+    fn test_empty_and_text_only_input() {
+        assert_eq!(fmt(""), "");
+        assert_eq!(fmt("hello"), "hello");
+    }
+
+    #[test]
+    fn test_deeper_nesting_accumulates_indent() {
+        let out = fmt("<a><b><c/></b></a>");
+        assert_eq!(out, "<a>\n  <b>\n    <c/>\n  </b>\n</a>");
+    }
+
+    #[test]
+    fn test_multibyte_content_is_preserved() {
+        let out = fmt("<a><b>héllo → wörld</b></a>");
+        assert!(out.contains("héllo → wörld"), "got: {out}");
+    }
+
+    #[test]
+    fn test_doctype_does_not_increase_depth() {
+        let out = fmt("<!DOCTYPE html><html><body/></html>");
+        assert_eq!(out, "<!DOCTYPE html>\n<html>\n  <body/>\n</html>");
+    }
+}

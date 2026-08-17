@@ -56,7 +56,11 @@ impl SchemaMapper {
             (Some("integer"), Some("int64")) => {
                 Self::int_with_constraints(schema, i64::MIN, i64::MAX)
             }
-            (Some("integer"), _) => Self::int_with_constraints(schema, 0, 1000),
+            // No format means no narrower type bound than i64. The 0/1000
+            // defaults are applied inside int_with_constraints when the schema
+            // omits minimum/maximum; passing them as clamps here would discard
+            // a legitimate negative minimum.
+            (Some("integer"), _) => Self::int_with_constraints(schema, i64::MIN, i64::MAX),
 
             // Number formats
             (Some("number"), Some("float")) => Self::float_with_constraints(schema),
@@ -96,12 +100,33 @@ impl SchemaMapper {
 
     /// Generate integer with constraints
     fn int_with_constraints(schema: &Schema, type_min: i64, type_max: i64) -> String {
-        let min = schema.minimum.map(|m| m as i64).unwrap_or(0);
-        let max = schema.maximum.map(|m| m as i64).unwrap_or(1000);
+        /// Bounds used for whichever side the schema leaves unspecified.
+        const DEFAULT_MIN: i64 = 0;
+        const DEFAULT_MAX: i64 = 1000;
 
-        // Clamp to type bounds
-        let min = min.max(type_min);
-        let max = max.min(type_max);
+        let (mut min, mut max) = match (schema.minimum, schema.maximum) {
+            (Some(lo), Some(hi)) => (lo as i64, hi as i64),
+            // Stretch the defaulted side only as far as needed to stay on the
+            // correct side of the bound the schema did give.
+            (Some(lo), None) => {
+                let lo = lo as i64;
+                (lo, lo.max(DEFAULT_MAX))
+            }
+            (None, Some(hi)) => {
+                let hi = hi as i64;
+                (hi.min(DEFAULT_MIN), hi)
+            }
+            (None, None) => (DEFAULT_MIN, DEFAULT_MAX),
+        };
+
+        // Repair a schema that states its bounds backwards.
+        if min > max {
+            std::mem::swap(&mut min, &mut max);
+        }
+
+        // Clamp into the range the format can actually represent.
+        min = min.clamp(type_min, type_max);
+        max = max.clamp(type_min, type_max);
 
         format!("{{random_int:{}:{}}}", min, max)
     }
@@ -322,5 +347,579 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(SchemaMapper::schema_to_magic(&schema), "my-example");
+    }
+
+    fn typed(t: &str) -> Schema {
+        Schema {
+            schema_type: Some(t.to_string()),
+            ..Default::default()
+        }
+    }
+
+    fn formatted(t: &str, f: &str) -> Schema {
+        Schema {
+            schema_type: Some(t.to_string()),
+            format: Some(f.to_string()),
+            ..Default::default()
+        }
+    }
+
+    // ---- string formats ----
+
+    #[test]
+    fn test_all_string_formats_map_to_magic_values() {
+        let cases = [
+            ("uuid", "{uuid}"),
+            ("email", "{email}"),
+            ("date-time", "{now}"),
+            ("date", "{date}"),
+            ("time", "{time}"),
+            ("uri", "https://example.com/{random_string:8}"),
+            ("hostname", "example-{random_string:8}.com"),
+            ("ipv4", "192.168.1.{random_int:1:254}"),
+            ("ipv6", "::1"),
+            ("byte", "{random_bytes:16}"),
+            ("binary", "{random_bytes:32}"),
+            ("password", "{random_string:16}"),
+            (
+                "phone",
+                "+1-555-{random_int:100:999}-{random_int:1000:9999}",
+            ),
+        ];
+        for (format, expected) in cases {
+            assert_eq!(
+                SchemaMapper::schema_to_magic(&formatted("string", format)),
+                expected,
+                "format {format}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_plain_string_defaults_to_ten_chars() {
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&typed("string")),
+            "{random_string:10}"
+        );
+    }
+
+    #[test]
+    fn test_string_length_constraints() {
+        // Both bounds -> midpoint.
+        let both = Schema {
+            min_length: Some(4),
+            max_length: Some(10),
+            ..typed("string")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&both), "{random_string:7}");
+
+        // Min only -> at least 10.
+        let min_small = Schema {
+            min_length: Some(3),
+            ..typed("string")
+        };
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&min_small),
+            "{random_string:10}"
+        );
+
+        let min_large = Schema {
+            min_length: Some(25),
+            ..typed("string")
+        };
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&min_large),
+            "{random_string:25}"
+        );
+
+        // Max only -> capped at 20.
+        let max_large = Schema {
+            max_length: Some(50),
+            ..typed("string")
+        };
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&max_large),
+            "{random_string:20}"
+        );
+
+        let max_small = Schema {
+            max_length: Some(5),
+            ..typed("string")
+        };
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&max_small),
+            "{random_string:5}"
+        );
+    }
+
+    #[test]
+    fn test_unknown_string_format_uses_length_constraints() {
+        // An unrecognized format falls through to the constraint path.
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&formatted("string", "some-custom-format")),
+            "{random_string:10}"
+        );
+    }
+
+    // ---- numeric ----
+
+    #[test]
+    fn test_integer_default_range() {
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&typed("integer")),
+            "{random_int:0:1000}"
+        );
+    }
+
+    #[test]
+    fn test_int32_and_int64_clamp_to_type_bounds() {
+        // Without explicit bounds the defaults (0..1000) sit inside both types.
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&formatted("integer", "int32")),
+            "{random_int:0:1000}"
+        );
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&formatted("integer", "int64")),
+            "{random_int:0:1000}"
+        );
+
+        // An out-of-range maximum is clamped down to i32::MAX.
+        let huge = Schema {
+            minimum: Some(0.0),
+            maximum: Some(1e18),
+            ..formatted("integer", "int32")
+        };
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&huge),
+            format!("{{random_int:0:{}}}", i32::MAX)
+        );
+    }
+
+    #[test]
+    fn test_negative_integer_bounds_are_preserved() {
+        // Regression: a format-less integer used to clamp `minimum` to 0,
+        // producing the inverted range "{random_int:0:-10}".
+        let s = Schema {
+            minimum: Some(-50.0),
+            maximum: Some(-10.0),
+            ..typed("integer")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&s), "{random_int:-50:-10}");
+    }
+
+    #[test]
+    fn test_generated_int_ranges_are_never_inverted() {
+        let bounds = [
+            (Some(-100.0), Some(-1.0)),
+            (Some(-5.0), Some(5.0)),
+            (Some(0.0), Some(0.0)),
+            (Some(10.0), Some(20.0)),
+            (None, None),
+            (Some(-1.0), None),
+            (None, Some(-1.0)),
+        ];
+        for format in [None, Some("int32"), Some("int64")] {
+            for (minimum, maximum) in bounds {
+                let schema = Schema {
+                    schema_type: Some("integer".to_string()),
+                    format: format.map(str::to_string),
+                    minimum,
+                    maximum,
+                    ..Default::default()
+                };
+                let out = SchemaMapper::schema_to_magic(&schema);
+                let body = out.trim_start_matches("{random_int:").trim_end_matches('}');
+                // Split on the ':' that separates the two (possibly negative) bounds.
+                let idx = body[1..].find(':').unwrap() + 1;
+                let lo: i64 = body[..idx].parse().unwrap();
+                let hi: i64 = body[idx + 1..].parse().unwrap();
+                assert!(
+                    lo <= hi,
+                    "inverted range {out} for format={format:?} bounds=({minimum:?},{maximum:?})"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_number_formats_all_map_to_random_float() {
+        for f in ["float", "double"] {
+            assert_eq!(
+                SchemaMapper::schema_to_magic(&formatted("number", f)),
+                "{random_float:0:100}"
+            );
+        }
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&typed("number")),
+            "{random_float:0:100}"
+        );
+    }
+
+    #[test]
+    fn test_number_respects_explicit_bounds() {
+        let s = Schema {
+            minimum: Some(1.5),
+            maximum: Some(2.5),
+            ..typed("number")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&s), "{random_float:1.5:2.5}");
+    }
+
+    #[test]
+    fn test_boolean_maps_to_random_bool() {
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&typed("boolean")),
+            "{random_bool}"
+        );
+    }
+
+    #[test]
+    fn test_unknown_type_falls_back_to_random_string() {
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&Schema::default()),
+            "{random_string:10}"
+        );
+        assert_eq!(
+            SchemaMapper::schema_to_magic(&typed("something-else")),
+            "{random_string:10}"
+        );
+    }
+
+    // ---- composites ----
+
+    #[test]
+    fn test_array_wraps_its_item_template() {
+        let s = Schema {
+            items: Some(Box::new(formatted("string", "uuid"))),
+            ..typed("array")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&s), "[{uuid}]");
+    }
+
+    #[test]
+    fn test_array_without_items_is_empty() {
+        assert_eq!(SchemaMapper::schema_to_magic(&typed("array")), "[]");
+    }
+
+    #[test]
+    fn test_object_without_properties_is_empty() {
+        assert_eq!(SchemaMapper::schema_to_magic(&typed("object")), "{}");
+    }
+
+    #[test]
+    fn test_object_quotes_magic_templates_but_not_numbers_or_bools() {
+        let mut props = HashMap::new();
+        props.insert("id".to_string(), formatted("string", "uuid"));
+        props.insert("flag".to_string(), typed("boolean"));
+        let s = Schema {
+            properties: props,
+            ..typed("object")
+        };
+
+        let out = SchemaMapper::schema_to_magic(&s);
+        // Magic templates are wrapped in quotes so the result stays valid JSON-ish.
+        assert!(out.contains(r#""id": "{uuid}""#), "got: {out}");
+        assert!(out.contains(r#""flag": "{random_bool}""#), "got: {out}");
+    }
+
+    #[test]
+    fn test_object_leaves_literal_scalars_unquoted() {
+        let mut props = HashMap::new();
+        props.insert(
+            "count".to_string(),
+            Schema {
+                example: Some(Value::Number(7.into())),
+                ..typed("integer")
+            },
+        );
+        props.insert(
+            "on".to_string(),
+            Schema {
+                example: Some(Value::Bool(true)),
+                ..typed("boolean")
+            },
+        );
+        let s = Schema {
+            properties: props,
+            ..typed("object")
+        };
+
+        let out = SchemaMapper::schema_to_magic(&s);
+        assert!(out.contains(r#""count": 7"#), "got: {out}");
+        assert!(out.contains(r#""on": true"#), "got: {out}");
+    }
+
+    #[test]
+    fn test_object_keeps_nested_arrays_unquoted() {
+        let mut props = HashMap::new();
+        props.insert(
+            "tags".to_string(),
+            Schema {
+                items: Some(Box::new(typed("string"))),
+                ..typed("array")
+            },
+        );
+        let s = Schema {
+            properties: props,
+            ..typed("object")
+        };
+        let out = SchemaMapper::schema_to_magic(&s);
+        assert!(
+            out.contains(r#""tags": [{random_string:10}]"#),
+            "got: {out}"
+        );
+    }
+
+    // ---- precedence & value conversion ----
+
+    #[test]
+    fn test_enum_beats_example_and_default() {
+        let s = Schema {
+            enum_values: vec![Value::String("a".into())],
+            example: Some(Value::String("ex".into())),
+            default: Some(Value::String("def".into())),
+            ..typed("string")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&s), "{pick:a}");
+    }
+
+    #[test]
+    fn test_default_used_when_no_example() {
+        let s = Schema {
+            default: Some(Value::String("fallback".into())),
+            ..typed("string")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&s), "fallback");
+    }
+
+    #[test]
+    fn test_enum_of_mixed_value_kinds() {
+        let s = Schema {
+            enum_values: vec![
+                Value::Number(1.into()),
+                Value::Bool(false),
+                Value::Null,
+                Value::String("x".into()),
+            ],
+            ..typed("string")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&s), "{pick:1,false,null,x}");
+    }
+
+    #[test]
+    fn test_example_of_array_and_object_is_serialized() {
+        let arr = Schema {
+            example: Some(serde_json::json!([1, 2])),
+            ..typed("array")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&arr), "[1,2]");
+
+        let obj = Schema {
+            example: Some(serde_json::json!({"k": 1})),
+            ..typed("object")
+        };
+        assert_eq!(SchemaMapper::schema_to_magic(&obj), r#"{"k":1}"#);
+    }
+
+    // ---- generate_request_body ----
+
+    #[test]
+    fn test_generate_request_body_builds_an_object() {
+        let mut props = HashMap::new();
+        props.insert("id".to_string(), formatted("string", "uuid"));
+        let schema = Schema {
+            properties: props,
+            ..typed("object")
+        };
+
+        let body = SchemaMapper::generate_request_body(&schema, &HashMap::new());
+        assert_eq!(body["id"], Value::String("{uuid}".to_string()));
+    }
+
+    #[test]
+    fn test_generate_request_body_resolves_refs() {
+        let mut props = HashMap::new();
+        props.insert("name".to_string(), typed("string"));
+        let user = Schema {
+            properties: props,
+            ..typed("object")
+        };
+
+        let mut schemas = HashMap::new();
+        schemas.insert("User".to_string(), user);
+
+        let referring = Schema {
+            ref_path: Some("#/components/schemas/User".to_string()),
+            ..Default::default()
+        };
+
+        let body = SchemaMapper::generate_request_body(&referring, &schemas);
+        assert_eq!(
+            body["name"],
+            Value::String("{random_string:10}".to_string())
+        );
+    }
+
+    #[test]
+    fn test_generate_request_body_unresolvable_ref_yields_null() {
+        let referring = Schema {
+            ref_path: Some("#/components/schemas/Missing".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            SchemaMapper::generate_request_body(&referring, &HashMap::new()),
+            Value::Null
+        );
+    }
+
+    #[test]
+    fn test_generate_request_body_stops_on_self_referencing_ref() {
+        // A schema that points at itself must hit the depth guard, not recurse forever.
+        let mut schemas = HashMap::new();
+        schemas.insert(
+            "Node".to_string(),
+            Schema {
+                ref_path: Some("#/components/schemas/Node".to_string()),
+                ..Default::default()
+            },
+        );
+        let root = Schema {
+            ref_path: Some("#/components/schemas/Node".to_string()),
+            ..Default::default()
+        };
+        assert_eq!(
+            SchemaMapper::generate_request_body(&root, &schemas),
+            Value::Null
+        );
+    }
+
+    #[test]
+    fn test_generate_request_body_example_and_enum_precedence() {
+        let with_example = Schema {
+            example: Some(serde_json::json!({"a": 1})),
+            ..typed("object")
+        };
+        assert_eq!(
+            SchemaMapper::generate_request_body(&with_example, &HashMap::new()),
+            serde_json::json!({"a": 1})
+        );
+
+        let with_enum = Schema {
+            enum_values: vec![
+                Value::String("first".into()),
+                Value::String("second".into()),
+            ],
+            ..typed("string")
+        };
+        assert_eq!(
+            SchemaMapper::generate_request_body(&with_enum, &HashMap::new()),
+            Value::String("first".to_string())
+        );
+    }
+
+    #[test]
+    fn test_generate_request_body_arrays() {
+        let with_items = Schema {
+            items: Some(Box::new(typed("string"))),
+            ..typed("array")
+        };
+        let body = SchemaMapper::generate_request_body(&with_items, &HashMap::new());
+        assert_eq!(body.as_array().unwrap().len(), 1);
+
+        let empty = typed("array");
+        assert_eq!(
+            SchemaMapper::generate_request_body(&empty, &HashMap::new()),
+            Value::Array(vec![])
+        );
+    }
+
+    #[test]
+    fn test_generate_request_body_scalar_types() {
+        let schemas = HashMap::new();
+        assert_eq!(
+            SchemaMapper::generate_request_body(&typed("string"), &schemas),
+            Value::String("{random_string:10}".to_string())
+        );
+        assert_eq!(
+            SchemaMapper::generate_request_body(&typed("integer"), &schemas),
+            Value::String("{random_int:0:1000}".to_string())
+        );
+        assert_eq!(
+            SchemaMapper::generate_request_body(&typed("number"), &schemas),
+            Value::String("{random_float:0:100}".to_string())
+        );
+        assert_eq!(
+            SchemaMapper::generate_request_body(&typed("boolean"), &schemas),
+            Value::String("{random_bool}".to_string())
+        );
+        assert_eq!(
+            SchemaMapper::generate_request_body(&Schema::default(), &schemas),
+            Value::Null
+        );
+    }
+
+    #[test]
+    fn test_generate_request_body_parses_literal_property_values() {
+        // A property whose template contains no braces is parsed as JSON.
+        let mut props = HashMap::new();
+        props.insert(
+            "n".to_string(),
+            Schema {
+                example: Some(Value::Number(5.into())),
+                ..typed("integer")
+            },
+        );
+        let schema = Schema {
+            properties: props,
+            ..typed("object")
+        };
+        let body = SchemaMapper::generate_request_body(&schema, &HashMap::new());
+        assert_eq!(body["n"], Value::Number(5.into()));
+    }
+
+    // ---- fuzz categories ----
+
+    #[test]
+    fn test_fuzz_categories_for_plain_string() {
+        let cats = SchemaMapper::type_to_fuzz_category(&typed("string"));
+        assert_eq!(cats, ["sql", "xss", "cmd"]);
+    }
+
+    #[test]
+    fn test_fuzz_categories_for_uri_and_url_formats() {
+        for f in ["uri", "url"] {
+            let cats = SchemaMapper::type_to_fuzz_category(&formatted("string", f));
+            assert_eq!(cats, ["ssrf", "path"], "format {f}");
+        }
+    }
+
+    #[test]
+    fn test_fuzz_categories_for_email() {
+        let cats = SchemaMapper::type_to_fuzz_category(&formatted("string", "email"));
+        assert_eq!(cats, ["format"]);
+    }
+
+    #[test]
+    fn test_fuzz_categories_for_integers() {
+        assert_eq!(
+            SchemaMapper::type_to_fuzz_category(&typed("integer")),
+            ["int", "boundary"]
+        );
+        assert_eq!(
+            SchemaMapper::type_to_fuzz_category(&formatted("integer", "int64")),
+            ["int", "boundary"]
+        );
+    }
+
+    #[test]
+    fn test_fuzz_categories_fall_back_to_type_confusion() {
+        for schema in [typed("boolean"), typed("object"), Schema::default()] {
+            assert_eq!(SchemaMapper::type_to_fuzz_category(&schema), ["type"]);
+        }
+        // A string with some other format also lands in the catch-all.
+        assert_eq!(
+            SchemaMapper::type_to_fuzz_category(&formatted("string", "uuid")),
+            ["type"]
+        );
     }
 }

@@ -47,22 +47,7 @@ fn json_to_deterministic_format(value: &JsonValue) -> String {
     serde_json::to_string(value).unwrap_or_default()
 }
 
-/// Form-style URL encode a string (uses + for spaces)
-fn form_urlencode(s: &str) -> String {
-    let mut result = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            ' ' => result.push('+'),
-            'a'..='z' | 'A'..='Z' | '0'..='9' | '-' | '_' | '.' | '~' => result.push(c),
-            _ => {
-                for b in c.to_string().as_bytes() {
-                    result.push_str(&format!("%{:02X}", b));
-                }
-            }
-        }
-    }
-    result
-}
+use crate::strings::form_urlencode;
 
 /// Intermediate response captured during redirect chain (for --all flag)
 #[derive(Debug)]

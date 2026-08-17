@@ -585,4 +585,326 @@ mod tests {
         let delete = formatter.format_headers("DELETE / HTTP/1.1\n");
         assert!(delete.contains(&format!("\x1b[1;38;5;{}m", pie_colors::RED)));
     }
+
+    // ---- ColorStyle ----
+
+    #[test]
+    fn test_color_style_parse_known_names() {
+        assert_eq!(ColorStyle::parse("auto"), ColorStyle::Auto);
+        assert_eq!(ColorStyle::parse("pie"), ColorStyle::Auto);
+        assert_eq!(ColorStyle::parse("pie-dark"), ColorStyle::Auto);
+        assert_eq!(ColorStyle::parse("pie-light"), ColorStyle::PieLight);
+        assert_eq!(ColorStyle::parse("solarized"), ColorStyle::SolarizedDark);
+        assert_eq!(
+            ColorStyle::parse("solarized-dark"),
+            ColorStyle::SolarizedDark
+        );
+        assert_eq!(ColorStyle::parse("solarized256"), ColorStyle::SolarizedDark);
+        assert_eq!(
+            ColorStyle::parse("solarized-light"),
+            ColorStyle::SolarizedLight
+        );
+        assert_eq!(ColorStyle::parse("monokai"), ColorStyle::Monokai);
+    }
+
+    #[test]
+    fn test_color_style_parse_is_case_insensitive() {
+        assert_eq!(ColorStyle::parse("MONOKAI"), ColorStyle::Monokai);
+        assert_eq!(ColorStyle::parse("Pie-Light"), ColorStyle::PieLight);
+    }
+
+    #[test]
+    fn test_color_style_parse_unknown_becomes_custom_lowercased() {
+        assert_eq!(
+            ColorStyle::parse("Dracula"),
+            ColorStyle::Custom("dracula".to_string())
+        );
+    }
+
+    #[test]
+    fn test_color_style_default_is_auto() {
+        assert_eq!(ColorStyle::default(), ColorStyle::Auto);
+    }
+
+    #[test]
+    fn test_list_styles_covers_every_documented_name() {
+        let styles = ColorStyle::list_styles();
+        assert!(!styles.is_empty());
+        let names: Vec<&str> = styles.iter().map(|(n, _)| *n).collect();
+        for expected in [
+            "auto",
+            "pie",
+            "pie-dark",
+            "pie-light",
+            "solarized-dark",
+            "solarized-light",
+            "monokai",
+        ] {
+            assert!(names.contains(&expected), "missing style {expected}");
+        }
+        // Every entry must carry a description.
+        assert!(styles.iter().all(|(_, d)| !d.is_empty()));
+    }
+
+    // ---- format_headers edge cases ----
+
+    #[test]
+    fn test_blank_line_separating_headers_from_body() {
+        let formatter = ColorFormatter::new(ColorStyle::Auto);
+        let out = formatter.format_headers("Host: x\n\n");
+        assert!(out.contains("Host"));
+    }
+
+    #[test]
+    fn test_unrecognized_line_passes_through() {
+        let formatter = ColorFormatter::new(ColorStyle::Auto);
+        let out = formatter.format_headers("not a header or request line\n");
+        assert!(out.contains("not a header or request line"));
+    }
+
+    #[test]
+    fn test_informational_and_redirect_status_colors() {
+        let formatter = ColorFormatter::new(ColorStyle::Auto);
+        let r100 = formatter.format_headers("HTTP/1.1 100 Continue\n");
+        assert!(r100.contains(&format!("\x1b[1;38;5;{}m", pie_colors::AQUA)));
+
+        let r301 = formatter.format_headers("HTTP/1.1 301 Moved Permanently\n");
+        assert!(r301.contains(&format!("\x1b[1;38;5;{}m", pie_colors::YELLOW)));
+    }
+
+    #[test]
+    fn test_put_and_unknown_method_colors() {
+        let formatter = ColorFormatter::new(ColorStyle::Auto);
+        let put = formatter.format_headers("PUT / HTTP/1.1\n");
+        assert!(put.contains(&format!("\x1b[1;38;5;{}m", pie_colors::ORANGE)));
+
+        // An unrecognized (but uppercase) verb falls back to grey.
+        let custom = formatter.format_headers("PURGE / HTTP/1.1\n");
+        assert!(custom.contains(&format!("\x1b[1;38;5;{}m", pie_colors::GREY)));
+    }
+
+    #[test]
+    fn test_response_line_without_reason_phrase() {
+        let formatter = ColorFormatter::new(ColorStyle::Auto);
+        let out = formatter.format_headers("HTTP/2 204\n");
+        assert!(out.contains("204"));
+        assert!(out.contains(&format!("\x1b[1;38;5;{}m", pie_colors::GREEN)));
+    }
+
+    #[test]
+    fn test_header_name_and_value_get_distinct_colors() {
+        let formatter = ColorFormatter::new(ColorStyle::Auto);
+        let out = formatter.format_headers("Accept: */*\n");
+        assert!(out.contains(&format!("\x1b[38;5;{}m", pie_colors::BLUE)));
+        assert!(out.contains(&format!("\x1b[38;5;{}m", pie_colors::PRIMARY)));
+    }
+
+    // ---- JSON colorization ----
+
+    #[test]
+    fn test_json_keys_and_values_get_different_colors() {
+        let out = colorize_json(r#"{"k":"v"}"#);
+        assert!(
+            out.contains(&format!("\x1b[38;5;{}m", pie_colors::PINK)),
+            "key not pink"
+        );
+        assert!(
+            out.contains(&format!("\x1b[38;5;{}m", pie_colors::GREEN)),
+            "value not green"
+        );
+    }
+
+    #[test]
+    fn test_json_array_elements_are_values_not_keys() {
+        // Strings inside an array must be coloured as values, never as keys.
+        let out = colorize_json(r#"["a","b"]"#);
+        assert!(!out.contains(&format!("\x1b[38;5;{}m", pie_colors::PINK)));
+        assert!(out.contains(&format!("\x1b[38;5;{}m", pie_colors::GREEN)));
+    }
+
+    #[test]
+    fn test_json_literals_are_coloured() {
+        for literal in ["true", "false", "null"] {
+            let out = colorize_json(&format!(r#"{{"k":{literal}}}"#));
+            assert!(out.contains(literal), "{literal} missing from output");
+            assert!(
+                out.contains(&format!("\x1b[38;5;{}m", pie_colors::ORANGE)),
+                "{literal} not coloured"
+            );
+        }
+    }
+
+    #[test]
+    fn test_json_numbers_including_exponents_and_negatives() {
+        let out = colorize_json(r#"{"a":-1.5e-3,"b":42}"#);
+        assert!(out.contains("-1.5e-3"), "exponent number mangled: {out}");
+        assert!(out.contains("42"));
+        assert!(out.contains(&format!("\x1b[38;5;{}m", pie_colors::AQUA)));
+    }
+
+    #[test]
+    fn test_json_escaped_quote_inside_string_does_not_end_the_string() {
+        let out = colorize_json(r#"{"k":"a\"b"}"#);
+        // The escaped quote must survive, and the trailing } must still be present.
+        assert!(out.contains(r#"a\"b"#), "escape mangled: {out}");
+        assert!(out.ends_with(ansi::RESET));
+    }
+
+    #[test]
+    fn test_json_colorize_preserves_all_plain_characters() {
+        // Stripping ANSI codes must give back the original text.
+        let src = r#"{"a": [1, true, null, "x"], "b": {"c": -2.5}}"#;
+        let out = colorize_json(src);
+        assert_eq!(strip_ansi(&out), src);
+    }
+
+    #[test]
+    fn test_json_colorize_preserves_whitespace_and_newlines() {
+        let src = "{\n  \"a\": 1\n}";
+        assert_eq!(strip_ansi(&colorize_json(src)), src);
+    }
+
+    #[test]
+    fn test_json_words_starting_with_literal_prefixes_are_not_mangled() {
+        // Bare words like `nope` / `text` / `fine` are not JSON literals; the
+        // colorizer must still emit their characters unchanged.
+        for word in ["nope", "text", "fine"] {
+            let src = format!(r#"{{"k":{word}}}"#);
+            assert_eq!(strip_ansi(&colorize_json(&src)), src, "mangled {word}");
+        }
+    }
+
+    #[test]
+    fn test_json_nested_context_switches_back_to_keys_after_array() {
+        let src = r#"{"a":[1],"b":2}"#;
+        assert_eq!(strip_ansi(&colorize_json(src)), src);
+    }
+
+    // ---- XML colorization ----
+
+    #[test]
+    fn test_xml_tag_names_and_attributes_are_coloured() {
+        let out = colorize_xml(r#"<a href="x">t</a>"#);
+        assert!(
+            out.contains(&format!("\x1b[38;5;{}m", pie_colors::BLUE)),
+            "tag not blue"
+        );
+        assert!(
+            out.contains(&format!("\x1b[38;5;{}m", pie_colors::PINK)),
+            "attr not pink"
+        );
+        assert!(
+            out.contains(&format!("\x1b[38;5;{}m", pie_colors::GREEN)),
+            "attr value not green"
+        );
+    }
+
+    #[test]
+    fn test_xml_colorize_preserves_all_plain_characters() {
+        let src = r#"<root><item id="1" data-x='y'>text</item><self/></root>"#;
+        assert_eq!(strip_ansi(&colorize_xml(src)), src);
+    }
+
+    #[test]
+    fn test_xml_single_quoted_attribute_values() {
+        let src = "<a t='v'/>";
+        assert_eq!(strip_ansi(&colorize_xml(src)), src);
+    }
+
+    #[test]
+    fn test_xml_declaration_and_comment_survive() {
+        let src = "<?xml version=\"1.0\"?><!-- c --><a/>";
+        assert_eq!(strip_ansi(&colorize_xml(src)), src);
+    }
+
+    #[test]
+    fn test_xml_text_outside_tags_is_untouched() {
+        let src = "<a>plain text 123</a>";
+        assert_eq!(strip_ansi(&colorize_xml(src)), src);
+    }
+
+    // ---- MIME dispatch ----
+
+    #[test]
+    fn test_format_by_mime_json_variants() {
+        let f = ColorFormatter::new(ColorStyle::Auto);
+        let body = r#"{"k":1}"#;
+        for mime in [
+            "application/json",
+            "text/json",
+            "application/vnd.api+json",
+            "application/json; charset=utf-8",
+        ] {
+            let out = f.format_by_mime(body, mime);
+            assert_eq!(out, f.format_json(body), "mime {mime} not routed to JSON");
+        }
+    }
+
+    #[test]
+    fn test_format_by_mime_xml_and_html_variants() {
+        let f = ColorFormatter::new(ColorStyle::Auto);
+        let body = "<a/>";
+        for mime in [
+            "application/xml",
+            "text/xml",
+            "text/html",
+            "application/xhtml+xml",
+            "image/svg+xml",
+            "text/html; charset=utf-8",
+        ] {
+            let out = f.format_by_mime(body, mime);
+            assert_eq!(out, f.format_xml(body), "mime {mime} not routed to XML");
+        }
+    }
+
+    #[test]
+    fn test_format_by_mime_falls_back_to_plain() {
+        let f = ColorFormatter::new(ColorStyle::Auto);
+        assert_eq!(f.format_by_mime("hello", "text/plain"), "hello");
+        assert_eq!(
+            f.format_by_mime("hello", "application/octet-stream"),
+            "hello"
+        );
+    }
+
+    #[test]
+    fn test_format_plain_is_identity() {
+        let f = ColorFormatter::new(ColorStyle::Auto);
+        assert_eq!(f.format_plain("a\nb\t<>{}"), "a\nb\t<>{}");
+    }
+
+    #[test]
+    fn test_formatter_accepts_every_style_variant() {
+        for style in [
+            ColorStyle::Auto,
+            ColorStyle::PieDark,
+            ColorStyle::PieLight,
+            ColorStyle::SolarizedDark,
+            ColorStyle::SolarizedLight,
+            ColorStyle::Monokai,
+            ColorStyle::Custom("whatever".to_string()),
+        ] {
+            let f = ColorFormatter::new(style);
+            assert!(f.format_headers("HTTP/1.1 200 OK\n").contains("200"));
+        }
+    }
+
+    /// Remove ANSI SGR escape sequences so tests can assert on plain content.
+    fn strip_ansi(s: &str) -> String {
+        let mut out = String::new();
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            if c == '\x1b' {
+                // Skip "[...m"
+                for c in chars.by_ref() {
+                    if c == 'm' {
+                        break;
+                    }
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
 }
