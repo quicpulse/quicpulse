@@ -171,19 +171,18 @@ fn format_body(body: &str, content_type: Option<&str>, opts: &ProcessingOptions)
     let base_mime = mime.split(';').next().unwrap_or(mime).trim();
 
     // Format JSON
-    if base_mime == "application/json" || base_mime.ends_with("+json") {
-        if matches!(opts.pretty, PrettyOption::All | PrettyOption::Format) {
-            if let Ok(formatted) = format_json(body, &opts.json) {
-                let result = if opts.colors
-                    && matches!(opts.pretty, PrettyOption::All | PrettyOption::Colors)
-                {
+    if (base_mime == "application/json" || base_mime.ends_with("+json"))
+        && matches!(opts.pretty, PrettyOption::All | PrettyOption::Format)
+    {
+        if let Ok(formatted) = format_json(body, &opts.json) {
+            let result =
+                if opts.colors && matches!(opts.pretty, PrettyOption::All | PrettyOption::Colors) {
                     let formatter = ColorFormatter::new(opts.style.clone());
                     formatter.format_json(&formatted)
                 } else {
                     formatted
                 };
-                return result;
-            }
+            return result;
         }
     }
 

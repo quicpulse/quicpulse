@@ -147,10 +147,7 @@ pub fn extract_operation_names(query: &str) -> Vec<String> {
                 let rest = rest.trim();
                 // Extract the operation name (word before '(' or '{')
                 if !rest.is_empty() && !rest.starts_with('(') && !rest.starts_with('{') {
-                    if let Some(name) = rest
-                        .split(|c| c == '(' || c == '{' || c == ' ')
-                        .next()
-                        .filter(|s| !s.is_empty())
+                    if let Some(name) = rest.split(['(', '{', ' ']).next().filter(|s| !s.is_empty())
                     {
                         names.push(name.to_string());
                     }

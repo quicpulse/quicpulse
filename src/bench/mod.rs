@@ -32,9 +32,9 @@ pub fn format_results(result: &BenchmarkResult) -> String {
         colors::GREY,
     );
 
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&header_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "{}                        BENCHMARK RESULTS{}\n",
         terminal::bold_fg(colors::WHITE),
@@ -71,17 +71,17 @@ pub fn format_results(result: &BenchmarkResult) -> String {
         terminal::label("Duration:"),
         terminal::number(&format!("{:.2}s", result.duration.as_secs_f64()))
     ));
-    output.push_str("\n");
+    output.push('\n');
 
     // Throughput
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "  {}\n",
         terminal::bold("THROUGHPUT", colors::WHITE)
     ));
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "  {}     {}\n",
         terminal::label("Requests/sec:"),
@@ -100,14 +100,14 @@ pub fn format_results(result: &BenchmarkResult) -> String {
         terminal::label("Total bytes:"),
         terminal::number(&crate::utils::format_bytes(result.stats.total_bytes, 2))
     ));
-    output.push_str("\n");
+    output.push('\n');
 
     // Latency
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!("  {}\n", terminal::bold("LATENCY", colors::WHITE)));
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "  {}              {}\n",
         terminal::label("Min:"),
@@ -134,7 +134,7 @@ pub fn format_results(result: &BenchmarkResult) -> String {
         terminal::label("Std Dev:"),
         terminal::muted(&format!("{:.2}ms", result.stats.latency.stddev_ms))
     ));
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!("  {}:\n", terminal::label("Percentiles")));
     output.push_str(&format!(
         "    {}            {}\n",
@@ -161,17 +161,17 @@ pub fn format_results(result: &BenchmarkResult) -> String {
         terminal::muted("p99:"),
         terminal::number(&format!("{:.2}ms", result.stats.latency.p99_ms))
     ));
-    output.push_str("\n");
+    output.push('\n');
 
     // Status codes
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "  {}\n",
         terminal::bold("STATUS CODES", colors::WHITE)
     ));
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     let success_color = if result.stats.success_rate >= 0.95 {
         colors::GREEN
     } else if result.stats.success_rate >= 0.5 {
@@ -232,9 +232,9 @@ pub fn format_results(result: &BenchmarkResult) -> String {
         }
     }
 
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&header_line);
-    output.push_str("\n");
+    output.push('\n');
 
     output
 }

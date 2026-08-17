@@ -115,7 +115,7 @@ impl StatsCollector {
         if let Some(code) = status_code {
             *self.status_codes.entry(code).or_insert(0) += 1;
 
-            if code >= 200 && code < 400 {
+            if (200..400).contains(&code) {
                 self.successful += 1;
             } else {
                 self.failed += 1;
@@ -136,7 +136,7 @@ impl StatsCollector {
         let total = self.successful + self.failed;
         let duration_secs = duration.as_secs_f64();
 
-        let latency = if self.histogram.len() > 0 {
+        let latency = if !self.histogram.is_empty() {
             LatencyStats {
                 min_ms: self.histogram.min() as f64 / 1000.0,
                 max_ms: self.histogram.max() as f64 / 1000.0,

@@ -297,7 +297,7 @@ pub async fn send_request_with_session(
     let processed_clone = processed.clone();
     let body = tokio::task::spawn_blocking(move || build_body(&args_clone, &processed_clone))
         .await
-        .map_err(|e| QuicpulseError::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))??;
+        .map_err(|e| QuicpulseError::Io(std::io::Error::other(e)))??;
 
     let is_multipart = matches!(body.as_ref(), Some(RequestBody::Multipart(_)));
     let use_aws_sigv4 = matches!(args.auth_type, Some(AuthType::AwsSigv4));
@@ -396,7 +396,7 @@ pub async fn send_request_with_session(
         // Sign the request with FINAL body bytes (use unsigned payload for multipart uploads)
         let mut sig_headers = aws_sign_request(
             config,
-            &method.to_string(),
+            method.as_ref(),
             url.as_str(),
             &current_headers,
             final_body_bytes.as_deref(),
@@ -427,10 +427,10 @@ pub async fn send_request_with_session(
     request_builder = request_builder.headers(headers);
 
     // Set HTTP/3 version if requested
-    if args.http3 || args.http_version.as_deref() == Some("3") {
-        if !processed.url.starts_with("http://") {
-            request_builder = request_builder.version(http::Version::HTTP_3);
-        }
+    if (args.http3 || args.http_version.as_deref() == Some("3"))
+        && !processed.url.starts_with("http://")
+    {
+        request_builder = request_builder.version(http::Version::HTTP_3);
     }
 
     // Add AWS SigV4 headers if present
@@ -549,88 +549,82 @@ pub async fn send_request_with_session(
     );
 
     // Handle Digest auth challenge-response (401 retry)
-    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
-        if matches!(args.auth_type, Some(AuthType::Digest)) {
-            if let Some(www_auth) = response.headers().get(reqwest::header::WWW_AUTHENTICATE) {
-                if let Ok(www_auth_str) = www_auth.to_str() {
-                    // Check if it's a Digest challenge
-                    if www_auth_str.to_lowercase().starts_with("digest ") {
-                        if let Ok(challenge) = DigestChallenge::parse(www_auth_str) {
-                            // Get credentials
-                            if let Some(ref auth_secret) = args.auth {
-                                let auth_str = auth_secret.as_str();
-                                let digest_auth = DigestAuth::from_credentials(auth_str)
-                                    .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED
+        && matches!(args.auth_type, Some(AuthType::Digest))
+    {
+        if let Some(www_auth) = response.headers().get(reqwest::header::WWW_AUTHENTICATE) {
+            if let Ok(www_auth_str) = www_auth.to_str() {
+                // Check if it's a Digest challenge
+                if www_auth_str.to_lowercase().starts_with("digest ") {
+                    if let Ok(challenge) = DigestChallenge::parse(www_auth_str) {
+                        // Get credentials
+                        if let Some(ref auth_secret) = args.auth {
+                            let auth_str = auth_secret.as_str();
+                            let digest_auth = DigestAuth::from_credentials(auth_str)
+                                .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
 
-                                // Get URI path for digest response
-                                let uri_path = url.path();
-                                let uri_with_query = if let Some(query) = url.query() {
-                                    format!("{}?{}", uri_path, query)
-                                } else {
-                                    uri_path.to_string()
-                                };
+                            // Get URI path for digest response
+                            let uri_path = url.path();
+                            let uri_with_query = if let Some(query) = url.query() {
+                                format!("{}?{}", uri_path, query)
+                            } else {
+                                uri_path.to_string()
+                            };
 
-                                // Generate Authorization header
-                                let auth_header = digest_auth
-                                    .respond_to_challenge(
-                                        &challenge,
-                                        &method.to_string(),
-                                        &uri_with_query,
-                                    )
-                                    .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
+                            // Generate Authorization header
+                            let auth_header = digest_auth
+                                .respond_to_challenge(&challenge, method.as_ref(), &uri_with_query)
+                                .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
 
-                                // Rebuild headers with Authorization
-                                let mut retry_headers =
-                                    build_headers_with_session(args, processed, &url, session)?;
-                                retry_headers.insert(
-                                    reqwest::header::AUTHORIZATION,
-                                    HeaderValue::try_from(auth_header).map_err(|e| {
-                                        QuicpulseError::Parse(format!("Invalid auth header: {}", e))
-                                    })?,
-                                );
+                            // Rebuild headers with Authorization
+                            let mut retry_headers =
+                                build_headers_with_session(args, processed, &url, session)?;
+                            retry_headers.insert(
+                                reqwest::header::AUTHORIZATION,
+                                HeaderValue::try_from(auth_header).map_err(|e| {
+                                    QuicpulseError::Parse(format!("Invalid auth header: {}", e))
+                                })?,
+                            );
 
-                                // Rebuild request with auth header
-                                let mut retry_builder = client
-                                    .request(method.clone(), url.clone())
-                                    .headers(retry_headers);
+                            // Rebuild request with auth header
+                            let mut retry_builder = client
+                                .request(method.clone(), url.clone())
+                                .headers(retry_headers);
 
-                                // Set HTTP version if specified
-                                if args.http3 || args.http_version.as_deref() == Some("3") {
-                                    if !processed.url.starts_with("http://") {
-                                        retry_builder =
-                                            retry_builder.version(http::Version::HTTP_3);
-                                    }
-                                }
-
-                                // Add download headers if present
-                                if let Some(dl_headers) = download_headers {
-                                    for (key, value) in dl_headers.iter() {
-                                        retry_builder = retry_builder.header(key, value);
-                                    }
-                                }
-
-                                // Add body if present (use same body bytes)
-                                if let Some(ref body_bytes) = final_body_bytes {
-                                    if body_was_compressed {
-                                        retry_builder = retry_builder
-                                            .header("Content-Encoding", "deflate")
-                                            .body(body_bytes.clone());
-                                    } else {
-                                        retry_builder = retry_builder.body(body_bytes.clone());
-                                    }
-                                    // Restore Content-Type
-                                    if let Some(ref ct) = original_content_type {
-                                        retry_builder =
-                                            retry_builder.header(CONTENT_TYPE, ct.clone());
-                                    }
-                                }
-
-                                // Send retry request
-                                response = retry_builder
-                                    .send()
-                                    .await
-                                    .map_err(QuicpulseError::Request)?;
+                            // Set HTTP version if specified
+                            if (args.http3 || args.http_version.as_deref() == Some("3"))
+                                && !processed.url.starts_with("http://")
+                            {
+                                retry_builder = retry_builder.version(http::Version::HTTP_3);
                             }
+
+                            // Add download headers if present
+                            if let Some(dl_headers) = download_headers {
+                                for (key, value) in dl_headers.iter() {
+                                    retry_builder = retry_builder.header(key, value);
+                                }
+                            }
+
+                            // Add body if present (use same body bytes)
+                            if let Some(ref body_bytes) = final_body_bytes {
+                                if body_was_compressed {
+                                    retry_builder = retry_builder
+                                        .header("Content-Encoding", "deflate")
+                                        .body(body_bytes.clone());
+                                } else {
+                                    retry_builder = retry_builder.body(body_bytes.clone());
+                                }
+                                // Restore Content-Type
+                                if let Some(ref ct) = original_content_type {
+                                    retry_builder = retry_builder.header(CONTENT_TYPE, ct.clone());
+                                }
+                            }
+
+                            // Send retry request
+                            response = retry_builder
+                                .send()
+                                .await
+                                .map_err(QuicpulseError::Request)?;
                         }
                     }
                 }
@@ -677,7 +671,7 @@ pub async fn send_request_with_session(
 
             // HTTP spec: POST -> GET on 301/302/303 redirects (except 307/308 which preserve method)
             let next_method = match response.status().as_u16() {
-                301 | 302 | 303 => {
+                301..=303 => {
                     if current_method == Method::POST {
                         Method::GET
                     } else {
@@ -714,7 +708,7 @@ pub async fn send_request_with_session(
             if let Some(ref config) = aws_config {
                 let redirect_sig_headers = aws_sign_request(
                     config,
-                    &next_method.to_string(),
+                    next_method.as_ref(),
                     next_url.as_str(),
                     &[], // No custom headers needed for redirect
                     redirect_body_bytes,
@@ -940,7 +934,7 @@ fn build_client(args: &Args, url: &str) -> Result<Client, QuicpulseError> {
     }
 
     // Apply local address binding (--local-address or --interface as IP)
-    if let Some(ref addr_str) = args.local_address.as_ref().or(args.interface.as_ref()) {
+    if let Some(addr_str) = args.local_address.as_ref().or(args.interface.as_ref()) {
         if let Ok(addr) = addr_str.parse::<std::net::IpAddr>() {
             builder = builder.local_address(addr);
         }
@@ -1138,7 +1132,7 @@ fn build_headers_with_session(
                 headers.append(header_name, HeaderValue::from_static(""));
             }
             InputItem::HeaderFile { name, path } => {
-                let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+                let content = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
                 let header_name = HeaderName::try_from(name.as_str()).map_err(|e| {
                     QuicpulseError::Parse(format!("Invalid header name '{}': {}", name, e))
                 })?;
@@ -1275,7 +1269,7 @@ fn add_query_params(url: &mut Url, items: &[InputItem]) -> Result<(), QuicpulseE
             }
             InputItem::QueryParamFile { name, path } => {
                 let value = std::fs::read_to_string(path)
-                    .map_err(|e| QuicpulseError::Io(e))?
+                    .map_err(QuicpulseError::Io)?
                     .trim()
                     .to_string();
                 params.push((name.clone(), value));
@@ -1395,10 +1389,10 @@ fn build_body(
             } = item
             {
                 // Read file contents
-                let mut file = std::fs::File::open(path).map_err(|e| QuicpulseError::Io(e))?;
+                let mut file = std::fs::File::open(path).map_err(QuicpulseError::Io)?;
                 let mut contents = Vec::new();
                 file.read_to_end(&mut contents)
-                    .map_err(|e| QuicpulseError::Io(e))?;
+                    .map_err(QuicpulseError::Io)?;
 
                 // Determine filename
                 let filename = fname
@@ -1442,15 +1436,15 @@ fn build_body(
                         }
                         InputItem::DataFieldFile { key, path } => {
                             let content =
-                                std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+                                std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
                             (key.clone(), JsonValue::String(content.trim().to_string()))
                         }
                         InputItem::JsonField { key, value } => (key.clone(), value.clone()),
                         InputItem::JsonFieldFile { key, path } => {
                             let content =
-                                std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
-                            let json_val = serde_json::from_str(&content)
-                                .map_err(|e| QuicpulseError::Json(e))?;
+                                std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
+                            let json_val =
+                                serde_json::from_str(&content).map_err(QuicpulseError::Json)?;
                             (key.clone(), json_val)
                         }
                         _ => continue,
@@ -1522,12 +1516,12 @@ fn get_data_key_value(item: &InputItem) -> Result<(String, String), QuicpulseErr
     match item {
         InputItem::DataField { key, value } => Ok((key.clone(), value.clone())),
         InputItem::DataFieldFile { key, path } => {
-            let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+            let content = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
             Ok((key.clone(), content.trim().to_string()))
         }
         InputItem::JsonField { key, value } => Ok((key.clone(), value.to_string())),
         InputItem::JsonFieldFile { key, path } => {
-            let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+            let content = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
             Ok((key.clone(), content.trim().to_string()))
         }
         _ => Err(QuicpulseError::Parse("Not a data item".to_string())),
@@ -1549,10 +1543,7 @@ fn set_nested_value(
     }
 
     // Parse nested path: user[name] -> ["user", "name"]
-    let parts: Vec<&str> = key
-        .split(|c| c == '[' || c == ']')
-        .filter(|s| !s.is_empty())
-        .collect();
+    let parts: Vec<&str> = key.split(['[', ']']).filter(|s| !s.is_empty()).collect();
 
     if parts.is_empty() {
         return Ok(());

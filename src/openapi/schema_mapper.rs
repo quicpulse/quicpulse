@@ -79,7 +79,7 @@ impl SchemaMapper {
 
     /// Convert enum values to a pick template
     fn enum_to_magic(values: &[Value]) -> String {
-        let options: Vec<String> = values.iter().map(|v| Self::value_to_string(v)).collect();
+        let options: Vec<String> = values.iter().map(Self::value_to_string).collect();
         format!("{{pick:{}}}", options.join(","))
     }
 

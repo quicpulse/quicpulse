@@ -426,7 +426,7 @@ fn build_url_with_query(
             }
             InputItem::QueryParamFile { name, path } => {
                 let value = std::fs::read_to_string(path)
-                    .map_err(|e| QuicpulseError::Io(e))?
+                    .map_err(QuicpulseError::Io)?
                     .trim()
                     .to_string();
                 params.push((name.clone(), value));
@@ -507,28 +507,28 @@ fn build_http3_body(
         for item in &data_items {
             match item {
                 InputItem::DataField { key, value } => {
-                    write!(body, "--{}\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+                    write!(body, "--{}\r\n", boundary).map_err(QuicpulseError::Io)?;
                     write!(
                         body,
                         "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
                         key
                     )
-                    .map_err(|e| QuicpulseError::Io(e))?;
-                    write!(body, "{}\r\n", value).map_err(|e| QuicpulseError::Io(e))?;
+                    .map_err(QuicpulseError::Io)?;
+                    write!(body, "{}\r\n", value).map_err(QuicpulseError::Io)?;
                 }
                 InputItem::DataFieldFile { key, path } => {
                     let value = std::fs::read_to_string(path)
-                        .map_err(|e| QuicpulseError::Io(e))?
+                        .map_err(QuicpulseError::Io)?
                         .trim()
                         .to_string();
-                    write!(body, "--{}\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+                    write!(body, "--{}\r\n", boundary).map_err(QuicpulseError::Io)?;
                     write!(
                         body,
                         "Content-Disposition: form-data; name=\"{}\"\r\n\r\n",
                         key
                     )
-                    .map_err(|e| QuicpulseError::Io(e))?;
-                    write!(body, "{}\r\n", value).map_err(|e| QuicpulseError::Io(e))?;
+                    .map_err(QuicpulseError::Io)?;
+                    write!(body, "{}\r\n", value).map_err(QuicpulseError::Io)?;
                 }
                 _ => {}
             }
@@ -543,7 +543,7 @@ fn build_http3_body(
                 filename,
             } = item
             {
-                let contents = std::fs::read(path).map_err(|e| QuicpulseError::Io(e))?;
+                let contents = std::fs::read(path).map_err(QuicpulseError::Io)?;
                 let fname = filename
                     .clone()
                     .or_else(|| path.file_name()?.to_str().map(String::from))
@@ -552,21 +552,20 @@ fn build_http3_body(
                     .clone()
                     .unwrap_or_else(|| guess_mime_from_path(path));
 
-                write!(body, "--{}\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+                write!(body, "--{}\r\n", boundary).map_err(QuicpulseError::Io)?;
                 write!(
                     body,
                     "Content-Disposition: form-data; name=\"{}\"; filename=\"{}\"\r\n",
                     field, fname
                 )
-                .map_err(|e| QuicpulseError::Io(e))?;
-                write!(body, "Content-Type: {}\r\n\r\n", mime)
-                    .map_err(|e| QuicpulseError::Io(e))?;
+                .map_err(QuicpulseError::Io)?;
+                write!(body, "Content-Type: {}\r\n\r\n", mime).map_err(QuicpulseError::Io)?;
                 body.extend_from_slice(&contents);
-                write!(body, "\r\n").map_err(|e| QuicpulseError::Io(e))?;
+                write!(body, "\r\n").map_err(QuicpulseError::Io)?;
             }
         }
 
-        write!(body, "--{}--\r\n", boundary).map_err(|e| QuicpulseError::Io(e))?;
+        write!(body, "--{}--\r\n", boundary).map_err(QuicpulseError::Io)?;
 
         let content_type = format!("multipart/form-data; boundary={}", boundary);
         if let Ok(v) = http::header::HeaderValue::try_from(content_type) {
@@ -586,7 +585,7 @@ fn build_http3_body(
                 }
                 InputItem::DataFieldFile { key, path } => {
                     let value = std::fs::read_to_string(path)
-                        .map_err(|e| QuicpulseError::Io(e))?
+                        .map_err(QuicpulseError::Io)?
                         .trim()
                         .to_string();
                     form_data.push((key.clone(), value));
@@ -596,7 +595,7 @@ fn build_http3_body(
                 }
                 InputItem::JsonFieldFile { key, path } => {
                     let value = std::fs::read_to_string(path)
-                        .map_err(|e| QuicpulseError::Io(e))?
+                        .map_err(QuicpulseError::Io)?
                         .trim()
                         .to_string();
                     form_data.push((key.clone(), value));
@@ -624,7 +623,7 @@ fn build_http3_body(
             }
             InputItem::DataFieldFile { key, path } => {
                 let value = std::fs::read_to_string(path)
-                    .map_err(|e| QuicpulseError::Io(e))?
+                    .map_err(QuicpulseError::Io)?
                     .trim()
                     .to_string();
                 json_obj.insert(key.clone(), serde_json::Value::String(value));
@@ -633,9 +632,9 @@ fn build_http3_body(
                 json_obj.insert(key.clone(), value.clone());
             }
             InputItem::JsonFieldFile { key, path } => {
-                let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+                let content = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
                 let value: serde_json::Value =
-                    serde_json::from_str(&content).map_err(|e| QuicpulseError::Json(e))?;
+                    serde_json::from_str(&content).map_err(QuicpulseError::Json)?;
                 json_obj.insert(key.clone(), value);
             }
             _ => {}
@@ -793,7 +792,7 @@ pub async fn run_http3(
     // Apply authentication (Basic/Bearer)
     if let Some(ref auth_secret) = args.auth {
         let auth_str = auth_secret.as_str();
-        let auth_type = args.auth_type.clone().unwrap_or(AuthType::Basic);
+        let auth_type = args.auth_type.unwrap_or(AuthType::Basic);
         match auth_type {
             AuthType::Basic => {
                 let parts: Vec<&str> = auth_str.splitn(2, ':').collect();
@@ -952,65 +951,58 @@ pub async fn run_http3(
     .await?;
 
     // Handle Digest auth challenge-response (401 retry)
-    if resp.status == StatusCode::UNAUTHORIZED {
-        if matches!(args.auth_type, Some(AuthType::Digest)) {
-            if let Some(www_auth) = resp.headers.get("www-authenticate") {
-                if let Ok(www_auth_str) = www_auth.to_str() {
-                    // Check if it's a Digest challenge
-                    if www_auth_str.to_lowercase().starts_with("digest ") {
-                        if let Ok(challenge) = DigestChallenge::parse(www_auth_str) {
-                            // Get credentials
-                            if let Some(ref auth_secret) = args.auth {
-                                let auth_str = auth_secret.as_str();
-                                let digest_auth = DigestAuth::from_credentials(auth_str)
-                                    .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
+    if resp.status == StatusCode::UNAUTHORIZED && matches!(args.auth_type, Some(AuthType::Digest)) {
+        if let Some(www_auth) = resp.headers.get("www-authenticate") {
+            if let Ok(www_auth_str) = www_auth.to_str() {
+                // Check if it's a Digest challenge
+                if www_auth_str.to_lowercase().starts_with("digest ") {
+                    if let Ok(challenge) = DigestChallenge::parse(www_auth_str) {
+                        // Get credentials
+                        if let Some(ref auth_secret) = args.auth {
+                            let auth_str = auth_secret.as_str();
+                            let digest_auth = DigestAuth::from_credentials(auth_str)
+                                .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
 
-                                // Parse URL for path
-                                let parsed_url = url::Url::parse(&url).map_err(|e| {
-                                    QuicpulseError::Parse(format!("Invalid URL: {}", e))
-                                })?;
-                                let uri_with_query = if let Some(query) = parsed_url.query() {
-                                    format!("{}?{}", parsed_url.path(), query)
-                                } else {
-                                    parsed_url.path().to_string()
-                                };
+                            // Parse URL for path
+                            let parsed_url = url::Url::parse(&url).map_err(|e| {
+                                QuicpulseError::Parse(format!("Invalid URL: {}", e))
+                            })?;
+                            let uri_with_query = if let Some(query) = parsed_url.query() {
+                                format!("{}?{}", parsed_url.path(), query)
+                            } else {
+                                parsed_url.path().to_string()
+                            };
 
-                                // Generate Authorization header
-                                let auth_header = digest_auth
-                                    .respond_to_challenge(
-                                        &challenge,
-                                        &processed.method,
-                                        &uri_with_query,
-                                    )
-                                    .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
-
-                                // Rebuild headers with Authorization
-                                let mut retry_headers = headers.clone();
-                                retry_headers.insert(
-                                    "authorization",
-                                    http::header::HeaderValue::try_from(auth_header).map_err(
-                                        |e| {
-                                            QuicpulseError::Parse(format!(
-                                                "Invalid auth header: {}",
-                                                e
-                                            ))
-                                        },
-                                    )?,
-                                );
-
-                                // Retry with auth
-                                resp = send_http3_request_with_options(
+                            // Generate Authorization header
+                            let auth_header = digest_auth
+                                .respond_to_challenge(
+                                    &challenge,
                                     &processed.method,
-                                    &url,
-                                    retry_headers,
-                                    body.clone(),
-                                    timeout,
-                                    verify_tls,
-                                    client_cert,
-                                    client_key,
+                                    &uri_with_query,
                                 )
-                                .await?;
-                            }
+                                .map_err(|e| QuicpulseError::Auth(e.to_string()))?;
+
+                            // Rebuild headers with Authorization
+                            let mut retry_headers = headers.clone();
+                            retry_headers.insert(
+                                "authorization",
+                                http::header::HeaderValue::try_from(auth_header).map_err(|e| {
+                                    QuicpulseError::Parse(format!("Invalid auth header: {}", e))
+                                })?,
+                            );
+
+                            // Retry with auth
+                            resp = send_http3_request_with_options(
+                                &processed.method,
+                                &url,
+                                retry_headers,
+                                body.clone(),
+                                timeout,
+                                verify_tls,
+                                client_cert,
+                                client_key,
+                            )
+                            .await?;
                         }
                     }
                 }
@@ -1054,7 +1046,7 @@ pub async fn run_http3(
 
             // HTTP spec: POST -> GET on 301/302/303 redirects (except 307/308 which preserve method)
             let next_method = match resp.status.as_u16() {
-                301 | 302 | 303 => {
+                301..=303 => {
                     if current_method == "POST" {
                         current_body = None; // Clear body for GET
                         "GET".to_string()
@@ -1215,7 +1207,7 @@ pub async fn run_http3(
         let filename = determine_download_filename(&url, &resp.headers, args.output.as_ref());
 
         // Write body to file
-        std::fs::write(&filename, &resp.body).map_err(|e| QuicpulseError::Io(e))?;
+        std::fs::write(&filename, &resp.body).map_err(QuicpulseError::Io)?;
 
         eprintln!("Downloaded {} bytes to {:?}", resp.body.len(), filename);
 
@@ -1299,8 +1291,8 @@ fn determine_download_filename(
 
     // Priority 3: URL path
     if let Ok(parsed) = url::Url::parse(url) {
-        if let Some(segments) = parsed.path_segments() {
-            if let Some(last) = segments.last() {
+        if let Some(mut segments) = parsed.path_segments() {
+            if let Some(last) = segments.next_back() {
                 if !last.is_empty() {
                     let decoded = percent_encoding::percent_decode_str(last)
                         .decode_utf8_lossy()
@@ -1322,9 +1314,8 @@ fn extract_filename_from_cd(header: &str) -> Option<String> {
     // Simple parsing: look for filename="..." or filename*=UTF-8''...
     for part in header.split(';') {
         let part = part.trim();
-        if part.starts_with("filename*=") {
+        if let Some(value) = part.strip_prefix("filename*=") {
             // RFC 5987 encoded filename
-            let value = &part[10..];
             if let Some(encoded) = value.strip_prefix("UTF-8''") {
                 let decoded = percent_encoding::percent_decode_str(encoded)
                     .decode_utf8_lossy()

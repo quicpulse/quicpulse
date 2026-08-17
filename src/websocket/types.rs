@@ -66,7 +66,7 @@ impl WsMessage {
 }
 
 /// WebSocket connection options
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct WsOptions {
     pub timeout: Option<Duration>,
     pub compress: bool,
@@ -74,19 +74,6 @@ pub struct WsOptions {
     pub ping_interval: Option<Duration>,
     pub max_messages: usize,
     pub headers: Vec<(String, String)>,
-}
-
-impl Default for WsOptions {
-    fn default() -> Self {
-        Self {
-            timeout: None,
-            compress: false,
-            binary_mode: None,
-            ping_interval: None,
-            max_messages: 0,
-            headers: Vec::new(),
-        }
-    }
 }
 
 /// WebSocket operation mode

@@ -197,7 +197,7 @@ mod tests {
     fn test_random_int() {
         for _ in 0..100 {
             let n = random_int(1, 10);
-            assert!(n >= 1 && n <= 10);
+            assert!((1..=10).contains(&n));
         }
     }
 

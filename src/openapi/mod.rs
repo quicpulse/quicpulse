@@ -82,7 +82,7 @@ pub fn run_openapi_import(
         .map_err(|e| QuicpulseError::Argument(format!("Failed to serialize workflow: {}", e)))?;
 
     if let Some(ref output_path) = args.generate_workflow {
-        fs::write(output_path, &yaml).map_err(|e| QuicpulseError::Io(e))?;
+        fs::write(output_path, &yaml).map_err(QuicpulseError::Io)?;
         eprintln!("Generated workflow written to: {}", output_path.display());
         eprintln!("  API: {} v{}", spec.title, spec.version);
         eprintln!("  Endpoints: {}", spec.endpoints.len());

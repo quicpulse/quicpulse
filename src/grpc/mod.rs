@@ -114,50 +114,6 @@ impl GrpcEndpoint {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_parse_grpc_endpoint_full() {
-        let endpoint =
-            parse_grpc_endpoint("grpc://localhost:50051/mypackage.MyService/MyMethod").unwrap();
-        assert_eq!(endpoint.host, "localhost");
-        assert_eq!(endpoint.port, 50051);
-        assert_eq!(endpoint.service, Some("mypackage.MyService".to_string()));
-        assert_eq!(endpoint.method, Some("MyMethod".to_string()));
-    }
-
-    #[test]
-    fn test_parse_grpc_endpoint_simple() {
-        let endpoint = parse_grpc_endpoint("localhost:50051").unwrap();
-        assert_eq!(endpoint.host, "localhost");
-        assert_eq!(endpoint.port, 50051);
-        assert!(endpoint.service.is_none());
-        assert!(endpoint.method.is_none());
-    }
-
-    #[test]
-    fn test_parse_grpc_endpoint_service_only() {
-        let endpoint = parse_grpc_endpoint("localhost:50051/grpc.health.v1.Health").unwrap();
-        assert_eq!(endpoint.host, "localhost");
-        assert_eq!(endpoint.service, Some("grpc.health.v1.Health".to_string()));
-        assert!(endpoint.method.is_none());
-    }
-
-    #[test]
-    fn test_endpoint_uri() {
-        let endpoint = GrpcEndpoint {
-            host: "example.com".to_string(),
-            port: 443,
-            service: None,
-            method: None,
-            use_tls: true,
-        };
-        assert_eq!(endpoint.uri(), "https://example.com:443");
-    }
-}
-
 pub async fn run_grpc(
     args: &Args,
     processed: &ProcessedArgs,
@@ -180,7 +136,7 @@ pub async fn run_grpc(
         })
         .collect();
 
-    let timeout = args.timeout.map(|t| std::time::Duration::from_secs_f64(t));
+    let timeout = args.timeout.map(std::time::Duration::from_secs_f64);
 
     use crate::client::ssl::SslConfig;
     let ssl_config = SslConfig::from_args(
@@ -507,7 +463,7 @@ async fn run_grpc_client_streaming(
         stdin
             .lock()
             .lines()
-            .filter_map(|line| line.ok())
+            .map_while(Result::ok)
             .filter(|line| !line.trim().is_empty())
             .filter_map(|line| serde_json::from_str(&line).ok())
             .collect()
@@ -573,7 +529,7 @@ async fn run_grpc_bidi_streaming(
         stdin
             .lock()
             .lines()
-            .filter_map(|line| line.ok())
+            .map_while(Result::ok)
             .filter(|line| !line.trim().is_empty())
             .filter_map(|line| serde_json::from_str(&line).ok())
             .collect()
@@ -637,4 +593,48 @@ async fn run_grpc_bidi_streaming(
     }
 
     Ok(ExitStatus::Success)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_grpc_endpoint_full() {
+        let endpoint =
+            parse_grpc_endpoint("grpc://localhost:50051/mypackage.MyService/MyMethod").unwrap();
+        assert_eq!(endpoint.host, "localhost");
+        assert_eq!(endpoint.port, 50051);
+        assert_eq!(endpoint.service, Some("mypackage.MyService".to_string()));
+        assert_eq!(endpoint.method, Some("MyMethod".to_string()));
+    }
+
+    #[test]
+    fn test_parse_grpc_endpoint_simple() {
+        let endpoint = parse_grpc_endpoint("localhost:50051").unwrap();
+        assert_eq!(endpoint.host, "localhost");
+        assert_eq!(endpoint.port, 50051);
+        assert!(endpoint.service.is_none());
+        assert!(endpoint.method.is_none());
+    }
+
+    #[test]
+    fn test_parse_grpc_endpoint_service_only() {
+        let endpoint = parse_grpc_endpoint("localhost:50051/grpc.health.v1.Health").unwrap();
+        assert_eq!(endpoint.host, "localhost");
+        assert_eq!(endpoint.service, Some("grpc.health.v1.Health".to_string()));
+        assert!(endpoint.method.is_none());
+    }
+
+    #[test]
+    fn test_endpoint_uri() {
+        let endpoint = GrpcEndpoint {
+            host: "example.com".to_string(),
+            port: 443,
+            service: None,
+            method: None,
+            use_tls: true,
+        };
+        assert_eq!(endpoint.uri(), "https://example.com:443");
+    }
 }

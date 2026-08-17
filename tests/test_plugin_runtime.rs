@@ -436,7 +436,7 @@ hooks:
     )
     .unwrap();
 
-    let response = http(&[
+    let _response = http(&[
         "--plugin-dir",
         temp_dir.path().to_str().unwrap(),
         "--plugin-list",

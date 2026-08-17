@@ -49,7 +49,7 @@ pub fn build_multipart_form(
 /// Uses streaming for large files to prevent memory exhaustion
 fn create_file_part(upload: &FileUpload) -> Result<Part, QuicpulseError> {
     // Get file metadata to check size
-    let metadata = std::fs::metadata(&upload.path).map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = std::fs::metadata(&upload.path).map_err(QuicpulseError::Io)?;
     let file_size = metadata.len();
 
     // Determine filename
@@ -78,15 +78,15 @@ fn create_file_part(upload: &FileUpload) -> Result<Part, QuicpulseError> {
     // For large files, use streaming to prevent OOM
     let part = if file_size <= MAX_MEMORY_FILE_SIZE {
         // Small file: load into memory
-        let mut file = File::open(&upload.path).map_err(|e| QuicpulseError::Io(e))?;
+        let mut file = File::open(&upload.path).map_err(QuicpulseError::Io)?;
         let mut contents = Vec::with_capacity(file_size as usize);
         file.read_to_end(&mut contents)
-            .map_err(|e| QuicpulseError::Io(e))?;
+            .map_err(QuicpulseError::Io)?;
 
         Part::bytes(contents).file_name(filename)
     } else {
         // Large file: stream from disk
-        let file = std::fs::File::open(&upload.path).map_err(|e| QuicpulseError::Io(e))?;
+        let file = std::fs::File::open(&upload.path).map_err(QuicpulseError::Io)?;
         let async_file = tokio::fs::File::from_std(file);
         let stream = FramedRead::new(async_file, BytesCodec::new());
         let body = reqwest::Body::wrap_stream(stream);

@@ -122,25 +122,25 @@ async fn send_and_receive(
     stream
         .write_all(request.as_bytes())
         .await
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     // Write body if present
     if let Some(body_bytes) = body {
         stream
             .write_all(body_bytes)
             .await
-            .map_err(|e| QuicpulseError::Io(e))?;
+            .map_err(QuicpulseError::Io)?;
     }
 
     // Flush the stream
-    stream.flush().await.map_err(|e| QuicpulseError::Io(e))?;
+    stream.flush().await.map_err(QuicpulseError::Io)?;
 
     // Read the entire response
     let mut response_data = Vec::new();
     stream
         .read_to_end(&mut response_data)
         .await
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     // Parse the HTTP response
     parse_response(&response_data)
@@ -219,9 +219,7 @@ fn parse_response(data: &[u8]) -> Result<UnixSocketResponse, QuicpulseError> {
         // Read remaining data
         let mut body = Vec::new();
         use std::io::Read;
-        reader
-            .read_to_end(&mut body)
-            .map_err(|e| QuicpulseError::Io(e))?;
+        reader.read_to_end(&mut body).map_err(QuicpulseError::Io)?;
         body
     };
 

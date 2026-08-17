@@ -224,7 +224,7 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
         let content = fetch_text(source).await?;
         let filename = source
             .split('/')
-            .last()
+            .next_back()
             .unwrap_or("workflow.yaml")
             .to_string();
         (content, filename)
@@ -248,7 +248,7 @@ async fn pull_workflow(source: &str, args: &Args, env: &Environment) -> Result<(
             let content = fetch_text(&url).await?;
             let filename = path
                 .split('/')
-                .last()
+                .next_back()
                 .unwrap_or("workflow.yaml")
                 .to_string();
             (content, filename)
@@ -336,7 +336,7 @@ async fn push_workflow(path: &Path, args: &Args, _env: &Environment) -> Result<(
     let description = args
         .workflow_description
         .as_deref()
-        .or_else(|| extracted_desc.as_deref())
+        .or(extracted_desc.as_deref())
         .unwrap_or("QuicPulse workflow");
 
     let is_public = args.workflow_public;

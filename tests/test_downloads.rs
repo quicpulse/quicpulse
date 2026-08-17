@@ -6,7 +6,7 @@ use tempfile::TempDir;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK};
+use common::{http, http_with_env, MockEnvironment};
 
 // ============================================================================
 // Basic Download Tests
@@ -98,7 +98,7 @@ async fn test_download_with_output() {
     // Check file was created with content
     if output_path.exists() {
         let downloaded = fs::read_to_string(&output_path).unwrap();
-        assert!(downloaded.contains(content) || downloaded.len() > 0);
+        assert!(downloaded.contains(content) || !downloaded.is_empty());
     }
 }
 

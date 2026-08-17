@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn test_no_dependencies() {
-        let steps = vec![
+        let steps = [
             make_step("a", vec![]),
             make_step("b", vec![]),
             make_step("c", vec![]),
@@ -177,7 +177,7 @@ mod tests {
 
     #[test]
     fn test_linear_dependencies() {
-        let steps = vec![
+        let steps = [
             make_step("a", vec![]),
             make_step("b", vec!["a"]),
             make_step("c", vec!["b"]),
@@ -192,7 +192,7 @@ mod tests {
     #[test]
     fn test_diamond_dependencies() {
         // a -> b, a -> c, b -> d, c -> d
-        let steps = vec![
+        let steps = [
             make_step("a", vec![]),
             make_step("b", vec!["a"]),
             make_step("c", vec!["a"]),
@@ -215,7 +215,7 @@ mod tests {
 
     #[test]
     fn test_cycle_detection() {
-        let steps = vec![
+        let steps = [
             make_step("a", vec!["c"]),
             make_step("b", vec!["a"]),
             make_step("c", vec!["b"]),
@@ -230,7 +230,7 @@ mod tests {
 
     #[test]
     fn test_missing_dependency() {
-        let steps = vec![make_step("a", vec!["nonexistent"])];
+        let steps = [make_step("a", vec!["nonexistent"])];
         let refs: Vec<&WorkflowStep> = steps.iter().collect();
 
         let result = resolve_dependencies(&refs);
@@ -241,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_duplicate_step_names() {
-        let steps = vec![make_step("a", vec![]), make_step("a", vec![])];
+        let steps = [make_step("a", vec![]), make_step("a", vec![])];
         let refs: Vec<&WorkflowStep> = steps.iter().collect();
 
         let result = resolve_dependencies(&refs);

@@ -1,16 +1,10 @@
 //! HTTP headers formatting
 
 /// Headers formatting options
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct HeadersFormatterOptions {
     /// Sort headers alphabetically
     pub sort: bool,
-}
-
-impl Default for HeadersFormatterOptions {
-    fn default() -> Self {
-        Self { sort: false }
-    }
 }
 
 /// Format HTTP headers
@@ -28,7 +22,7 @@ pub fn format_headers(headers: &str, options: &HeadersFormatterOptions) -> Strin
 
     // Keep first line (status) separate, sort the rest
     let first_line = lines.remove(0);
-    lines.sort_by(|a, b| a.to_lowercase().cmp(&b.to_lowercase()));
+    lines.sort_by_key(|a| a.to_lowercase());
 
     let mut result = String::from(first_line);
     result.push('\n');

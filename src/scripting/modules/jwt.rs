@@ -184,11 +184,8 @@ fn get_numeric_claim(token: &str, claim: &str) -> i64 {
 
     match decode_base64_json(parts[1]) {
         Some(json) => {
-            if let Some(value) = json.get(claim) {
-                match value {
-                    JsonValue::Number(n) => n.as_i64().unwrap_or(0),
-                    _ => 0,
-                }
+            if let Some(JsonValue::Number(n)) = json.get(claim) {
+                n.as_i64().unwrap_or(0)
             } else {
                 0
             }

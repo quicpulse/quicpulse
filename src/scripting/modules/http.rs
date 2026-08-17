@@ -47,22 +47,22 @@ pub fn module() -> Result<Module, ContextError> {
 
 /// Check if status code indicates success (2xx)
 fn is_success(status: i64) -> bool {
-    status >= 200 && status < 300
+    (200..300).contains(&status)
 }
 
 /// Check if status code indicates redirect (3xx)
 fn is_redirect(status: i64) -> bool {
-    status >= 300 && status < 400
+    (300..400).contains(&status)
 }
 
 /// Check if status code indicates client error (4xx)
 fn is_client_error(status: i64) -> bool {
-    status >= 400 && status < 500
+    (400..500).contains(&status)
 }
 
 /// Check if status code indicates server error (5xx)
 fn is_server_error(status: i64) -> bool {
-    status >= 500 && status < 600
+    (500..600).contains(&status)
 }
 
 /// Check if status code indicates any error (4xx or 5xx)

@@ -115,7 +115,7 @@ pub struct Response {
 }
 
 /// Schema definition (simplified)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Schema {
     pub schema_type: Option<String>,
     pub format: Option<String>,
@@ -133,29 +133,6 @@ pub struct Schema {
     pub default: Option<Value>,
     pub nullable: bool,
     pub ref_path: Option<String>,
-}
-
-impl Default for Schema {
-    fn default() -> Self {
-        Self {
-            schema_type: None,
-            format: None,
-            description: None,
-            properties: HashMap::new(),
-            required: Vec::new(),
-            items: None,
-            enum_values: Vec::new(),
-            minimum: None,
-            maximum: None,
-            min_length: None,
-            max_length: None,
-            pattern: None,
-            example: None,
-            default: None,
-            nullable: false,
-            ref_path: None,
-        }
-    }
 }
 
 /// Security scheme definition
@@ -191,7 +168,7 @@ pub struct OAuthFlow {
 /// Parse an OpenAPI specification from a file
 pub fn parse_spec(path: &Path) -> Result<OpenApiSpec, QuicpulseError> {
     // Check file size
-    let metadata = fs::metadata(path).map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = fs::metadata(path).map_err(QuicpulseError::Io)?;
 
     if metadata.len() > MAX_SPEC_FILE_SIZE {
         return Err(QuicpulseError::Argument(format!(
@@ -202,16 +179,13 @@ pub fn parse_spec(path: &Path) -> Result<OpenApiSpec, QuicpulseError> {
     }
 
     // Read file content
-    let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+    let content = fs::read_to_string(path).map_err(QuicpulseError::Io)?;
 
     // Detect format and parse
-    let value: Value = if path
-        .extension()
-        .map_or(false, |e| e == "yaml" || e == "yml")
-    {
+    let value: Value = if path.extension().is_some_and(|e| e == "yaml" || e == "yml") {
         serde_yaml::from_str(&content)
             .map_err(|e| QuicpulseError::Argument(format!("Failed to parse YAML: {}", e)))?
-    } else if path.extension().map_or(false, |e| e == "json") {
+    } else if path.extension().is_some_and(|e| e == "json") {
         serde_json::from_str(&content)
             .map_err(|e| QuicpulseError::Argument(format!("Failed to parse JSON: {}", e)))?
     } else {
@@ -854,7 +828,7 @@ fn parse_operation_v2(
 
             if location == Some("body") {
                 // Convert to request body
-                let schema = param.get("schema").map(|s| parse_schema(s));
+                let schema = param.get("schema").map(parse_schema);
                 let mut content = HashMap::new();
                 content.insert(
                     "application/json".to_string(),
@@ -926,7 +900,7 @@ fn parse_parameter_v3(param: &Value) -> Option<Parameter> {
             .get("required")
             .and_then(|r| r.as_bool())
             .unwrap_or(false),
-        schema: param.get("schema").map(|s| parse_schema(s)),
+        schema: param.get("schema").map(parse_schema),
         example: param.get("example").cloned(),
     })
 }
@@ -983,7 +957,7 @@ fn parse_content_v3(content: Option<&Value>) -> HashMap<String, MediaType> {
         .iter()
         .map(|(media_type, media_obj)| {
             let mt = MediaType {
-                schema: media_obj.get("schema").map(|s| parse_schema(s)),
+                schema: media_obj.get("schema").map(parse_schema),
                 example: media_obj.get("example").cloned(),
                 examples: media_obj
                     .get("examples")

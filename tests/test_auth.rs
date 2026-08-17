@@ -4,7 +4,7 @@ mod common;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK};
+use common::{http, http_error, HTTP_OK};
 
 // ============================================================================
 // Basic Authentication Tests (Offline - verify headers generated)

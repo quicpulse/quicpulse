@@ -9,7 +9,7 @@ use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK};
+use common::{http_with_env, MockEnvironment};
 
 // ============================================================================
 // Default Options Tests
@@ -25,7 +25,7 @@ async fn test_config_default_options() {
         .mount(&server)
         .await;
 
-    let mut env = MockEnvironment::new();
+    let env = MockEnvironment::new();
 
     // Create config file with default options
     let config_path = env.config_path().join("config.json");
@@ -49,7 +49,7 @@ async fn test_config_default_options_override() {
         .mount(&server)
         .await;
 
-    let mut env = MockEnvironment::new();
+    let env = MockEnvironment::new();
 
     // Config sets --pretty=all, but we override with --pretty=none
     let config_path = env.config_path().join("config.json");

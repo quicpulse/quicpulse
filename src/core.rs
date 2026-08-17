@@ -755,8 +755,8 @@ fn print_offline_request(
 
         let accept_overridden = custom_headers.contains_key("accept");
         let is_form_mode = args.form || args.multipart;
-        let is_empty_raw = args.raw.as_ref().map_or(false, |r| r.is_empty());
-        let has_nonempty_raw = args.raw.as_ref().map_or(false, |r| !r.is_empty());
+        let is_empty_raw = args.raw.as_ref().is_some_and(|r| r.is_empty());
+        let has_nonempty_raw = args.raw.as_ref().is_some_and(|r| !r.is_empty());
         let has_raw = args.raw.is_some();
         let is_json_mode = !is_form_mode
             && !is_empty_raw
@@ -919,7 +919,7 @@ fn print_offline_request(
         }
 
         if should_sort {
-            all_headers.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
+            all_headers.sort_by_key(|a| a.0.to_lowercase());
         }
 
         // Build complete headers string for ColorFormatter
@@ -1445,14 +1445,14 @@ fn format_response_body(
     let mime = content_type.unwrap_or("text/plain");
     let base_mime = mime.split(';').next().unwrap_or(mime).trim();
 
-    if base_mime == "application/json" || base_mime.ends_with("+json") {
-        if matches!(opts.pretty, PrettyOption::All | PrettyOption::Format) {
-            if let Ok(formatted) = format_json(body, &opts.json) {
-                if let Some(fmt) = formatter {
-                    return fmt.format_json(&formatted);
-                }
-                return formatted;
+    if (base_mime == "application/json" || base_mime.ends_with("+json"))
+        && matches!(opts.pretty, PrettyOption::All | PrettyOption::Format)
+    {
+        if let Ok(formatted) = format_json(body, &opts.json) {
+            if let Some(fmt) = formatter {
+                return fmt.format_json(&formatted);
             }
+            return formatted;
         }
     }
 
@@ -1566,7 +1566,7 @@ fn prompt_auth_if_needed(args: &mut Args, host: &str) -> Result<(), QuicpulseErr
         None => return Ok(()),
     };
 
-    let auth_type = args.auth_type.clone().unwrap_or(AuthType::Basic);
+    let auth_type = args.auth_type.unwrap_or(AuthType::Basic);
 
     if matches!(auth_type, AuthType::Bearer) {
         return Ok(());
@@ -1800,21 +1800,19 @@ async fn print_response_with_body(
     const MAX_BODY_SIZE: u64 = 100 * 1024 * 1024;
     let body = read_body_with_limit(response, MAX_BODY_SIZE, env.stdout_isatty).await?;
 
-    if output_opts.response_body && args.quiet < 2 {
-        if !body.is_empty() {
-            let output = process_response_body(
-                &body,
-                content_type.as_deref(),
-                args,
-                &proc_opts,
-                formatter.as_ref(),
-            )?;
-            if pager_config.enabled {
-                output_buffer.push_str(&output);
-                output_buffer.push('\n');
-            } else {
-                println!("{}", output);
-            }
+    if output_opts.response_body && args.quiet < 2 && !body.is_empty() {
+        let output = process_response_body(
+            &body,
+            content_type.as_deref(),
+            args,
+            &proc_opts,
+            formatter.as_ref(),
+        )?;
+        if pager_config.enabled {
+            output_buffer.push_str(&output);
+            output_buffer.push('\n');
+        } else {
+            println!("{}", output);
         }
     }
 
@@ -1917,10 +1915,8 @@ async fn handle_unix_socket_request(
             headers.push(("Content-Type".to_string(), "application/json".to_string()));
             Some(json_body.to_string().into_bytes())
         }
-    } else if let Some(ref raw) = args.raw {
-        Some(raw.as_bytes().to_vec())
     } else {
-        None
+        args.raw.as_ref().map(|raw| raw.as_bytes().to_vec())
     };
 
     // Parse URL to get path
@@ -1937,7 +1933,7 @@ async fn handle_unix_socket_request(
         headers.push(("Host".to_string(), host.to_string()));
     }
 
-    let timeout = args.timeout.map(|t| Duration::from_secs_f64(t));
+    let timeout = args.timeout.map(Duration::from_secs_f64);
 
     let request_start = std::time::Instant::now();
 
@@ -2100,7 +2096,7 @@ async fn handle_http_file(
     }
 
     // Parse variables from the file content
-    let content = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+    let content = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
     let variables = parse_variables(&content);
 
     // Filter requests if --http-request is specified
@@ -2374,9 +2370,8 @@ async fn run_mock_server(args: &Args) -> Result<ExitStatus, QuicpulseError> {
 
         let response = if parts.len() > 2 {
             let body = parts[2];
-            if body.starts_with('@') {
+            if let Some(file_path) = body.strip_prefix('@') {
                 // Load from file
-                let file_path = &body[1..];
                 ResponseConfig {
                     body_file: Some(file_path.to_string()),
                     ..Default::default()

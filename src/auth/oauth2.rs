@@ -181,13 +181,10 @@ pub async fn obtain_token(config: &OAuth2Config) -> Result<CachedToken, Quicpuls
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+        .map_err(QuicpulseError::Request)?;
 
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+    let body = response.text().await.map_err(QuicpulseError::Request)?;
 
     if !status.is_success() {
         // Try to parse error response
@@ -251,13 +248,10 @@ pub async fn refresh_token(
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+        .map_err(QuicpulseError::Request)?;
 
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+    let body = response.text().await.map_err(QuicpulseError::Request)?;
 
     if !status.is_success() {
         if let Ok(error) = serde_json::from_str::<TokenError>(&body) {

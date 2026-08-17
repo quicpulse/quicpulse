@@ -112,7 +112,7 @@ fn assert_lte(a: i64, b: i64) -> bool {
 
 /// Assert HTTP status is success (2xx)
 fn assert_status_success(status: i64) -> bool {
-    if status < 200 || status >= 300 {
+    if !(200..300).contains(&status) {
         panic!(
             "assertion failed: status {} is not a success status (2xx)",
             status
@@ -123,7 +123,7 @@ fn assert_status_success(status: i64) -> bool {
 
 /// Assert HTTP status is redirect (3xx)
 fn assert_status_redirect(status: i64) -> bool {
-    if status < 300 || status >= 400 {
+    if !(300..400).contains(&status) {
         panic!(
             "assertion failed: status {} is not a redirect status (3xx)",
             status
@@ -134,7 +134,7 @@ fn assert_status_redirect(status: i64) -> bool {
 
 /// Assert HTTP status is client error (4xx)
 fn assert_status_client_error(status: i64) -> bool {
-    if status < 400 || status >= 500 {
+    if !(400..500).contains(&status) {
         panic!(
             "assertion failed: status {} is not a client error status (4xx)",
             status
@@ -145,7 +145,7 @@ fn assert_status_client_error(status: i64) -> bool {
 
 /// Assert HTTP status is server error (5xx)
 fn assert_status_server_error(status: i64) -> bool {
-    if status < 500 || status >= 600 {
+    if !(500..600).contains(&status) {
         panic!(
             "assertion failed: status {} is not a server error status (5xx)",
             status

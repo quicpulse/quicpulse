@@ -120,9 +120,7 @@ impl PipelineRunner {
 
     /// Create a new pipeline runner with options
     pub fn with_options(dry_run: bool, options: WorkflowOptions) -> Result<Self, QuicpulseError> {
-        let client = Client::builder()
-            .build()
-            .map_err(|e| QuicpulseError::Request(e))?;
+        let client = Client::builder().build().map_err(QuicpulseError::Request)?;
 
         // Bug #4 fix: Create script engine once and reuse for all scripts
         // Now using MultiScriptEngine for Rune + JavaScript support
@@ -276,7 +274,7 @@ impl PipelineRunner {
 
         // Add custom CA certificate
         if let Some(ref ca_path) = step.ca_cert {
-            let ca_data = std::fs::read(ca_path).map_err(|e| QuicpulseError::Io(e))?;
+            let ca_data = std::fs::read(ca_path).map_err(QuicpulseError::Io)?;
             let cert = reqwest::Certificate::from_pem(&ca_data)
                 .map_err(|e| QuicpulseError::Argument(format!("Invalid CA certificate: {}", e)))?;
             builder = builder.add_root_certificate(cert);
@@ -284,11 +282,11 @@ impl PipelineRunner {
 
         // Add client certificate
         if let Some(ref cert_path) = step.client_cert {
-            let cert_data = std::fs::read(cert_path).map_err(|e| QuicpulseError::Io(e))?;
+            let cert_data = std::fs::read(cert_path).map_err(QuicpulseError::Io)?;
 
             // If client key is separate, read and combine
             if let Some(ref key_path) = step.client_key {
-                let key_data = std::fs::read(key_path).map_err(|e| QuicpulseError::Io(e))?;
+                let key_data = std::fs::read(key_path).map_err(QuicpulseError::Io)?;
                 let mut combined = cert_data;
                 combined.extend_from_slice(b"\n");
                 combined.extend_from_slice(&key_data);
@@ -310,7 +308,7 @@ impl PipelineRunner {
             builder = builder.http2_prior_knowledge();
         }
 
-        builder.build().map_err(|e| QuicpulseError::Request(e))
+        builder.build().map_err(QuicpulseError::Request)
     }
 
     /// Execute a script from a ScriptConfig
@@ -603,11 +601,7 @@ impl PipelineRunner {
                             terminal::muted("->"),
                             terminal::error("Failed:"),
                             terminal::colorize(
-                                result
-                                    .error
-                                    .as_ref()
-                                    .map(|e| e.as_str())
-                                    .unwrap_or("assertion failed"),
+                                result.error.as_deref().unwrap_or("assertion failed"),
                                 colors::RED
                             )
                         );
@@ -647,10 +641,8 @@ impl PipelineRunner {
         }
 
         // Check include filter: step name must be in the include list
-        if !self.options.include.is_empty() {
-            if !self.options.include.contains(&step.name) {
-                return false;
-            }
+        if !self.options.include.is_empty() && !self.options.include.contains(&step.name) {
+            return false;
         }
 
         // Check exclude filter: step name must not match any exclude pattern
@@ -898,7 +890,7 @@ impl PipelineRunner {
                 "  {} {} {}{}{} {}",
                 terminal::muted("[DRY RUN]"),
                 terminal::label(&step.name),
-                terminal::protocol::http_method(&method.to_string()),
+                terminal::protocol::http_method(method.as_ref()),
                 method,
                 RESET,
                 terminal::colorize(&full_url, colors::AQUA)
@@ -1021,13 +1013,11 @@ impl PipelineRunner {
         }
 
         // Warn about HTTP/3 (not yet implemented)
-        if step.http3 == Some(true) {
-            if self.options.verbose {
-                eprintln!(
-                    "  {}: HTTP/3 is not yet implemented, falling back to HTTP/2",
-                    terminal::warning("Warning")
-                );
-            }
+        if step.http3 == Some(true) && self.options.verbose {
+            eprintln!(
+                "  {}: HTTP/3 is not yet implemented, falling back to HTTP/2",
+                terminal::warning("Warning")
+            );
         }
 
         // Handle HAR replay (special path - replay from HAR file)
@@ -1309,7 +1299,7 @@ impl PipelineRunner {
                         &step.name,
                         &format!("multipart file '{}'", field.name),
                     )?;
-                    let file_bytes = std::fs::read(&path).map_err(|e| QuicpulseError::Io(e))?;
+                    let file_bytes = std::fs::read(&path).map_err(QuicpulseError::Io)?;
                     let file_name = std::path::Path::new(&path)
                         .file_name()
                         .and_then(|n| n.to_str())
@@ -2202,9 +2192,7 @@ impl PipelineRunner {
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect();
 
-        let ping_interval = ws_config
-            .ping_interval
-            .map(|s| std::time::Duration::from_secs(s));
+        let ping_interval = ws_config.ping_interval.map(std::time::Duration::from_secs);
 
         let options = WsOptions {
             timeout: Some(timeout),
@@ -2356,7 +2344,7 @@ impl PipelineRunner {
                     assertion: format!("body.{} contains", expr),
                     passed,
                     message: if passed {
-                        format!("Body contains expected value")
+                        "Body contains expected value".to_string()
                     } else {
                         format!(
                             "Expected body to contain '{}', got: {}",
@@ -2577,7 +2565,7 @@ impl PipelineRunner {
             builder = builder.danger_accept_invalid_certs(true);
         }
 
-        let client = builder.build().map_err(|e| QuicpulseError::Request(e))?;
+        let client = builder.build().map_err(QuicpulseError::Request)?;
 
         let config = BenchmarkConfig {
             total_requests: bench_config.requests,
@@ -2713,20 +2701,17 @@ impl PipelineRunner {
 
         // Create parent directories if needed
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| QuicpulseError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(QuicpulseError::Io)?;
         }
 
         // Get content length for progress
         let content_length = response.content_length();
 
         // Read body as bytes
-        let bytes = response
-            .bytes()
-            .await
-            .map_err(|e| QuicpulseError::Request(e))?;
+        let bytes = response.bytes().await.map_err(QuicpulseError::Request)?;
 
         // Write to file
-        std::fs::write(&path, &bytes).map_err(|e| QuicpulseError::Io(e))?;
+        std::fs::write(&path, &bytes).map_err(QuicpulseError::Io)?;
 
         if self.options.verbose {
             eprintln!(
@@ -2783,7 +2768,7 @@ impl PipelineRunner {
 
         // Create parent directories if needed
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|e| QuicpulseError::Io(e))?;
+            std::fs::create_dir_all(parent).map_err(QuicpulseError::Io)?;
         }
 
         let what = save_config.what.as_deref().unwrap_or("body");
@@ -2837,11 +2822,11 @@ impl PipelineRunner {
                 .create(true)
                 .append(true)
                 .open(&path)
-                .map_err(|e| QuicpulseError::Io(e))?;
+                .map_err(QuicpulseError::Io)?;
             file.write_all(final_content.as_bytes())
-                .map_err(|e| QuicpulseError::Io(e))?;
+                .map_err(QuicpulseError::Io)?;
         } else {
-            std::fs::write(&path, &final_content).map_err(|e| QuicpulseError::Io(e))?;
+            std::fs::write(&path, &final_content).map_err(QuicpulseError::Io)?;
         }
 
         if self.options.verbose {
@@ -3013,7 +2998,7 @@ impl PipelineRunner {
             self.render_template_for_step(&upload_config.file, step_name, "upload file")?;
 
         // Read file contents
-        let mut data = std::fs::read(&file_path).map_err(|e| QuicpulseError::Io(e))?;
+        let mut data = std::fs::read(&file_path).map_err(QuicpulseError::Io)?;
 
         // Apply compression if configured
         if let Some(ref compress_type) = upload_config.compress {
@@ -3114,7 +3099,7 @@ impl PipelineRunner {
             use std::fs;
 
             // Ensure directory exists
-            fs::create_dir_all(dir).map_err(|e| QuicpulseError::Io(e))?;
+            fs::create_dir_all(dir).map_err(QuicpulseError::Io)?;
 
             // Build filename: {step_name}_{status}_{timestamp}.json
             let status = result
@@ -3164,7 +3149,7 @@ impl PipelineRunner {
             let json = serde_json::to_string_pretty(&response_data)
                 .map_err(|e| QuicpulseError::Parse(format!("JSON serialization error: {}", e)))?;
 
-            fs::write(&path, json).map_err(|e| QuicpulseError::Io(e))?;
+            fs::write(&path, json).map_err(QuicpulseError::Io)?;
 
             if self.options.verbose {
                 eprintln!(

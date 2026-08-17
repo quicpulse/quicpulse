@@ -157,13 +157,12 @@ pub async fn authorization_code_flow(
     let port = redirect_url.port().unwrap_or(8080);
 
     // Start local server to receive callback
-    let listener =
-        TcpListener::bind(format!("127.0.0.1:{}", port)).map_err(|e| QuicpulseError::Io(e))?;
+    let listener = TcpListener::bind(format!("127.0.0.1:{}", port)).map_err(QuicpulseError::Io)?;
 
     // Set a timeout for the listener
     listener
         .set_nonblocking(false)
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     // Print instructions
     eprintln!("\n🔐 OAuth 2.0 Authorization Code Flow");
@@ -180,14 +179,14 @@ pub async fn authorization_code_flow(
     eprintln!("Waiting for callback on {}...", config.redirect_uri);
 
     // Wait for callback (with 5 minute timeout)
-    let (mut stream, _) = listener.accept().map_err(|e| QuicpulseError::Io(e))?;
+    let (mut stream, _) = listener.accept().map_err(QuicpulseError::Io)?;
 
     // Read the HTTP request
     let mut reader = BufReader::new(&stream);
     let mut request_line = String::new();
     reader
         .read_line(&mut request_line)
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     // Parse the request to get the code and state
     let (code, received_state) = parse_callback_request(&request_line)?;
@@ -272,8 +271,8 @@ fn send_html_response(
     );
     stream
         .write_all(response.as_bytes())
-        .map_err(|e| QuicpulseError::Io(e))?;
-    stream.flush().map_err(|e| QuicpulseError::Io(e))
+        .map_err(QuicpulseError::Io)?;
+    stream.flush().map_err(QuicpulseError::Io)
 }
 
 /// Exchange authorization code for tokens
@@ -307,13 +306,10 @@ async fn exchange_code_for_token(
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+        .map_err(QuicpulseError::Request)?;
 
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+    let body = response.text().await.map_err(QuicpulseError::Request)?;
 
     if !status.is_success() {
         if let Ok(error) = serde_json::from_str::<TokenError>(&body) {
@@ -371,13 +367,10 @@ pub async fn device_flow(config: &DeviceFlowConfig) -> Result<CachedToken, Quicp
         .header("Accept", "application/json")
         .send()
         .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+        .map_err(QuicpulseError::Request)?;
 
     let status = response.status();
-    let body = response
-        .text()
-        .await
-        .map_err(|e| QuicpulseError::Request(e))?;
+    let body = response.text().await.map_err(QuicpulseError::Request)?;
 
     if !status.is_success() {
         return Err(QuicpulseError::Auth(format!(
@@ -453,13 +446,10 @@ async fn poll_for_token(
             .header("Accept", "application/json")
             .send()
             .await
-            .map_err(|e| QuicpulseError::Request(e))?;
+            .map_err(QuicpulseError::Request)?;
 
         let status = response.status();
-        let body = response
-            .text()
-            .await
-            .map_err(|e| QuicpulseError::Request(e))?;
+        let body = response.text().await.map_err(QuicpulseError::Request)?;
 
         if status.is_success() {
             // Got the token!

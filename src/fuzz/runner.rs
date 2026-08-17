@@ -154,13 +154,13 @@ impl FuzzRunner {
         }
 
         if let Some(ref ca_path) = options.ca_cert {
-            let cert_data = std::fs::read(ca_path).map_err(|e| QuicpulseError::Io(e))?;
+            let cert_data = std::fs::read(ca_path).map_err(QuicpulseError::Io)?;
             let cert = reqwest::Certificate::from_pem(&cert_data)
                 .map_err(|e| QuicpulseError::Argument(format!("Invalid CA certificate: {}", e)))?;
             builder = builder.add_root_certificate(cert);
         }
 
-        let client = builder.build().map_err(|e| QuicpulseError::Request(e))?;
+        let client = builder.build().map_err(QuicpulseError::Request)?;
 
         Ok(Self { client, options })
     }
@@ -437,7 +437,7 @@ impl FuzzRunner {
             let cat_summary = summary
                 .by_category
                 .entry(result.payload.category)
-                .or_insert_with(CategorySummary::default);
+                .or_default();
             cat_summary.total += 1;
 
             if result.is_anomaly {
@@ -492,9 +492,9 @@ pub fn format_fuzz_results(
         colors::GREY,
     );
 
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&header_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "{}                        FUZZ TEST RESULTS{}\n",
         terminal::bold_fg(colors::WHITE),
@@ -573,7 +573,7 @@ pub fn format_fuzz_results(
 
     // Summary section
     output.push_str(&section_line);
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&format!(
         "{}                           SUMMARY{}\n",
         terminal::bold_fg(colors::WHITE),
@@ -667,9 +667,9 @@ pub fn format_fuzz_results(
         }
     }
 
-    output.push_str("\n");
+    output.push('\n');
     output.push_str(&header_line);
-    output.push_str("\n");
+    output.push('\n');
 
     output
 }

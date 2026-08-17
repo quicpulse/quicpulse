@@ -62,11 +62,11 @@ impl WsClient {
 
             let tls_config = if skip_verify {
                 // Dangerous: skip certificate verification
-                let config = ClientConfig::builder()
+
+                ClientConfig::builder()
                     .dangerous()
                     .with_custom_certificate_verifier(Arc::new(NoVerifier))
-                    .with_no_client_auth();
-                config
+                    .with_no_client_auth()
             } else {
                 // Use system root certificates (matching HTTP client's rustls-native-certs behavior)
                 // This ensures corporate proxies with custom CAs work for WebSocket too

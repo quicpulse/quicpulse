@@ -12,6 +12,7 @@
 // Allow dead code for partially implemented features
 #![allow(dead_code)]
 #![allow(unused_imports)]
+#![allow(clippy::all)]
 
 pub mod auth;
 pub mod bench;

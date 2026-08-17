@@ -1,12 +1,11 @@
 //! Binary data handling tests
 mod common;
 
-use std::path::PathBuf;
 use tempfile::TempDir;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_with_env, MockEnvironment, HTTP_OK};
+use common::{http, http_with_env, MockEnvironment};
 
 // ============================================================================
 // Binary Request Data Tests
@@ -54,7 +53,7 @@ async fn test_binary_file_path() {
     let url = format!("{}/post", server.uri());
     let file_arg = format!("@{}", file_path.display());
 
-    let mut env = MockEnvironment::new();
+    let env = MockEnvironment::new();
     let r = http_with_env(&["--print=B", "POST", &url, &file_arg], &env);
 
     assert!(r.contains("OK") || r.exit_code == 0);

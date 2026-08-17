@@ -10,7 +10,7 @@ use std::path::Path;
 
 /// Maximum workflow file size (1 MB) - prevents OOM from malicious files
 /// YAML/JSON parsers can expand memory 10-20x, so limit input size
-const MAX_WORKFLOW_FILE_SIZE: u64 = 1 * 1024 * 1024;
+const MAX_WORKFLOW_FILE_SIZE: u64 = 1024 * 1024;
 
 /// A workflow containing multiple steps
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -751,7 +751,7 @@ fn default_method() -> String {
 /// - Maximum file size is 10 MB (should be more than enough for any workflow)
 pub fn load_workflow(path: &Path) -> Result<Workflow, QuicpulseError> {
     // Check file size before loading to prevent OOM
-    let metadata = fs::metadata(path).map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = fs::metadata(path).map_err(QuicpulseError::Io)?;
 
     let file_size = metadata.len();
     if file_size > MAX_WORKFLOW_FILE_SIZE {
@@ -763,7 +763,7 @@ pub fn load_workflow(path: &Path) -> Result<Workflow, QuicpulseError> {
     }
 
     // Read file content
-    let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+    let content = fs::read_to_string(path).map_err(QuicpulseError::Io)?;
 
     let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 

@@ -1,7 +1,6 @@
 //! Session management tests
 mod common;
 
-use std::fs;
 use tempfile::TempDir;
 use wiremock::matchers::{header, method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

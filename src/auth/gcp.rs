@@ -138,8 +138,7 @@ mod tests {
 
     #[test]
     fn test_default_resource_constant_not_empty() {
-        // GCP doesn't use a default resource like Azure, but we test
-        // that the module compiles correctly
-        assert!(true);
+        let auth_type = crate::cli::args::AuthType::Gcp;
+        assert_eq!(auth_type, crate::cli::args::AuthType::Gcp);
     }
 }

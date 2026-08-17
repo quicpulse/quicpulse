@@ -71,7 +71,7 @@ impl CompiledScript {
 
     /// Load and compile a script from a file
     pub fn from_file(path: &Path, mode: ScriptMode) -> Result<Self, QuicpulseError> {
-        let source = std::fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+        let source = std::fs::read_to_string(path).map_err(QuicpulseError::Io)?;
         Self::new(&source, mode)
     }
 

@@ -49,7 +49,7 @@ impl MockServer {
 
         let listener = tokio::net::TcpListener::bind(&addr)
             .await
-            .map_err(|e| QuicpulseError::Io(e))?;
+            .map_err(QuicpulseError::Io)?;
 
         eprintln!("Mock server listening on http://{}", addr);
 
@@ -447,9 +447,8 @@ pub async fn run_mock_server(
 
         let response = if parts.len() > 2 {
             let body = parts[2];
-            if body.starts_with('@') {
+            if let Some(file_path) = body.strip_prefix('@') {
                 // Load from file
-                let file_path = &body[1..];
                 ResponseConfig {
                     body_file: Some(file_path.to_string()),
                     ..Default::default()

@@ -78,7 +78,7 @@ pub fn generate_junit_report(
     report.add_testsuite(suite);
 
     // Write to file
-    let file = File::create(&config.output_path).map_err(|e| QuicpulseError::Io(e))?;
+    let file = File::create(&config.output_path).map_err(QuicpulseError::Io)?;
 
     report
         .write_xml(file)
@@ -223,10 +223,10 @@ pub fn generate_json_report(
     let json_str = serde_json::to_string_pretty(&report)
         .map_err(|e| QuicpulseError::Script(format!("Failed to serialize JSON: {}", e)))?;
 
-    let mut file = File::create(&config.output_path).map_err(|e| QuicpulseError::Io(e))?;
+    let mut file = File::create(&config.output_path).map_err(QuicpulseError::Io)?;
 
     file.write_all(json_str.as_bytes())
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     Ok(())
 }
@@ -282,10 +282,10 @@ pub fn generate_tap_report(
         }
     }
 
-    let mut file = File::create(&config.output_path).map_err(|e| QuicpulseError::Io(e))?;
+    let mut file = File::create(&config.output_path).map_err(QuicpulseError::Io)?;
 
     file.write_all(output.as_bytes())
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     Ok(())
 }

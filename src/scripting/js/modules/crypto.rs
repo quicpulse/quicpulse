@@ -134,7 +134,7 @@ fn hmac_sha256_base64(key: String, message: String) -> String {
 }
 
 fn random_hex(length: i32) -> String {
-    let byte_len = (length as usize + 1) / 2;
+    let byte_len = (length as usize).div_ceil(2);
     let bytes: Vec<u8> = (0..byte_len).map(|_| rand::random::<u8>()).collect();
     let hex = hex::encode(&bytes);
     hex[..length as usize].to_string()

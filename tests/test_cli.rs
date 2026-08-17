@@ -1,11 +1,11 @@
 //! CLI argument parsing tests
 mod common;
 
-use wiremock::matchers::{method, path, query_param};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
 /// Test utilities
-use common::{http, http_error, http_with_env, MockEnvironment, CRLF, HTTP_OK};
+use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK};
 
 // ============================================================================
 // Query String Tests

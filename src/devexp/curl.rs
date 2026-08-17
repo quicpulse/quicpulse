@@ -43,7 +43,7 @@ pub fn generate_curl_command(args: &Args, processed: &ProcessedArgs) -> String {
     parts.push(shell_escape("Accept: application/json, */*;q=0.5"));
 
     parts.push("-H".to_string());
-    parts.push(shell_escape(&format!("User-Agent: QuicPulse/0.1.0")));
+    parts.push(shell_escape("User-Agent: QuicPulse/0.1.0"));
 
     // Add body based on request type
     if let Some(body) = build_body(args, processed) {

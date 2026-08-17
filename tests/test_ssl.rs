@@ -1,10 +1,7 @@
 //! SSL/TLS tests
 mod common;
 
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
-use common::{http, http_error, HTTP_OK};
+use common::{http, http_error};
 
 // ============================================================================
 // SSL Version Tests
@@ -46,16 +43,12 @@ fn test_cert_option() {
 #[test]
 fn test_cert_and_key_options() {
     // Both --cert and --cert-key can be specified (in offline mode, may not validate)
-    let r = http(&[
+    let _r = http(&[
         "--cert=/nonexistent/cert.crt",
         "--cert-key=/nonexistent/key.key",
         "--offline",
         "https://example.org",
     ]);
-
-    // In offline mode, files may not be validated
-    // Just verify the options are accepted
-    assert!(true); // Test passes if command runs
 }
 
 // ============================================================================
@@ -165,15 +158,11 @@ fn test_https_non_default_port() {
 
 #[test]
 fn test_cert_key_pass_option() {
-    let r = http(&[
+    let _r = http(&[
         "--cert=/nonexistent/cert.pem",
         "--cert-key=/nonexistent/key.pem",
         "--cert-key-pass=mypassword",
         "--offline",
         "https://example.org",
     ]);
-
-    // In offline mode, files may not be validated
-    // Just verify the options are accepted - test passes if command runs
-    assert!(true);
 }

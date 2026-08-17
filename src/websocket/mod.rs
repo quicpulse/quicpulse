@@ -182,14 +182,14 @@ pub async fn run_websocket(
         Some(
             mode_str
                 .parse::<BinaryMode>()
-                .map_err(|e| QuicpulseError::Argument(e))?,
+                .map_err(QuicpulseError::Argument)?,
         )
     } else {
         None
     };
 
     let options = WsOptions {
-        timeout: args.timeout.map(|t| std::time::Duration::from_secs_f64(t)),
+        timeout: args.timeout.map(std::time::Duration::from_secs_f64),
         compress: args.ws_compress,
         binary_mode,
         ping_interval: args.ws_ping_interval.map(std::time::Duration::from_secs),

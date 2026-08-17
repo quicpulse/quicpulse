@@ -6,21 +6,12 @@ use std::io::{self, Write};
 use std::process::{Child, Command, Stdio};
 
 /// Pager configuration
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PagerConfig {
     /// Whether paging is enabled
     pub enabled: bool,
     /// Custom pager command (overrides $PAGER)
     pub command: Option<String>,
-}
-
-impl Default for PagerConfig {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            command: None,
-        }
-    }
 }
 
 /// Get the pager command from environment or use default

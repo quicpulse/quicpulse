@@ -1,10 +1,10 @@
 //! Compression tests
 mod common;
 
-use wiremock::matchers::{header, method, path};
+use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_error, http_with_env, MockEnvironment, HTTP_OK};
+use common::{http, http_with_env, MockEnvironment, HTTP_OK};
 
 // ============================================================================
 // Compression Flag Conflict Tests

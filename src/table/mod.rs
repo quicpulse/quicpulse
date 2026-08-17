@@ -44,7 +44,7 @@ pub fn format_as_table(json: &JsonValue) -> Result<String, QuicpulseError> {
                 .map(|col| {
                     let value = obj
                         .get(col)
-                        .map(|v| format_cell_value(v))
+                        .map(format_cell_value)
                         .unwrap_or_else(|| "".to_string());
                     Cell::new(value)
                 })
@@ -88,11 +88,7 @@ pub fn format_as_csv(json: &JsonValue) -> Result<String, QuicpulseError> {
             if let Some(obj) = item.as_object() {
                 let row: Vec<String> = columns
                     .iter()
-                    .map(|col| {
-                        obj.get(col)
-                            .map(|v| format_csv_value(v))
-                            .unwrap_or_default()
-                    })
+                    .map(|col| obj.get(col).map(format_csv_value).unwrap_or_default())
                     .collect();
                 writer
                     .write_record(&row)
@@ -137,11 +133,7 @@ pub fn write_csv<W: Write>(json: &JsonValue, writer: W) -> Result<(), QuicpulseE
         if let Some(obj) = item.as_object() {
             let row: Vec<String> = columns
                 .iter()
-                .map(|col| {
-                    obj.get(col)
-                        .map(|v| format_csv_value(v))
-                        .unwrap_or_default()
-                })
+                .map(|col| obj.get(col).map(format_csv_value).unwrap_or_default())
                 .collect();
             csv_writer
                 .write_record(&row)
@@ -186,7 +178,7 @@ fn format_cell_value(value: &JsonValue) -> String {
                 format!(
                     "[{}]",
                     arr.iter()
-                        .map(|v| format_cell_value(v))
+                        .map(format_cell_value)
                         .collect::<Vec<_>>()
                         .join(", ")
                 )

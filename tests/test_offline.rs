@@ -1,7 +1,7 @@
 //! Offline mode tests
 mod common;
 
-use common::{http, HTTP_OK};
+use common::http;
 
 // ============================================================================
 // Basic Offline Mode Tests

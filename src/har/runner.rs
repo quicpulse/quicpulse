@@ -97,7 +97,7 @@ impl HarRunner {
             builder = builder.redirect(reqwest::redirect::Policy::none());
         }
 
-        let client = builder.build().map_err(|e| QuicpulseError::Request(e))?;
+        let client = builder.build().map_err(QuicpulseError::Request)?;
 
         Ok(Self { client, options })
     }
@@ -425,12 +425,12 @@ pub fn select_requests_interactive(har: &Har) -> Result<Vec<usize>, QuicpulseErr
     println!("\n{}", format_har_list(har));
     println!("\nEnter request numbers to replay (comma-separated, or 'all' for all, 'q' to quit):");
     print!("> ");
-    io::stdout().flush().map_err(|e| QuicpulseError::Io(e))?;
+    io::stdout().flush().map_err(QuicpulseError::Io)?;
 
     let mut input = String::new();
     io::stdin()
         .read_line(&mut input)
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
     let input = input.trim().to_lowercase();
 

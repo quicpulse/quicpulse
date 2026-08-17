@@ -29,7 +29,7 @@ pub fn load_har(path: &Path) -> Result<Har, QuicpulseError> {
     }
 
     // Check file size
-    let metadata = fs::metadata(path).map_err(|e| QuicpulseError::Io(e))?;
+    let metadata = fs::metadata(path).map_err(QuicpulseError::Io)?;
 
     if metadata.len() > MAX_HAR_FILE_SIZE {
         return Err(QuicpulseError::Parse(format!(

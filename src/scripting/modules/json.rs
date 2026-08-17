@@ -204,7 +204,7 @@ fn parse_json_path(path: &str) -> Vec<String> {
                 } else {
                     // Numeric index [0]
                     let mut idx = String::new();
-                    while let Some(ch) = chars.next() {
+                    for ch in chars.by_ref() {
                         if ch == ']' {
                             break;
                         }

@@ -208,7 +208,7 @@ fn is_key_encrypted(data: &[u8]) -> bool {
 fn prompt_password(prompt: &str) -> Result<String, QuicpulseError> {
     // Print prompt to stderr (so it doesn't interfere with stdout output)
     eprint!("{}", prompt);
-    io::stderr().flush().map_err(|e| QuicpulseError::Io(e))?;
+    io::stderr().flush().map_err(QuicpulseError::Io)?;
 
     // Read password without echoing
     rpassword::read_password()

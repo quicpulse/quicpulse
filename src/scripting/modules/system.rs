@@ -44,7 +44,7 @@ fn sleep_ms(ms: i64) {
         // Max 5 minutes
         // Use block_in_place to avoid blocking tokio worker threads
         // This moves the blocking operation to a dedicated blocking thread
-        let _ = tokio::task::block_in_place(|| {
+        tokio::task::block_in_place(|| {
             std::thread::sleep(Duration::from_millis(ms as u64));
         });
     }
@@ -56,7 +56,7 @@ fn sleep_secs(secs: i64) {
     if secs > 0 && secs <= 300 {
         // Max 5 minutes
         // Use block_in_place to avoid blocking tokio worker threads
-        let _ = tokio::task::block_in_place(|| {
+        tokio::task::block_in_place(|| {
             std::thread::sleep(Duration::from_secs(secs as u64));
         });
     }

@@ -391,7 +391,7 @@ mod tests {
     fn test_number_range() {
         for _ in 0..100 {
             let n = random_number_range(1, 10);
-            assert!(n >= 1 && n <= 10);
+            assert!((1..=10).contains(&n));
         }
     }
 }

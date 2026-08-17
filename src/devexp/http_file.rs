@@ -42,7 +42,7 @@ pub struct HttpRequest {
 
 /// Parse a .http/.rest file into a list of requests
 pub fn parse_http_file(path: &Path) -> Result<Vec<HttpRequest>, QuicpulseError> {
-    let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+    let content = fs::read_to_string(path).map_err(QuicpulseError::Io)?;
 
     parse_http_content(&content)
 }

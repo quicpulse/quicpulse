@@ -988,6 +988,7 @@ pub enum Shell {
     Bash,
     Zsh,
     Fish,
+    #[value(name = "powershell", alias = "power-shell")]
     PowerShell,
     Elvish,
 }
@@ -1006,9 +1007,10 @@ pub enum LogFormat {
 pub use crate::output::PrettyOption;
 
 /// Authentication type
-#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum, Default)]
 pub enum AuthType {
     /// HTTP Basic authentication
+    #[default]
     Basic,
     /// HTTP Digest authentication
     Digest,
@@ -1038,12 +1040,6 @@ pub enum AuthType {
     Negotiate,
     /// Kerberos authentication
     Kerberos,
-}
-
-impl Default for AuthType {
-    fn default() -> Self {
-        AuthType::Basic
-    }
 }
 
 impl Default for Args {

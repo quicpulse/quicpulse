@@ -168,14 +168,10 @@ pub async fn run_stdin_mode(
 
     tokio::task::spawn_blocking(move || {
         let stdin = std::io::stdin();
-        for line in stdin.lock().lines() {
-            if let Ok(line) = line {
-                let line = line.trim();
-                if !line.is_empty() {
-                    if tx.blocking_send(line.to_string()).is_err() {
-                        break;
-                    }
-                }
+        for line in stdin.lock().lines().map_while(Result::ok) {
+            let line = line.trim();
+            if !line.is_empty() && tx.blocking_send(line.to_string()).is_err() {
+                break;
             }
         }
     });

@@ -62,9 +62,9 @@ fn tokenize_curl(cmd: &str) -> Result<Vec<String>, QuicpulseError> {
     let mut in_single_quote = false;
     let mut in_double_quote = false;
     let mut escape_next = false;
-    let mut chars = cmd.chars().peekable();
+    let chars = cmd.chars().peekable();
 
-    while let Some(c) = chars.next() {
+    for c in chars {
         if escape_next {
             current.push(c);
             escape_next = false;
@@ -118,7 +118,7 @@ fn parse_tokens(tokens: &[String]) -> Result<ParsedCurl, QuicpulseError> {
     while i < tokens.len() {
         let token = &tokens[i];
 
-        if token.starts_with('-') {
+        if let Some(rest) = token.strip_prefix('-') {
             // Handle combined short flags like -sSL
             if token.starts_with('-') && !token.starts_with("--") && token.len() > 2 {
                 // Check if it's a combined flag (all characters are valid short flags without args)
@@ -126,7 +126,6 @@ fn parse_tokens(tokens: &[String]) -> Result<ParsedCurl, QuicpulseError> {
                     's', 'S', 'L', 'v', 'k', 'I', 'i', 'O', 'J', 'f', 'g', 'G', 'N', '0', '1', '2',
                     '3', '4', '6',
                 ];
-                let rest = &token[1..];
                 let all_flags = rest.chars().all(|c| flags_without_args.contains(&c));
 
                 if all_flags {
@@ -453,9 +452,8 @@ pub fn curl_to_args(parsed: ParsedCurl) -> Result<Args, QuicpulseError> {
         // Check if it's JSON
         if data.trim().starts_with('{') || data.trim().starts_with('[') {
             args.raw = Some(data);
-        } else if data.starts_with('@') {
+        } else if let Some(file_path) = data.strip_prefix('@') {
             // File reference
-            let file_path = &data[1..];
             if let Ok(content) = std::fs::read_to_string(file_path) {
                 args.raw = Some(content);
             } else {

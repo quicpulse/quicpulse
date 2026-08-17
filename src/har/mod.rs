@@ -63,7 +63,7 @@ pub async fn run_har_replay(
 
     let options = HarReplayOptions {
         delay,
-        timeout: args.timeout.map(|s| std::time::Duration::from_secs_f64(s)),
+        timeout: args.timeout.map(std::time::Duration::from_secs_f64),
         follow_redirects: args.follow,
         verbose: args.verbose > 0,
         dry_run: args.dry_run,

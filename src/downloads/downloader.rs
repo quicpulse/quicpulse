@@ -257,14 +257,11 @@ impl Downloader {
 
         // Open file (append if resuming, create otherwise)
         let file = if self.resumed_from > 0 {
-            OpenOptions::new()
-                .write(true)
-                .append(true)
-                .open(&output_path)
+            OpenOptions::new().append(true).open(&output_path)
         } else {
             File::create(&output_path)
         }
-        .map_err(|e| QuicpulseError::Io(e))?;
+        .map_err(QuicpulseError::Io)?;
 
         let mut writer = BufWriter::new(file);
         let mut total_bytes = 0u64;
@@ -282,7 +279,7 @@ impl Downloader {
                 // Check for cancellation periodically
                 _ = tokio::time::sleep(cancel_check_interval), if crate::utils::was_interrupted() => {
                     // User pressed Ctrl+C while waiting for chunk
-                    writer.flush().map_err(|e| QuicpulseError::Io(e))?;
+                    writer.flush().map_err(QuicpulseError::Io)?;
                     return Err(QuicpulseError::Download("Download interrupted by user".to_string()));
                 }
 
@@ -299,22 +296,20 @@ impl Downloader {
 
             // Double-check cancellation after receiving chunk
             if crate::utils::was_interrupted() {
-                writer.flush().map_err(|e| QuicpulseError::Io(e))?;
+                writer.flush().map_err(QuicpulseError::Io)?;
                 return Err(QuicpulseError::Download(
                     "Download interrupted by user".to_string(),
                 ));
             }
 
-            writer
-                .write_all(&chunk)
-                .map_err(|e| QuicpulseError::Io(e))?;
+            writer.write_all(&chunk).map_err(QuicpulseError::Io)?;
 
             let chunk_len = chunk.len() as u64;
             total_bytes += chunk_len;
             self.update_progress(chunk_len);
         }
 
-        writer.flush().map_err(|e| QuicpulseError::Io(e))?;
+        writer.flush().map_err(QuicpulseError::Io)?;
         self.finish();
 
         Ok(total_bytes)
@@ -351,8 +346,8 @@ fn extract_filename_from_content_disposition(headers: &HeaderMap) -> Option<Stri
 fn extract_filename_from_url(url: &str, headers: &HeaderMap) -> String {
     // Try to get filename from URL path
     if let Ok(parsed) = url::Url::parse(url) {
-        if let Some(segments) = parsed.path_segments() {
-            if let Some(last) = segments.last() {
+        if let Some(mut segments) = parsed.path_segments() {
+            if let Some(last) = segments.next_back() {
                 // URL-decode the segment first (handles %2F etc.)
                 let decoded = percent_decode_str(last).decode_utf8_lossy().to_string();
 

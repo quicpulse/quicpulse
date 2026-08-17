@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{fixtures, http, http_error, ExitStatus, MockEnvironment};
+use common::{fixtures, http, http_error, ExitStatus};
 use std::path::PathBuf;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

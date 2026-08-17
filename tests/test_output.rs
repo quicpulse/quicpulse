@@ -4,9 +4,7 @@ mod common;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{
-    http, http_error, http_with_env, strip_colors, MockEnvironment, COLOR, CRLF, HTTP_OK,
-};
+use common::{http, http_error, http_with_env, MockEnvironment, COLOR, HTTP_OK};
 
 // ============================================================================
 // Output File Tests

@@ -6,6 +6,8 @@
 //! - Response parsing and assertion helpers
 //! - Test fixture management
 
+#![allow(dead_code, unused_imports)]
+
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::PathBuf;

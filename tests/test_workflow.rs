@@ -17,10 +17,10 @@ mod common;
 
 use serde_json::json;
 use std::path::PathBuf;
-use wiremock::matchers::{body_json, header, method, path, query_param};
+use wiremock::matchers::{header, method, path, query_param};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
-use common::{http, http_with_env, MockEnvironment};
+use common::http;
 
 /// Get path to workflow fixtures
 fn workflow_fixture(name: &str) -> PathBuf {
@@ -412,7 +412,7 @@ async fn test_workflow_junit_report() {
     let report_path = dir.path().join("report.xml");
 
     let workflow = workflow_fixture("basic.yaml");
-    let r = http(&[
+    let _r = http(&[
         "--run",
         workflow.to_str().unwrap(),
         "--var",
@@ -452,7 +452,7 @@ async fn test_workflow_json_report() {
     let report_path = dir.path().join("report.json");
 
     let workflow = workflow_fixture("basic.yaml");
-    let r = http(&[
+    let _r = http(&[
         "--run",
         workflow.to_str().unwrap(),
         "--var",
@@ -492,7 +492,7 @@ async fn test_workflow_tap_report() {
     let report_path = dir.path().join("report.tap");
 
     let workflow = workflow_fixture("basic.yaml");
-    let r = http(&[
+    let _r = http(&[
         "--run",
         workflow.to_str().unwrap(),
         "--var",

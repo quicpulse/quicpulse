@@ -16,8 +16,8 @@ use crate::errors::QuicpulseError;
 /// In async contexts, prefer `compress_deflate_async`.
 pub fn compress_deflate(data: &[u8]) -> Result<Vec<u8>, QuicpulseError> {
     let mut encoder = DeflateEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(data).map_err(|e| QuicpulseError::Io(e))?;
-    encoder.finish().map_err(|e| QuicpulseError::Io(e))
+    encoder.write_all(data).map_err(QuicpulseError::Io)?;
+    encoder.finish().map_err(QuicpulseError::Io)
 }
 
 /// Bug #5 fix: Async version of compress_deflate that uses spawn_blocking

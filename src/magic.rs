@@ -517,7 +517,7 @@ mod tests {
         let result = expand_magic_values("{random_int:1:10}");
         assert!(result.had_magic);
         let num: i64 = result.value.parse().unwrap();
-        assert!(num >= 1 && num <= 10);
+        assert!((1..=10).contains(&num));
     }
 
     #[test]

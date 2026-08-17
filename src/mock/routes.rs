@@ -7,6 +7,7 @@ use std::collections::HashMap;
 /// HTTP method for route matching
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "UPPERCASE")]
+#[derive(Default)]
 pub enum HttpMethod {
     Get,
     Post,
@@ -16,6 +17,7 @@ pub enum HttpMethod {
     Head,
     Options,
     #[serde(rename = "*")]
+    #[default]
     Any,
 }
 
@@ -31,12 +33,6 @@ impl HttpMethod {
             HttpMethod::Head => method.eq_ignore_ascii_case("HEAD"),
             HttpMethod::Options => method.eq_ignore_ascii_case("OPTIONS"),
         }
-    }
-}
-
-impl Default for HttpMethod {
-    fn default() -> Self {
-        HttpMethod::Any
     }
 }
 

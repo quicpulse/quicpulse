@@ -148,7 +148,7 @@ impl ProtoSchema {
     /// Parse a proto file from a path
     /// Tries prost-reflect/protox first for proper compilation, falls back to regex parsing
     pub fn from_file(path: &Path) -> Result<Self, QuicpulseError> {
-        let content = fs::read_to_string(path).map_err(|e| QuicpulseError::Io(e))?;
+        let content = fs::read_to_string(path).map_err(QuicpulseError::Io)?;
 
         // Try to compile with protox first (proper protobuf parsing)
         let grpc_schema = GrpcSchema::from_proto_file(path).ok();

@@ -473,7 +473,7 @@ fn extract_id_fields(
     }
 
     // Extract id field
-    for (name, _prop_schema) in &schema.properties {
+    for name in schema.properties.keys() {
         if name == "id" || name.ends_with("Id") || name.ends_with("_id") {
             let path = if prefix.is_empty() {
                 name.clone()
@@ -526,8 +526,7 @@ fn generate_assertions(endpoint: &Endpoint, options: &GeneratorOptions) -> StepA
         .keys()
         .filter(|s| s.starts_with('2'))
         .min()
-        .map(|s| s.parse::<u16>().ok())
-        .flatten();
+        .and_then(|s| s.parse::<u16>().ok());
 
     if let Some(status) = success_status {
         assertions.status = Some(StatusAssertion::Exact(status));
@@ -592,11 +591,9 @@ fn generate_global_headers(
                             );
                         }
                     }
-                    "apiKey" => {
-                        if scheme.location.as_deref() == Some("header") {
-                            if let Some(name) = &scheme.name {
-                                headers.insert(name.clone(), "{{auth_token}}".to_string());
-                            }
+                    "apiKey" if scheme.location.as_deref() == Some("header") => {
+                        if let Some(name) = &scheme.name {
+                            headers.insert(name.clone(), "{{auth_token}}".to_string());
                         }
                     }
                     _ => {}

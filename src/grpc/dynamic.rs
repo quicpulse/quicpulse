@@ -48,7 +48,7 @@ impl GrpcSchema {
 
         let temp_dir = std::env::temp_dir();
         let temp_path = temp_dir.join(&unique_filename);
-        std::fs::write(&temp_path, content).map_err(|e| QuicpulseError::Io(e))?;
+        std::fs::write(&temp_path, content).map_err(QuicpulseError::Io)?;
 
         let result = Self::from_proto_file(&temp_path);
         let _ = std::fs::remove_file(&temp_path);

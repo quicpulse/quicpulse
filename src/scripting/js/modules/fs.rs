@@ -86,13 +86,9 @@ fn is_safe_path(path: &Path) -> bool {
 fn resolve_path(path_str: &str) -> Option<PathBuf> {
     let path = Path::new(path_str);
 
-    // Expand ~ to home directory
-    let expanded = if path_str.starts_with("~/") {
-        if let Some(home) = dirs::home_dir() {
-            home.join(&path_str[2..])
-        } else {
-            return None;
-        }
+    let expanded = if let Some(stripped) = path_str.strip_prefix("~/") {
+        let home = dirs::home_dir()?;
+        home.join(stripped)
     } else {
         path.to_path_buf()
     };
