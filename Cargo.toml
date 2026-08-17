@@ -187,18 +187,7 @@ jsonschema = "0.49"
 # File system
 tempfile = "3"
 
-self_update = {
-    version = "0.44",
-    default-features = false,
-    features = [
-        "reqwest",
-        "rustls",
-        "archive-tar",
-        "archive-zip",
-        "compression-flate2",
-        "compression-zip-deflate",
-    ],
-}
+self_update = { version = "0.44", default-features = false, features = ["reqwest", "rustls", "archive-tar", "archive-zip", "compression-flate2", "compression-zip-deflate"] }
 
 # Binary detection
 content_inspector = "0.2"

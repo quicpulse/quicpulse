@@ -57,16 +57,6 @@ jobs:
           - runner: ubuntu-latest
             target: aarch64-unknown-linux-musl
             musl: true
-          # Android targets
-          - runner: ubuntu-latest
-            target: aarch64-linux-android
-            musl: false
-          - runner: ubuntu-latest
-            target: armv7-linux-androideabi
-            musl: false
-          - runner: ubuntu-latest
-            target: x86_64-linux-android
-            musl: false
           # Windows targets
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
@@ -85,11 +75,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install Rust toolchain (stable)
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
+      - name: Install Rust target
+        run: |
+          rustup default stable
+          rustup target add ${{ matrix.target }}
       - name: Install musl toolchain (Linux x86_64 musl)
         if: runner.os == 'Linux' && matrix.target == 'x86_64-unknown-linux-musl'
         run: |
@@ -101,34 +90,6 @@ jobs:
           sudo apt-get install -y musl-tools
           curl -LO https://github.com/cross-tools/musl-cross/releases/download/20250929/aarch64-unknown-linux-musl.tar.xz
           tar -xf aarch64-unknown-linux-musl.tar.xz
-      - name: Install Android NDK
-        if: contains(matrix.target, 'android')
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r26d
-          add-to-path: false
-      - name: Configure Android toolchain
-        if: contains(matrix.target, 'android')
-        run: |
-          NDK_BIN="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          echo "NDK_BIN=$NDK_BIN" >> $GITHUB_ENV
-
-          # Set environment variables for C compiler and archiver (needed by ring crate)
-          echo "CC_aarch64_linux_android=$NDK_BIN/aarch64-linux-android34-clang" >> $GITHUB_ENV
-          echo "AR_aarch64_linux_android=$NDK_BIN/llvm-ar" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_BIN/aarch64-linux-android34-clang" >> $GITHUB_ENV
-
-          echo "CC_armv7_linux_androideabi=$NDK_BIN/armv7a-linux-androideabi34-clang" >> $GITHUB_ENV
-          echo "AR_armv7_linux_androideabi=$NDK_BIN/llvm-ar" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=$NDK_BIN/armv7a-linux-androideabi34-clang" >> $GITHUB_ENV
-
-          echo "CC_x86_64_linux_android=$NDK_BIN/x86_64-linux-android34-clang" >> $GITHUB_ENV
-          echo "AR_x86_64_linux_android=$NDK_BIN/llvm-ar" >> $GITHUB_ENV
-          echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$NDK_BIN/x86_64-linux-android34-clang" >> $GITHUB_ENV
-
-          # Add NDK bin to PATH
-          echo "$NDK_BIN" >> $GITHUB_PATH
       - name: Cache Cargo dependencies
         uses: actions/cache@v4
         with:
@@ -162,19 +123,14 @@ jobs:
           mkdir -p ~/.cargo
           echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
           echo 'linker = "'$PWD'/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc"' >> ~/.cargo/config.toml
-      - name: Build project (Android - no JavaScript)
-        if: contains(matrix.target, 'android')
-        run: cargo build --target ${{ matrix.target }} --no-default-features
-      - name: Build project (Other platforms)
-        if: "!contains(matrix.target, 'android')"
+      - name: Build project
         run: cargo build --target ${{ matrix.target }}
       - name: Run tests
         if: |
           matrix.target != 'aarch64-unknown-linux-gnu' &&
           matrix.target != 'aarch64-unknown-linux-musl' &&
           matrix.target != 'aarch64-pc-windows-msvc' &&
-          matrix.target != 'x86_64-pc-windows-msvc' &&
-          !contains(matrix.target, 'android')
+          matrix.target != 'x86_64-pc-windows-msvc'
         run: cargo test --all --target ${{ matrix.target }}
 
 
@@ -215,22 +171,6 @@ jobs:
             os-arch: linux-arm64-musl
             asset_ext: .tar.gz
             musl: true
-          # Android targets
-          - runner: ubuntu-latest
-            target: aarch64-linux-android
-            os-arch: android-arm64
-            asset_ext: .tar.gz
-            musl: false
-          - runner: ubuntu-latest
-            target: armv7-linux-androideabi
-            os-arch: android-armv7
-            asset_ext: .tar.gz
-            musl: false
-          - runner: ubuntu-latest
-            target: x86_64-linux-android
-            os-arch: android-x86_64
-            asset_ext: .tar.gz
-            musl: false
           # Windows targets
           - runner: windows-latest
             target: x86_64-pc-windows-msvc
@@ -256,11 +196,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          targets: ${{ matrix.target }}
+      - name: Install Rust target
+        run: |
+          rustup default stable
+          rustup target add ${{ matrix.target }}
       - name: Install musl toolchain (Linux x86_64 musl)
         if: runner.os == 'Linux' && matrix.target == 'x86_64-unknown-linux-musl'
         run: |
@@ -272,34 +211,6 @@ jobs:
           sudo apt-get install -y musl-tools
           curl -LO https://github.com/cross-tools/musl-cross/releases/download/20250929/aarch64-unknown-linux-musl.tar.xz
           tar -xf aarch64-unknown-linux-musl.tar.xz
-      - name: Install Android NDK
-        if: contains(matrix.target, 'android')
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r26d
-          add-to-path: false
-      - name: Configure Android toolchain
-        if: contains(matrix.target, 'android')
-        run: |
-          NDK_BIN="${{ steps.setup-ndk.outputs.ndk-path }}/toolchains/llvm/prebuilt/linux-x86_64/bin"
-          echo "NDK_BIN=$NDK_BIN" >> $GITHUB_ENV
-
-          # Set environment variables for C compiler and archiver (needed by ring crate)
-          echo "CC_aarch64_linux_android=$NDK_BIN/aarch64-linux-android34-clang" >> $GITHUB_ENV
-          echo "AR_aarch64_linux_android=$NDK_BIN/llvm-ar" >> $GITHUB_ENV
-          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$NDK_BIN/aarch64-linux-android34-clang" >> $GITHUB_ENV
-
-          echo "CC_armv7_linux_androideabi=$NDK_BIN/armv7a-linux-androideabi34-clang" >> $GITHUB_ENV
-          echo "AR_armv7_linux_androideabi=$NDK_BIN/llvm-ar" >> $GITHUB_ENV
-          echo "CARGO_TARGET_ARMV7_LINUX_ANDROIDEABI_LINKER=$NDK_BIN/armv7a-linux-androideabi34-clang" >> $GITHUB_ENV
-
-          echo "CC_x86_64_linux_android=$NDK_BIN/x86_64-linux-android34-clang" >> $GITHUB_ENV
-          echo "AR_x86_64_linux_android=$NDK_BIN/llvm-ar" >> $GITHUB_ENV
-          echo "CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER=$NDK_BIN/x86_64-linux-android34-clang" >> $GITHUB_ENV
-
-          # Add NDK bin to PATH
-          echo "$NDK_BIN" >> $GITHUB_PATH
       - name: Install NSIS (Windows)
         if: false # runner.os == 'Windows' - Disabled by user request
         run: choco install nsis
@@ -326,11 +237,7 @@ jobs:
           mkdir -p ~/.cargo
           echo '[target.aarch64-unknown-linux-musl]' >> ~/.cargo/config.toml
           echo 'linker = "'$PWD'/aarch64-unknown-linux-musl/bin/aarch64-unknown-linux-musl-gcc"' >> ~/.cargo/config.toml
-      - name: Build binary (Android - no JavaScript)
-        if: contains(matrix.target, 'android')
-        run: cargo build --release --target ${{ matrix.target }} --no-default-features
-      - name: Build binary (Other platforms)
-        if: "!contains(matrix.target, 'android')"
+      - name: Build binary
         run: cargo build --release --target ${{ matrix.target }}
       - name: Package artifacts
         shell: bash
